@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { initPiPayment } from "@/lib/piPayment";
+import { initPiPayment } from "../../lib/piPayment";
 
 interface Task {
   title: string;

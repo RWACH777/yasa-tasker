@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/context/UserContext";
-import { mockPiAuthenticate } from "@/lib/piAuth.ts";
+import { mockPiAuthenticate } from "../../lib/piAuth";
 
 export default function LoginPage() {
   const router = useRouter();

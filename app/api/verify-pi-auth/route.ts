@@ -1,6 +1,7 @@
 // app/api/verify-pi-auth/route.ts
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
+import { mockPiAuthenticate } from "../../../lib/piAuth";
 
 const APP_ACCESS_TOKEN = process.env.PI_APP_ACCESS_TOKEN || "YOUR_APP_ACCESS_TOKEN";
 
