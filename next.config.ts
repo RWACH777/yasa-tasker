@@ -1,13 +1,25 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  reactStrictMode: true,
+
+  // ✅ Ensure Vercel can serve a standalone build
+  output: "standalone",
+
   eslint: {
-    // ✅ Skip ESLint during build (so any errors won't block)
+    // Skip ESLint errors during build
     ignoreDuringBuilds: true,
   },
+
   typescript: {
-    // ✅ Skip TypeScript type errors during build
+    // Skip TS errors during build
     ignoreBuildErrors: true,
+  },
+
+  experimental: {
+    // Enable latest Next.js optimizations
+    typedRoutes: true,
+    optimizePackageImports: ["lucide-react", "@/components/ui"],
   },
 };
 
