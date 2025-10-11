@@ -5,6 +5,15 @@ import Image from "next/image";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/context/UserContext"; // keep using your existing context
+// inside the Home() component, right under const router = useRouter();
+useEffect(() => {
+  // Dynamically inject Pi SDK script
+  const script = document.createElement("script");
+  script.src = "https://sdk.minepi.com/pi-sdk.js";
+  script.async = true;
+  script.onload = () => console.log("✅ Pi SDK loaded");
+  document.body.appendChild(script);
+}, []);
 
 export default function Home() {
   const router = useRouter();
