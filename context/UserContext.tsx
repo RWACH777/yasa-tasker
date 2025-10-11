@@ -1,17 +1,17 @@
 "use client";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-import React, { createContext, useState, useEffect, useContext } from "react";
-
-interface User {
+type User = {
   username: string;
-  accessToken: string;
-}
+  uid: string;
+  accessToken?: string;
+} | null;
 
-interface UserContextType {
-  user: User | null;
-  setUser: React.Dispatch<React.SetStateAction<User | null>>;
+type UserContextType = {
+  user: User;
+  setUser: (u: User) => void;
   logout: () => void;
-}
+};
 
 const UserContext = createContext<UserContextType>({
   user: null,
@@ -19,29 +19,13 @@ const UserContext = createContext<UserContextType>({
   logout: () => {},
 });
 
-export const UserProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+export function UserProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User>(null);
 
-  // ✅ Load user from localStorage on first load
   useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem("piUser");
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
-      }
-    } catch (error) {
-      console.error("Failed to load user from localStorage:", error);
-    }
+    const saved = localStorage.getItem("piUser");
+    if (saved) setUser(JSON.parse(saved));
   }, []);
-
-  // ✅ Save user to localStorage when it changes
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem("piUser", JSON.stringify(user));
-    } else {
-      localStorage.removeItem("piUser");
-    }
-  }, [user]);
 
   const logout = () => {
     setUser(null);
@@ -53,6 +37,6 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       {children}
     </UserContext.Provider>
   );
-};
+}
 
 export const useUser = () => useContext(UserContext);
