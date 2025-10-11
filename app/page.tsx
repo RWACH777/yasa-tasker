@@ -12,10 +12,7 @@ export default function Home() {
   const setUser = userCtx?.setUser;
 
   useEffect(() => {
-    // In Pi Browser the Pi SDK is injected by the browser.
-    // We intentionally do NOT inject the SDK script here (Pi Browser provides it).
     if (typeof window !== "undefined" && !(window as any).Pi) {
-      // Keep a log to help debug on desktop.
       console.warn("Pi SDK not detected. Open inside the Pi Browser to authenticate with Pi.");
     }
   }, []);
@@ -30,35 +27,31 @@ export default function Home() {
     }
 
     try {
-      // Ensure the SDK is initialized
       Pi.init?.({ version: "2.0" });
-
-      // Request username + payments permission
       const scopes = ["username", "payments"];
 
-      // authenticate returns a Promise in the Pi SDK
       const authResult = await Pi.authenticate(scopes, (payment: any) => {
-        // Optional: callback for incomplete payments
         console.log("Incomplete payment found (callback):", payment);
       });
 
-      // Normalize user (handles different SDK shapes)
       const username = authResult?.user?.username ?? authResult?.username ?? "PiUser";
       const uid = authResult?.user?.uid ?? authResult?.uid ?? null;
       const accessToken = authResult?.accessToken ?? null;
 
       const newUser = { username, uid, accessToken };
 
-      // Persist user in context if available (and always to localStorage)
       try {
         if (typeof setUser === "function") setUser(newUser);
       } catch (e) {
         console.warn("setUser failed or not available:", e);
       }
+
       localStorage.setItem("piUser", JSON.stringify(newUser));
 
-      // Friendly confirmation, then redirect to dashboard
+      // ✅ Fixed: use backticks for template literal
       alert(Welcome ${username}!);
+
+      // Redirect to dashboard
       router.push("/dashboard");
     } catch (err) {
       console.error("Pi login error:", err);
@@ -88,7 +81,6 @@ export default function Home() {
       </div>
 
       {/* Feature Cards */}
-      {/* note: we use a bottom margin on the cards container (mb-12) — that becomes the gap between cards and the button */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full mb-12">
         <div className="glass p-6 rounded-2xl text-center">
           <h2 className="text-2xl font-semibold mb-2">Post Tasks</h2>
@@ -105,8 +97,6 @@ export default function Home() {
       </div>
 
       {/* Glass Login Button */}
-      {/* The container has pb-12 on the page root — that equals the cards' mb-12, so the gap above the button (cards -> button)
-          equals the gap below the button (button -> page bottom). */}
       <div className="w-full flex items-center justify-center">
         <button
           onClick={handlePiLogin}
