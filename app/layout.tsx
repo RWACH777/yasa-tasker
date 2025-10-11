@@ -46,6 +46,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      {/* ✅ Add this head section below */}
+      <head>
+        <script
+          src="https://sdk.minepi.com/pi-sdk.js"
+          integrity="sha384-dTuKpWucp+VGpIR/1cP7jKkoKu6iVZKsm+jxNvh8sgr+O2aGHn9QHc59pW8c2p9g"
+          crossOrigin="anonymous"
+        ></script>
+      </head>
+
       <body className="bg-gray-950 text-gray-100">
         <UserProvider>
           <AuthWrapper>{children}</AuthWrapper>
