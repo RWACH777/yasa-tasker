@@ -12,10 +12,18 @@ export default function Home() {
   const setUser = userCtx?.setUser;
 
   useEffect(() => {
-    if (typeof window !== "undefined" && !(window as any).Pi) {
-      console.warn("Pi SDK not detected. Open inside the Pi Browser to authenticate with Pi.");
-    }
-  }, []);
+  if (typeof window === "undefined") return;
+
+  // If Pi SDK is not already loaded, dynamically add it
+  if (!(window as any).Pi) {
+    const script = document.createElement("script");
+    script.src = "https://sdk.minepi.com/pi-sdk.js";
+    script.async = true;
+    script.onload = () => console.log("✅ Pi SDK loaded successfully");
+    script.onerror = () => console.warn("⚠️ Failed to load Pi SDK — open in Pi Browser");
+    document.body.appendChild(script);
+  }
+}, []);
 
   const handlePiLogin = async () => {
   if (typeof window === "undefined") return;
