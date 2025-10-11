@@ -1,83 +1,78 @@
 // app/page.tsx
 "use client";
 
-import { useEffect } from "react";
 import Image from "next/image";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@/context/UserContext"; // assumes you already have this
+import { useUser } from "@/context/UserContext"; // keep using your existing context
 
 export default function Home() {
   const router = useRouter();
-  const { setUser } = useUser() ?? ({} as any);
+  const userCtx = useUser();
+  const setUser = userCtx?.setUser;
 
   useEffect(() => {
-    // Add Pi SDK script once if not present
+    // In Pi Browser the Pi SDK is injected by the browser.
+    // We intentionally do NOT inject the SDK script here (Pi Browser provides it).
     if (typeof window !== "undefined" && !(window as any).Pi) {
-      const already = document.querySelector('script[data-pi-sdk="1"]');
-      if (!already) {
-        const script = document.createElement("script");
-        script.src = "https://sdk.minepi.com/pi-sdk.js";
-        script.async = true;
-        script.setAttribute("data-pi-sdk", "1");
-        script.onload = () => console.log("✅ Pi SDK loaded");
-        script.onerror = () => console.warn("⚠️ Failed loading Pi SDK");
-        document.body.appendChild(script);
-      }
+      // Keep a log to help debug on desktop.
+      console.warn("Pi SDK not detected. Open inside the Pi Browser to authenticate with Pi.");
     }
   }, []);
 
   const handlePiLogin = async () => {
+    if (typeof window === "undefined") return;
+
+    const Pi = (window as any).Pi;
+    if (!Pi) {
+      alert("⚠️ Please open this app in the Pi Browser to log in with Pi.");
+      return;
+    }
+
     try {
-      if (typeof window !== "undefined" && (window as any).Pi) {
-        const Pi = (window as any).Pi;
-        Pi.init({ version: "2.0" });
-        const scopes = ["username", "payments"];
+      // Ensure the SDK is initialized
+      Pi.init?.({ version: "2.0" });
 
-        // authenticate returns a promise in the latest SDK
-        const authResult = await Pi.authenticate(scopes, (payment: any) => {
-          // optional callback for incomplete payments
-          console.log("Incomplete payment callback:", payment);
-        });
+      // Request username + payments permission
+      const scopes = ["username", "payments"];
 
-        console.log("✅ Auth result:", authResult);
+      // authenticate returns a Promise in the Pi SDK
+      const authResult = await Pi.authenticate(scopes, (payment: any) => {
+        // Optional: callback for incomplete payments
+        console.log("Incomplete payment found (callback):", payment);
+      });
 
-        // Normalize username / uid / token (handle different SDK shapes)
-        const username = authResult?.user?.username ?? authResult?.username ?? "PiUser";
-        const uid = authResult?.user?.uid ?? authResult?.uid ?? null;
-        const accessToken = authResult?.accessToken ?? null;
+      // Normalize user (handles different SDK shapes)
+      const username = authResult?.user?.username ?? authResult?.username ?? "PiUser";
+      const uid = authResult?.user?.uid ?? authResult?.uid ?? null;
+      const accessToken = authResult?.accessToken ?? null;
 
-        // Persist user to context if available, otherwise fallback to localStorage
-        try {
-          if (typeof setUser === "function") {
-            setUser({ username, uid, accessToken });
-          } else {
-            localStorage.setItem("piUser", JSON.stringify({ username, uid, accessToken }));
-          }
-        } catch (e) {
-          console.warn("Could not set user in context, storing in localStorage", e);
-          localStorage.setItem("piUser", JSON.stringify({ username, uid, accessToken }));
-        }
+      const newUser = { username, uid, accessToken };
 
-        alert(`Welcome ${username}!`);
-        // Redirect to dashboard
-        router.push("/dashboard");
-      } else {
-        // Not inside Pi Browser yet
-        alert("Pi SDK not available. Please open this site inside the Pi Browser to log in with Pi.");
+      // Persist user in context if available (and always to localStorage)
+      try {
+        if (typeof setUser === "function") setUser(newUser);
+      } catch (e) {
+        console.warn("setUser failed or not available:", e);
       }
+      localStorage.setItem("piUser", JSON.stringify(newUser));
+
+      // Friendly confirmation, then redirect to dashboard
+      alert(Welcome ${username}!);
+      router.push("/dashboard");
     } catch (err) {
-      console.error("❌ Pi login error:", err);
-      alert("Login failed — try again in the Pi Browser.");
+      console.error("Pi login error:", err);
+      alert("Login failed — please retry inside the Pi Browser.");
     }
   };
 
   return (
     <div
-      className="flex flex-col items-center justify-center min-h-screen text-white px-4"
+      className="flex flex-col items-center justify-start min-h-screen text-white px-4 pt-12 pb-12"
       style={{ backgroundColor: "#000222" }}
     >
       {/* Logo and Title */}
-      <div className="flex flex-col items-center text-center space-y-10 mb-10">
+      <div className="flex flex-col items-center text-center space-y-10 mb-8">
         <Image
           src="/logo.png"
           alt="Yasa TASKER"
@@ -93,12 +88,11 @@ export default function Home() {
       </div>
 
       {/* Feature Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full my-20">
+      {/* note: we use a bottom margin on the cards container (mb-12) — that becomes the gap between cards and the button */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full mb-12">
         <div className="glass p-6 rounded-2xl text-center">
           <h2 className="text-2xl font-semibold mb-2">Post Tasks</h2>
-          <p className="text-gray-300 text-sm">
-            Create tasks and find skilled freelancers for your projects.
-          </p>
+          <p className="text-gray-300 text-sm">Create tasks and find skilled freelancers for your projects.</p>
         </div>
         <div className="glass p-6 rounded-2xl text-center">
           <h2 className="text-2xl font-semibold mb-2">Real-time Chat</h2>
@@ -111,7 +105,9 @@ export default function Home() {
       </div>
 
       {/* Glass Login Button */}
-      <div className="mt-20">
+      {/* The container has pb-12 on the page root — that equals the cards' mb-12, so the gap above the button (cards -> button)
+          equals the gap below the button (button -> page bottom). */}
+      <div className="w-full flex items-center justify-center">
         <button
           onClick={handlePiLogin}
           className="glass px-10 py-4 rounded-xl text-white text-lg font-semibold hover:bg-white/10 transition duration-300 backdrop-blur-lg shadow-lg border border-white/20"
