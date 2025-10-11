@@ -5,6 +5,12 @@ import Image from "next/image";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/context/UserContext"; // keep using your existing context
+
+export default function Home() {
+  const router = useRouter();
+  const userCtx = useUser();
+  const setUser = userCtx?.setUser;
+
 // inside the Home() component, right under const router = useRouter();
 useEffect(() => {
   // Dynamically inject Pi SDK script
@@ -14,11 +20,6 @@ useEffect(() => {
   script.onload = () => console.log("✅ Pi SDK loaded");
   document.body.appendChild(script);
 }, []);
-
-export default function Home() {
-  const router = useRouter();
-  const userCtx = useUser();
-  const setUser = userCtx?.setUser;
 
   useEffect(() => {
   if (typeof window === "undefined") return;
