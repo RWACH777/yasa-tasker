@@ -1,21 +1,73 @@
+// app/page.tsx
 "use client";
 
+import { useEffect } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useUser } from "@/context/UserContext"; // assumes you already have this
 
 export default function Home() {
-  const handlePiLogin = () => {
-    if (typeof window !== "undefined" && (window as any).Pi) {
-      const Pi = (window as any).Pi;
-      const scopes = ["username", "payments"];
-      Pi.authenticate(scopes, (payment: any) => {
-        console.log("Incomplete payment found:", payment);
-      })
-        .then((authResult: any) => {
-          console.log("Auth result:", authResult);
-        })
-        .catch((err: any) => console.error("Pi login error:", err));
-    } else {
-      console.error("Pi SDK not loaded yet.");
+  const router = useRouter();
+  const { setUser } = useUser() ?? ({} as any);
+
+  useEffect(() => {
+    // Add Pi SDK script once if not present
+    if (typeof window !== "undefined" && !(window as any).Pi) {
+      const already = document.querySelector('script[data-pi-sdk="1"]');
+      if (!already) {
+        const script = document.createElement("script");
+        script.src = "https://sdk.minepi.com/pi-sdk.js";
+        script.async = true;
+        script.setAttribute("data-pi-sdk", "1");
+        script.onload = () => console.log("✅ Pi SDK loaded");
+        script.onerror = () => console.warn("⚠️ Failed loading Pi SDK");
+        document.body.appendChild(script);
+      }
+    }
+  }, []);
+
+  const handlePiLogin = async () => {
+    try {
+      if (typeof window !== "undefined" && (window as any).Pi) {
+        const Pi = (window as any).Pi;
+        Pi.init({ version: "2.0" });
+        const scopes = ["username", "payments"];
+
+        // authenticate returns a promise in the latest SDK
+        const authResult = await Pi.authenticate(scopes, (payment: any) => {
+          // optional callback for incomplete payments
+          console.log("Incomplete payment callback:", payment);
+        });
+
+        console.log("✅ Auth result:", authResult);
+
+        // Normalize username / uid / token (handle different SDK shapes)
+        const username = authResult?.user?.username ?? authResult?.username ?? "PiUser";
+        const uid = authResult?.user?.uid ?? authResult?.uid ?? null;
+        const accessToken = authResult?.accessToken ?? null;
+
+        // Persist user to context if available, otherwise fallback to localStorage
+        try {
+          if (typeof setUser === "function") {
+            setUser({ username, uid, accessToken });
+          } else {
+            localStorage.setItem("piUser", JSON.stringify({ username, uid, accessToken }));
+          }
+        } catch (e) {
+          console.warn("Could not set user in context, storing in localStorage", e);
+          localStorage.setItem("piUser", JSON.stringify({ username, uid, accessToken }));
+        }
+
+        alert(`Welcome ${username}!`);
+        // Redirect to dashboard
+        router.push("/dashboard");
+      } else {
+        // Not inside Pi Browser yet
+        alert("Pi SDK not available. Please open this site inside the Pi Browser to log in with Pi.");
+      }
+    } catch (err) {
+      console.error("❌ Pi login error:", err);
+      alert("Login failed — try again in the Pi Browser.");
     }
   };
 
@@ -50,15 +102,11 @@ export default function Home() {
         </div>
         <div className="glass p-6 rounded-2xl text-center">
           <h2 className="text-2xl font-semibold mb-2">Real-time Chat</h2>
-          <p className="text-gray-300 text-sm">
-            Instant communication with clients.
-          </p>
+          <p className="text-gray-300 text-sm">Instant communication with clients.</p>
         </div>
         <div className="glass p-6 rounded-2xl text-center">
           <h2 className="text-2xl font-semibold mb-2">Future Ready</h2>
-          <p className="text-gray-300 text-sm">
-            Built for the decentralized economy.
-          </p>
+          <p className="text-gray-300 text-sm">Built for the decentralized economy.</p>
         </div>
       </div>
 
