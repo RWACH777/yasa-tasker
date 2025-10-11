@@ -49,7 +49,7 @@ export default function Home() {
       localStorage.setItem("piUser", JSON.stringify(newUser));
 
       // ✅ Fixed: use backticks for template literal
-      alert(Welcome ${username}!);
+      alert(`Welcome ${username}!`);
 
       // Redirect to dashboard
       router.push("/dashboard");
