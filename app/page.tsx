@@ -56,7 +56,7 @@ export default function Home() {
 
     localStorage.setItem("piUser", JSON.stringify(newUser));
 
-    alert(Welcome ${username}!);
+    alert(`Welcome ${username}!`);
     router.push("/dashboard");
   } catch (err) {
     console.error("Pi login error:", err);
