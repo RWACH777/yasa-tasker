@@ -18,46 +18,51 @@ export default function Home() {
   }, []);
 
   const handlePiLogin = async () => {
-    if (typeof window === "undefined") return;
+  if (typeof window === "undefined") return;
 
-    const Pi = (window as any).Pi;
-    if (!Pi) {
-      alert("⚠️ Please open this app in the Pi Browser to log in with Pi.");
-      return;
+  // Wait a little to ensure Pi SDK is available
+  let Pi = (window as any).Pi;
+  if (!Pi) {
+    for (let i = 0; i < 6 && !Pi; i++) {
+      await new Promise((r) => setTimeout(r, 500)); // wait up to 3s total
+      Pi = (window as any).Pi;
     }
+  }
+
+  if (!Pi) {
+    alert("⚠️ Pi SDK not detected. Please make sure you’re using the Pi Browser.");
+    return;
+  }
+
+  try {
+    Pi.init?.({ version: "2.0" });
+    const scopes = ["username", "payments"];
+
+    const authResult = await Pi.authenticate(scopes, (payment: any) => {
+      console.log("Incomplete payment found:", payment);
+    });
+
+    const username = authResult?.user?.username ?? authResult?.username ?? "PiUser";
+    const uid = authResult?.user?.uid ?? authResult?.uid ?? null;
+    const accessToken = authResult?.accessToken ?? null;
+
+    const newUser = { username, uid, accessToken };
 
     try {
-      Pi.init?.({ version: "2.0" });
-      const scopes = ["username", "payments"];
-
-      const authResult = await Pi.authenticate(scopes, (payment: any) => {
-        console.log("Incomplete payment found (callback):", payment);
-      });
-
-      const username = authResult?.user?.username ?? authResult?.username ?? "PiUser";
-      const uid = authResult?.user?.uid ?? authResult?.uid ?? null;
-      const accessToken = authResult?.accessToken ?? null;
-
-      const newUser = { username, uid, accessToken };
-
-      try {
-        if (typeof setUser === "function") setUser(newUser);
-      } catch (e) {
-        console.warn("setUser failed or not available:", e);
-      }
-
-      localStorage.setItem("piUser", JSON.stringify(newUser));
-
-      // ✅ Fixed: use backticks for template literal
-      alert(`Welcome ${username}!`);
-
-      // Redirect to dashboard
-      router.push("/dashboard");
-    } catch (err) {
-      console.error("Pi login error:", err);
-      alert("Login failed — please retry inside the Pi Browser.");
+      if (typeof setUser === "function") setUser(newUser);
+    } catch (e) {
+      console.warn("setUser failed or not available:", e);
     }
-  };
+
+    localStorage.setItem("piUser", JSON.stringify(newUser));
+
+    alert(Welcome ${username}!);
+    router.push("/dashboard");
+  } catch (err) {
+    console.error("Pi login error:", err);
+    alert("Login failed — please retry inside the Pi Browser.");
+  }
+};
 
   return (
     <div
