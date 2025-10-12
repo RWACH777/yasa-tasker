@@ -10,59 +10,28 @@ export default function Home() {
   const userCtx = useUser();
   const setUser = userCtx?.setUser;
 
-  const [piReady, setPiReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
-  // Detect when Pi SDK becomes available
-  useEffect(() => {
-    const checkPi = setInterval(() => {
-      if (typeof window !== "undefined" && (window as any).Pi) {
-        setPiReady(true);
-        clearInterval(checkPi);
-        console.log("✅ Pi SDK detected and ready.");
-      }
-    }, 500);
-    return () => clearInterval(checkPi);
-  }, []);
-
-useEffect(() => {
-  const loadPiSDK = () => {
-    if (typeof window !== "undefined" && !(window as any).Pi) {
-      const script = document.createElement("script");
-      script.src = "https://sdk.minepi.com/pi-sdk.js";
-      script.async = true;
-      script.onload = () => console.log("✅ Pi SDK script loaded");
-      document.body.appendChild(script);
-    }
-  };
-
-  loadPiSDK();
-}, []);
 
   const handlePiLogin = async () => {
     if (typeof window === "undefined") return;
 
     const Pi = (window as any).Pi;
+    console.log("🧩 handlePiLogin sees Pi:", Pi);
     if (!Pi) {
-      alert("⚠️ Pi SDK still loading... please wait a few seconds.");
+      alert("⚠️ Pi SDK not loaded yet.");
       return;
     }
 
     try {
       setIsLoading(true);
 
-      // Initialize SDK (must happen before authentication)
-      Pi.init({
-        version: "2.0",
-        sandbox: false, // true for test mode
-      });
-
-      console.log("✅ Pi SDK initialized");
-
       const scopes = ["username", "payments"];
+      console.log("🔐 Authenticating", scopes);
       const authResult = await Pi.authenticate(scopes, (payment: any) => {
-        console.log("Pending payment:", payment);
+        console.log("🪙 Incomplete payment callback:", payment);
       });
+
+      console.log("✅ Auth returned", authResult);
 
       const username = authResult?.user?.username ?? "PiUser";
       const uid = authResult?.user?.uid ?? null;
@@ -75,8 +44,8 @@ useEffect(() => {
       alert(`Welcome ${username}!`);
       router.push("/dashboard");
     } catch (err) {
-      console.error("Pi login error:", err);
-      alert("❌ Login failed — please retry inside the Pi Browser.");
+      console.error("❌ Error in login:", err);
+      alert("Login failed — try again.");
     } finally {
       setIsLoading(false);
     }
@@ -87,7 +56,7 @@ useEffect(() => {
       className="flex flex-col items-center justify-start min-h-screen text-white px-4 pt-12 pb-12"
       style={{ backgroundColor: "#000222" }}
     >
-      {/* Logo and Title */}
+      {/* Logo & text */}
       <div className="flex flex-col items-center text-center space-y-10 mb-8">
         <Image
           src="/logo.png"
@@ -125,17 +94,16 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* Glass Login Button */}
+      {/* Login Button */}
       <div className="w-full flex items-center justify-center">
         <button
           onClick={handlePiLogin}
-          disabled={!piReady || isLoading}
-          className={`glass px-10 py-4 rounded-xl text-white text-lg font-semibold transition duration-300 backdrop-blur-lg shadow-lg border border-white/20 
-            ${
-              isLoading
-                ? "bg-white/10 cursor-not-allowed"
-                : "hover:bg-white/20 active:scale-95 active:shadow-inner"
-            }`}
+          disabled={isLoading}
+          className={`glass px-10 py-4 rounded-xl text-white text-lg font-semibold transition duration-300 backdrop-blur-lg shadow-lg border border-white/20 ${
+            isLoading
+              ? "bg-white/10 cursor-not-allowed"
+              : "hover:bg-white/20 active:scale-95 active:shadow-inner"
+          }`}
         >
           {isLoading ? "Connecting..." : "Login with Pi"}
         </button>
