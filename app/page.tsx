@@ -66,7 +66,7 @@ export default function Home() {
       localStorage.setItem("piUser", JSON.stringify(newUser));
 
       // ⚠️ Use backticks here
-      alert(Welcome ${username}!);
+      alert(`Welcome ${username}!`);
 
       router.push("/dashboard");
     } catch (err) {
