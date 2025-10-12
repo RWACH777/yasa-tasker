@@ -116,12 +116,12 @@ export default function Home() {
         <button
           onClick={handlePiLogin}
           disabled={!piReady || isLoading}
-          className={glass px-10 py-4 rounded-xl text-white text-lg font-semibold transition duration-300 backdrop-blur-lg shadow-lg border border-white/20 
+          className={`glass px-10 py-4 rounded-xl text-white text-lg font-semibold transition duration-300 backdrop-blur-lg shadow-lg border border-white/20 
             ${
               isLoading
                 ? "bg-white/10 cursor-not-allowed"
                 : "hover:bg-white/20 active:scale-95 active:shadow-inner"
-            }}
+            }`}
         >
           {isLoading ? "Connecting..." : "Login with Pi"}
         </button>
