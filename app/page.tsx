@@ -13,28 +13,44 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
 
   const handlePiLogin = async () => {
-  if (typeof window === "undefined") return;
+    if (typeof window === "undefined") return;
 
-  const Pi = (window as any).Pi;
-  console.log("🧩 handlePiLogin, Pi:", Pi);
-  if (!Pi) {
-    alert("⚠️ Pi SDK not loaded yet.");
-    return;
-  }
+    const Pi = (window as any).Pi;
+    console.log("🧩 handlePiLogin, Pi:", Pi);
+    if (!Pi) {
+      alert("⚠️ Pi SDK not loaded yet.");
+      return;
+    }
 
-  try {
-    console.log("🔧 Calling Pi.authenticate...");
-    const scopes = ["username", "payments"];
-    const authResult = await Pi.authenticate(scopes, (payment: any) => {
-      console.log("🪙 incomplete payment callback:", payment);
-    });
-    console.log("✅ authenticate result:", authResult);
+    try {
+      setIsLoading(true);
+      console.log("🔧 Calling Pi.authenticate...");
 
-    // rest of your logic ...
-  } catch (err: any) {
-  console.error("❌ Pi login error:", err);
-  alert("Login failed: " + (err?.message || JSON.stringify(err)));
-}
+      const scopes = ["username", "payments"];
+      const authResult = await Pi.authenticate(scopes, (payment: any) => {
+        console.log("🪙 incomplete payment callback:", payment);
+      });
+
+      console.log("✅ authenticate result:", authResult);
+
+      const username = authResult?.user?.username ?? "PiUser";
+      const uid = authResult?.user?.uid ?? null;
+      const accessToken = authResult?.accessToken ?? null;
+
+      const newUser = { username, uid, accessToken };
+      localStorage.setItem("piUser", JSON.stringify(newUser));
+      if (typeof setUser === "function") setUser(newUser);
+
+      alert(`Welcome ${username}!`);
+      router.push("/dashboard");
+    } catch (err) {
+      const error = err as any;
+      console.error("❌ Pi login error:", error);
+      alert("Login failed: " + (error?.message || JSON.stringify(error)));
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div
