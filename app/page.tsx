@@ -31,11 +31,10 @@ export default function Home() {
     console.log("✅ authenticate result:", authResult);
 
     // rest of your logic ...
-  } catch (err) {
-    console.error("❌ authenticate threw error:", err);
-    alert("Login failed. (Check console for error.)");
-  }
-};
+  } catch (err: any) {
+  console.error("❌ Pi login error:", err);
+  alert("Login failed: " + (err?.message || JSON.stringify(err)));
+}
 
   return (
     <div
