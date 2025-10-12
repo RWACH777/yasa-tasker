@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/context/UserContext";
 
@@ -10,68 +10,61 @@ export default function Home() {
   const userCtx = useUser();
   const setUser = userCtx?.setUser;
 
-  // Check for Pi SDK availability
+  const [piReady, setPiReady] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Detect when Pi SDK becomes available
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const Pi = (window as any).Pi;
-      if (!Pi) {
-        console.warn("⚠️ Pi SDK not detected. Please open inside the Pi Browser.");
-      } else {
-        console.log("✅ Pi SDK detected.");
+    const checkPi = setInterval(() => {
+      if (typeof window !== "undefined" && (window as any).Pi) {
+        setPiReady(true);
+        clearInterval(checkPi);
+        console.log("✅ Pi SDK detected and ready.");
       }
-    }
+    }, 500);
+    return () => clearInterval(checkPi);
   }, []);
 
-  // ✅ Proper async Pi login handler
   const handlePiLogin = async () => {
     if (typeof window === "undefined") return;
 
     const Pi = (window as any).Pi;
-
     if (!Pi) {
-      alert("⚠️ Pi SDK not detected — please open this app inside the Pi Browser.");
+      alert("⚠️ Pi SDK still loading... please wait a few seconds.");
       return;
     }
 
     try {
-      // Initialize Pi SDK before authentication
+      setIsLoading(true);
+
+      // Initialize SDK (must happen before authentication)
       Pi.init({
         version: "2.0",
-        sandbox: false, // change to true if testing mode needed
+        sandbox: false, // true for test mode
       });
 
       console.log("✅ Pi SDK initialized");
 
       const scopes = ["username", "payments"];
-
-      // Authenticate with Pi Network
       const authResult = await Pi.authenticate(scopes, (payment: any) => {
-        console.log("Incomplete payment found:", payment);
+        console.log("Pending payment:", payment);
       });
-
-      console.log("✅ Auth success:", authResult);
 
       const username = authResult?.user?.username ?? "PiUser";
       const uid = authResult?.user?.uid ?? null;
       const accessToken = authResult?.accessToken ?? null;
 
       const newUser = { username, uid, accessToken };
-
-      try {
-        if (typeof setUser === "function") setUser(newUser);
-      } catch (e) {
-        console.warn("setUser failed or not available:", e);
-      }
-
       localStorage.setItem("piUser", JSON.stringify(newUser));
+      if (typeof setUser === "function") setUser(newUser);
 
-      // ⚠️ Use backticks here
       alert(`Welcome ${username}!`);
-
       router.push("/dashboard");
     } catch (err) {
-      console.error("❌ Pi login error:", err);
-      alert("Login failed. Please try again inside the Pi Browser.");
+      console.error("Pi login error:", err);
+      alert("❌ Login failed — please retry inside the Pi Browser.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -118,13 +111,19 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Login Button */}
+      {/* Glass Login Button */}
       <div className="w-full flex items-center justify-center">
         <button
           onClick={handlePiLogin}
-          className="glass px-10 py-4 rounded-xl text-white text-lg font-semibold hover:bg-white/10 transition duration-300 backdrop-blur-lg shadow-lg border border-white/20"
+          disabled={!piReady || isLoading}
+          className={glass px-10 py-4 rounded-xl text-white text-lg font-semibold transition duration-300 backdrop-blur-lg shadow-lg border border-white/20 
+            ${
+              isLoading
+                ? "bg-white/10 cursor-not-allowed"
+                : "hover:bg-white/20 active:scale-95 active:shadow-inner"
+            }}
         >
-          Login with Pi
+          {isLoading ? "Connecting..." : "Login with Pi"}
         </button>
       </div>
     </div>
