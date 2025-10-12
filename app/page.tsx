@@ -25,6 +25,20 @@ export default function Home() {
     return () => clearInterval(checkPi);
   }, []);
 
+useEffect(() => {
+  const loadPiSDK = () => {
+    if (typeof window !== "undefined" && !(window as any).Pi) {
+      const script = document.createElement("script");
+      script.src = "https://sdk.minepi.com/pi-sdk.js";
+      script.async = true;
+      script.onload = () => console.log("✅ Pi SDK script loaded");
+      document.body.appendChild(script);
+    }
+  };
+
+  loadPiSDK();
+}, []);
+
   const handlePiLogin = async () => {
     if (typeof window === "undefined") return;
 
