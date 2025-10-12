@@ -12,7 +12,6 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    // Wait a moment to ensure localStorage is read
     const timer = setTimeout(() => {
       setLoaded(true);
     }, 200);
@@ -21,13 +20,11 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Redirect if not logged in and not on /login
     if (loaded && !user && pathname !== "/login") {
       router.push("/login");
     }
   }, [user, loaded, pathname, router]);
 
-  // While loading user from localStorage, show nothing (avoid flicker)
   if (!loaded) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-950 text-gray-300">
@@ -44,17 +41,26 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // ✅ Load the Pi SDK once globally when app starts
+  useEffect(() => {
+    const scriptId = "pi-sdk-script";
+    if (!document.getElementById(scriptId)) {
+      const script = document.createElement("script");
+      script.id = scriptId;
+      script.src = "https://sdk.minepi.com/pi-sdk.js";
+      script.async = true;
+      script.onload = () => console.log("✅ Pi SDK script loaded!");
+      script.onerror = () =>
+        console.error("❌ Failed to load Pi SDK script.");
+      document.body.appendChild(script);
+    }
+  }, []);
+
   return (
     <html lang="en">
-      {/* ✅ Add this head section below */}
       <head>
-        <script
-          src="https://sdk.minepi.com/pi-sdk.js"
-          integrity="sha384-dTuKpWucp+VGpIR/1cP7jKkoKu6iVZKsm+jxNvh8sgr+O2aGHn9QHc59pW8c2p9g"
-          crossOrigin="anonymous"
-        ></script>
+        <title>Yasa Tasker</title>
       </head>
-
       <body className="bg-gray-950 text-gray-100">
         <UserProvider>
           <AuthWrapper>{children}</AuthWrapper>
