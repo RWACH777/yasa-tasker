@@ -12,60 +12,72 @@ export default function Home() {
 
   const [isLoading, setIsLoading] = useState(false);
 
+  // ✅ Load Pi SDK if not already present
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (!(window as any).Pi) {
+      const script = document.createElement("script");
+      script.src = "https://sdk.minepi.com/pi-sdk.js";
+      script.async = true;
+      script.onload = () => console.log("✅ Pi SDK script loaded");
+      document.body.appendChild(script);
+    }
+  }, []);
+
   const handlePiLogin = async () => {
-  if (typeof window === "undefined") return;
+    if (typeof window === "undefined") return;
 
-  const Pi = (window as any).Pi;
-  console.log("🧩 handlePiLogin, Pi:", Pi);
+    const Pi = (window as any).Pi;
+    console.log("🧩 handlePiLogin, Pi:", Pi);
 
-  if (!Pi) {
-    alert("⚠️ Pi SDK not loaded yet. Please open this app in the Pi Browser.");
-    return;
-  }
+    if (!Pi) {
+      alert("⚠️ Pi SDK not loaded yet. Please open this app in the Pi Browser.");
+      return;
+    }
 
-  try {
-    setIsLoading(true);
+    try {
+      setIsLoading(true);
 
-    // ✅ Initialize the Pi SDK first
-    Pi.init({
-      version: "2.0",
-      sandbox: false, // set true if you want to test in sandbox mode
-    });
+      // ✅ Initialize Pi SDK first
+      Pi.init({
+        version: "2.0",
+        sandbox: false, // set true for sandbox testing
+      });
 
-    console.log("✅ Pi SDK initialized successfully");
+      console.log("✅ Pi SDK initialized successfully");
 
-    const scopes = ["username", "payments"];
-    const authResult = await Pi.authenticate(scopes, (payment: any) => {
-      console.log("🪙 Incomplete payment callback:", payment);
-    });
+      const scopes = ["username", "payments"];
+      const authResult = await Pi.authenticate(scopes, (payment: any) => {
+        console.log("🪙 Incomplete payment callback:", payment);
+      });
 
-    console.log("✅ authenticate result:", authResult);
+      console.log("✅ authenticate result:", authResult);
 
-    const username = authResult?.user?.username ?? "PiUser";
-    const uid = authResult?.user?.uid ?? null;
-    const accessToken = authResult?.accessToken ?? null;
+      const username = authResult?.user?.username ?? "PiUser";
+      const uid = authResult?.user?.uid ?? null;
+      const accessToken = authResult?.accessToken ?? null;
 
-    const newUser = { username, uid, accessToken };
-    localStorage.setItem("piUser", JSON.stringify(newUser));
-    if (typeof setUser === "function") setUser(newUser);
+      const newUser = { username, uid, accessToken };
+      localStorage.setItem("piUser", JSON.stringify(newUser));
+      if (typeof setUser === "function") setUser(newUser);
 
-    alert(`Welcome ${username}!);`
-    router.push("/dashboard");
-
-  } catch (err: any) {
-    console.error("❌ Pi login error:", err);
-    alert("Login failed: " + (err?.message || JSON.stringify(err)));
-  } finally {
-    setIsLoading(false);
-  }
-};
+      alert(`Welcome ${username}!`);
+      router.push("/dashboard");
+    } catch (err: any) {
+      console.error("❌ Pi login error:", err);
+      alert("Login failed: " + (err?.message || JSON.stringify(err)));
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div
       className="flex flex-col items-center justify-start min-h-screen text-white px-4 pt-12 pb-12"
       style={{ backgroundColor: "#000222" }}
     >
-      {/* Logo & text */}
+      {/* Logo and Title */}
       <div className="flex flex-col items-center text-center space-y-10 mb-8">
         <Image
           src="/logo.png"
@@ -103,7 +115,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Login Button */}
+      {/* Glass Login Button */}
       <div className="w-full flex items-center justify-center">
         <button
           onClick={handlePiLogin}
