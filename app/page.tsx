@@ -10,49 +10,67 @@ export default function Home() {
   const userCtx = useUser();
   const setUser = userCtx?.setUser;
 
+  const [piReady, setPiReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // ✅ Load Pi SDK if not already present
+  // Load and initialize the Pi SDK
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    if (!(window as any).Pi) {
-      const script = document.createElement("script");
-      script.src = "https://sdk.minepi.com/pi-sdk.js";
-      script.async = true;
-      script.onload = () => console.log("✅ Pi SDK script loaded");
-      document.body.appendChild(script);
-    }
+    const loadPiSDK = () => {
+      if (!(window as any).Pi) {
+        const script = document.createElement("script");
+        script.src = "https://sdk.minepi.com/pi-sdk.js";
+        script.async = true;
+        script.onload = () => {
+          console.log("✅ Pi SDK script loaded.");
+          const Pi = (window as any).Pi;
+          if (Pi) {
+            try {
+              Pi.init({ version: "2.0", sandbox: false });
+              console.log("✅ Pi SDK initialized successfully");
+              setPiReady(true);
+            } catch (err) {
+              console.error("❌ Failed to initialize Pi SDK:", err);
+            }
+          }
+        };
+        document.body.appendChild(script);
+      } else {
+        // Already loaded
+        const Pi = (window as any).Pi;
+        try {
+          Pi.init({ version: "2.0", sandbox: false });
+          console.log("✅ Pi SDK initialized (already present)");
+          setPiReady(true);
+        } catch (err) {
+          console.error("❌ SDK init error:", err);
+        }
+      }
+    };
+
+    loadPiSDK();
   }, []);
 
   const handlePiLogin = async () => {
     if (typeof window === "undefined") return;
 
     const Pi = (window as any).Pi;
-    console.log("🧩 handlePiLogin, Pi:", Pi);
-
     if (!Pi) {
-      alert("⚠️ Pi SDK not loaded yet. Please open this app in the Pi Browser.");
+      alert("⚠️ Pi SDK not loaded yet. Please wait a few seconds.");
       return;
     }
 
     try {
       setIsLoading(true);
-
-      // ✅ Initialize Pi SDK first
-      Pi.init({
-        version: "2.0",
-        sandbox: false, // set true for sandbox testing
-      });
-
-      console.log("✅ Pi SDK initialized successfully");
-
+      console.log("🔧 Starting Pi authentication...");
       const scopes = ["username", "payments"];
+
       const authResult = await Pi.authenticate(scopes, (payment: any) => {
-        console.log("🪙 Incomplete payment callback:", payment);
+        console.log("🪙 Incomplete payment:", payment);
       });
 
-      console.log("✅ authenticate result:", authResult);
+      console.log("✅ Authentication result:", authResult);
 
       const username = authResult?.user?.username ?? "PiUser";
       const uid = authResult?.user?.uid ?? null;
@@ -115,18 +133,22 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Glass Login Button */}
+      {/* Login Button */}
       <div className="w-full flex items-center justify-center">
         <button
           onClick={handlePiLogin}
-          disabled={isLoading}
+          disabled={!piReady || isLoading}
           className={`glass px-10 py-4 rounded-xl text-white text-lg font-semibold transition duration-300 backdrop-blur-lg shadow-lg border border-white/20 ${
             isLoading
               ? "bg-white/10 cursor-not-allowed"
               : "hover:bg-white/20 active:scale-95 active:shadow-inner"
           }`}
         >
-          {isLoading ? "Connecting..." : "Login with Pi"}
+          {isLoading
+            ? "Connecting..."
+            : piReady
+            ? "Login with Pi"
+            : "Loading Pi SDK..."}
         </button>
       </div>
     </div>
