@@ -13,43 +13,29 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
 
   const handlePiLogin = async () => {
-    if (typeof window === "undefined") return;
+  if (typeof window === "undefined") return;
 
-    const Pi = (window as any).Pi;
-    console.log("🧩 handlePiLogin sees Pi:", Pi);
-    if (!Pi) {
-      alert("⚠️ Pi SDK not loaded yet.");
-      return;
-    }
+  const Pi = (window as any).Pi;
+  console.log("🧩 handlePiLogin, Pi:", Pi);
+  if (!Pi) {
+    alert("⚠️ Pi SDK not loaded yet.");
+    return;
+  }
 
-    try {
-      setIsLoading(true);
+  try {
+    console.log("🔧 Calling Pi.authenticate...");
+    const scopes = ["username", "payments"];
+    const authResult = await Pi.authenticate(scopes, (payment: any) => {
+      console.log("🪙 incomplete payment callback:", payment);
+    });
+    console.log("✅ authenticate result:", authResult);
 
-      const scopes = ["username", "payments"];
-      console.log("🔐 Authenticating", scopes);
-      const authResult = await Pi.authenticate(scopes, (payment: any) => {
-        console.log("🪙 Incomplete payment callback:", payment);
-      });
-
-      console.log("✅ Auth returned", authResult);
-
-      const username = authResult?.user?.username ?? "PiUser";
-      const uid = authResult?.user?.uid ?? null;
-      const accessToken = authResult?.accessToken ?? null;
-
-      const newUser = { username, uid, accessToken };
-      localStorage.setItem("piUser", JSON.stringify(newUser));
-      if (typeof setUser === "function") setUser(newUser);
-
-      alert(`Welcome ${username}!`);
-      router.push("/dashboard");
-    } catch (err) {
-      console.error("❌ Error in login:", err);
-      alert("Login failed — try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    // rest of your logic ...
+  } catch (err) {
+    console.error("❌ authenticate threw error:", err);
+    alert("Login failed. (Check console for error.)");
+  }
+};
 
   return (
     <div
