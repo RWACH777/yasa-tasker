@@ -1,137 +1,89 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { useUser } from "@/context/UserContext";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function Home() {
   const router = useRouter();
   const userCtx = useUser();
   const setUser = userCtx?.setUser;
 
-  useEffect(() => {
-  import("@/lib/supabaseClient").then(({ supabase }) => {
-    supabase.from("users").select("*").limit(1).then((res) => {
-      console.log("✅ Supabase test result:", res);
-    });
-  });
-}, []);
-
   const [piReady, setPiReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Load and initialize the Pi SDK
+  // ✅ Initialize Pi SDK safely
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const loadPiSDK = () => {
-      if (!(window as any).Pi) {
-        const script = document.createElement("script");
-        script.src = "https://sdk.minepi.com/pi-sdk.js";
-        script.async = true;
-        script.onload = () => {
-          console.log("✅ Pi SDK script loaded.");
-          const Pi = (window as any).Pi;
-          if (Pi) {
-            try {
-              Pi.init({ version: "2.0", sandbox: false });
-              console.log("✅ Pi SDK initialized successfully");
-              setPiReady(true);
-            } catch (err) {
-              console.error("❌ Failed to initialize Pi SDK:", err);
-            }
-          }
-        };
-        document.body.appendChild(script);
-      } else {
-        // Already loaded
-        const Pi = (window as any).Pi;
-        try {
-          Pi.init({ version: "2.0", sandbox: false });
+    const loadPi = () => {
+      try {
+        if (typeof window !== "undefined" && (window as any).Pi) {
           console.log("✅ Pi SDK initialized (already present)");
           setPiReady(true);
-        } catch (err) {
-          console.error("❌ SDK init error:", err);
+        } else {
+          console.log("⚙️ Waiting for Pi SDK...");
+          const check = setInterval(() => {
+            if ((window as any).Pi) {
+              console.log("✅ Pi SDK found after delay");
+              setPiReady(true);
+              clearInterval(check);
+            }
+          }, 500);
         }
+      } catch (err) {
+        console.error("❌ Pi SDK initialization failed:", err);
       }
     };
 
-    loadPiSDK();
+    loadPi();
   }, []);
 
+  // ✅ Handle Pi login and sync user to Supabase
   const handlePiLogin = async () => {
-  if (typeof window === "undefined") return;
+    if (typeof window === "undefined") return;
 
-  const Pi = (window as any).Pi;
-  if (!Pi) {
-    alert("⚠️ Pi SDK not loaded yet.");
-    return;
-  }
-
-  try {
-    setIsLoading(true);
-
-    Pi.init({
-      version: "2.0",
-      sandbox: false
-    });
-
-    console.log("✅ Pi SDK initialized");
-
-    const scopes = ["username", "payments"];
-    const authResult = await Pi.authenticate(scopes, (payment: any) => {
-      console.log("🪙 Incomplete payment:", payment);
-    });
-
-    const username = authResult?.user?.username ?? "Unknown";
-    const pi_uid = authResult?.user?.uid ?? "";
-    const avatar_url = authResult?.user?.photo ?? null;
-
-    const response = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pi_uid, username, avatar_url }),
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      throw new Error(result.error || "Failed to save user");
+    const Pi = (window as any).Pi;
+    if (!Pi) {
+      alert("⚠️ Pi SDK not loaded yet.");
+      return;
     }
-
-    console.log("✅ User synced with Supabase:", result);
-
-    alert("🎉 Welcome " + username + "!");
-    router.push("/dashboard");
-  } catch (err: any) {
-    console.error("❌ Pi login error:", err);
-    alert("Login failed: " + (err?.message || JSON.stringify(err)));
-  } finally {
-    setIsLoading(false);
-  }
-};
 
     try {
       setIsLoading(true);
-      console.log("🔧 Starting Pi authentication...");
-      const scopes = ["username", "payments"];
 
+      Pi.init({
+        version: "2.0",
+        sandbox: false, // change to true if using testnet
+      });
+
+      console.log("✅ Pi SDK initialized");
+
+      const scopes = ["username", "payments"];
       const authResult = await Pi.authenticate(scopes, (payment: any) => {
         console.log("🪙 Incomplete payment:", payment);
       });
 
-      console.log("✅ Authentication result:", authResult);
+      const username = authResult?.user?.username ?? "Unknown";
+      const pi_uid = authResult?.user?.uid ?? "";
+      const avatar_url = authResult?.user?.photo ?? null;
 
-      const username = authResult?.user?.username ?? "PiUser";
-      const uid = authResult?.user?.uid ?? null;
-      const accessToken = authResult?.accessToken ?? null;
+      // ✅ Send user data to your API route for Supabase sync
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pi_uid, username, avatar_url }),
+      });
 
-      const newUser = { username, uid, accessToken };
-      localStorage.setItem("piUser", JSON.stringify(newUser));
-      if (typeof setUser === "function") setUser(newUser);
+      const result = await response.json();
 
-      alert(`Welcome ${username}!`);
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to save user");
+      }
+
+      console.log("✅ User synced with Supabase:", result);
+      alert("🎉 Welcome " + username + "!");
+
       router.push("/dashboard");
     } catch (err: any) {
       console.error("❌ Pi login error:", err);
@@ -140,6 +92,14 @@ export default function Home() {
       setIsLoading(false);
     }
   };
+
+  // ✅ Basic Supabase test (optional)
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase.from("users").select("*").limit(1);
+      console.log("✅ Supabase test result:", data || error);
+    })();
+  }, []);
 
   return (
     <div
@@ -158,7 +118,8 @@ export default function Home() {
         />
         <h1 className="text-4xl font-bold">Welcome to Yasa TASKER</h1>
         <p className="text-lg text-gray-300 max-w-md">
-          Connect with talented freelancers, collaborate and get paid exclusively in Pi cryptocurrency.
+          Connect with talented freelancers, collaborate and get paid exclusively
+          in Pi cryptocurrency.
         </p>
       </div>
 
