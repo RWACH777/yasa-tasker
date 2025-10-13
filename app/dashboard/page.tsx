@@ -71,9 +71,9 @@ export default function DashboardPage() {
             <button
               key={name}
               onClick={() => setActive(name)}
-              className={text-left px-3 py-2 rounded-lg transition ${
+              className={`text-left px-3 py-2 rounded-lg transition ${
                 active === name ? "bg-white/8 text-blue-300" : "hover:bg-white/5 text-gray-300"
-              }}
+              }`}
             >
               {name}
             </button>
