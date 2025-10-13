@@ -116,7 +116,7 @@ export default function Home() {
           priority
           className="mb-4 w-[85vw] max-w-[420px] h-auto"
         />
-        <h1 className="text-4xl font-bold">Welcome to Yasa TASKER</h1>
+        <h1 className="text-4xl font-bold">Welcome to TASKER</h1>
         <p className="text-lg text-gray-300 max-w-md">
           Connect with talented freelancers, collaborate and get paid exclusively
           in Pi cryptocurrency.
