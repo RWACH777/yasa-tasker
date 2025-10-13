@@ -10,6 +10,14 @@ export default function Home() {
   const userCtx = useUser();
   const setUser = userCtx?.setUser;
 
+  useEffect(() => {
+  import("@/lib/supabaseClient").then(({ supabase }) => {
+    supabase.from("users").select("*").limit(1).then((res) => {
+      console.log("✅ Supabase test result:", res);
+    });
+  });
+}, []);
+
   const [piReady, setPiReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -53,13 +61,58 @@ export default function Home() {
   }, []);
 
   const handlePiLogin = async () => {
-    if (typeof window === "undefined") return;
+  if (typeof window === "undefined") return;
 
-    const Pi = (window as any).Pi;
-    if (!Pi) {
-      alert("⚠️ Pi SDK not loaded yet. Please wait a few seconds.");
-      return;
+  const Pi = (window as any).Pi;
+  if (!Pi) {
+    alert("⚠️ Pi SDK not loaded yet.");
+    return;
+  }
+
+  try {
+    setIsLoading(true);
+
+    // Initialize the Pi SDK
+    Pi.init({
+      version: "2.0",
+      sandbox: false, // change to true for testing mode
+    });
+
+    console.log("✅ Pi SDK initialized");
+
+    const scopes = ["username", "payments"];
+    const authResult = await Pi.authenticate(scopes, (payment: any) => {
+      console.log("🪙 Incomplete payment:", payment);
+    });
+
+    const username = authResult?.user?.username ?? "Unknown";
+    const pi_uid = authResult?.user?.uid ?? "";
+    const avatar_url = authResult?.user?.photo ?? null;
+
+    // Save user in Supabase via API route
+    const response = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pi_uid, username, avatar_url }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || "Failed to save user");
     }
+
+    console.log("✅ User synced with Supabase:", result);
+
+    alert(🎉 Welcome ${username}!);
+    router.push("/dashboard");
+  } catch (err: any) {
+    console.error("❌ Pi login error:", err);
+    alert("Login failed: " + (err?.message || JSON.stringify(err)));
+  } finally {
+    setIsLoading(false);
+  }
+};
 
     try {
       setIsLoading(true);
