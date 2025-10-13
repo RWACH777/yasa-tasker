@@ -38,7 +38,7 @@ export default function DashboardPage() {
 
     if (!title || !deadline) return alert("Please fill required fields");
 
-    const payment = await initPiPayment(0.1, Posting task: ${title}, { title, category });
+    const payment = await initPiPayment(0.1, `Posting task: ${title}`, { title, category });
     if (!payment) return alert("Payment failed or cancelled.");
 
     const { data, error } = await supabase
