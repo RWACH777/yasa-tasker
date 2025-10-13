@@ -104,13 +104,13 @@ export default function DashboardPage() {
               <div className="flex justify-between items-start mb-2">
                 <h3 className="font-semibold">{t.title}</h3>
                 <span
-                  className={text-xs px-2 py-1 rounded ${
+                  className={`text-xs px-2 py-1 rounded ${
                     t.status === "Completed"
                       ? "bg-green-500/20 text-green-400"
                       : t.status === "In Progress"
                       ? "bg-yellow-500/20 text-yellow-400"
                       : "bg-gray-500/20 text-gray-400"
-                  }}
+                  }`}
                 >
                   {t.status}
                 </span>
