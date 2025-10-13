@@ -72,10 +72,9 @@ export default function Home() {
   try {
     setIsLoading(true);
 
-    // Initialize the Pi SDK
     Pi.init({
       version: "2.0",
-      sandbox: false, // change to true for testing mode
+      sandbox: false
     });
 
     console.log("✅ Pi SDK initialized");
@@ -89,7 +88,6 @@ export default function Home() {
     const pi_uid = authResult?.user?.uid ?? "";
     const avatar_url = authResult?.user?.photo ?? null;
 
-    // Save user in Supabase via API route
     const response = await fetch("/api/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -104,7 +102,7 @@ export default function Home() {
 
     console.log("✅ User synced with Supabase:", result);
 
-    alert(`🎉 Welcome ${username}!`);
+    alert("🎉 Welcome " + username + "!");
     router.push("/dashboard");
   } catch (err: any) {
     console.error("❌ Pi login error:", err);
