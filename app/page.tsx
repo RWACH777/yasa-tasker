@@ -104,7 +104,7 @@ export default function Home() {
 
     console.log("✅ User synced with Supabase:", result);
 
-    alert(🎉 Welcome ${username}!);
+    alert(`🎉 Welcome ${username}!`);
     router.push("/dashboard");
   } catch (err: any) {
     console.error("❌ Pi login error:", err);
