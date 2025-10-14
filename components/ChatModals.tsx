@@ -37,10 +37,12 @@ export default function ChatModal({
 
     const loadMessages = async () => {
       const { data, error } = await supabase
-        .from("messages")
-        .select("*")
-        .or(and(sender_id.eq.${currentUserId},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${currentUserId}))
-        .order("created_at", { ascending: true });
+  .from("messages")
+  .select("*")
+  .or(
+    and(sender_id.eq.${currentUserId},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${currentUserId})
+  )
+  .order("created_at", { ascending: true });
 
       if (error) console.error("Error loading messages:", error);
       else setMessages(data || []);
