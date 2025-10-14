@@ -147,10 +147,26 @@ export default function DashboardPage() {
       // ask for a small posting fee in Pi (example). If you already have internal pricing, change amount.
       // NOTE: the string below is a template literal; if pasting causes backtick removal re-add them:
       // Posting task: ${title}
-      const payment = await initPiPayment(0.05, `Posting task: ${title}`, {
-        title,
-        category: form.category,
-      });
+      // ✅ Temporarily skip Pi payment (directly post task to Supabase)
+const { error } = await supabase.from("tasks").insert([
+  {
+    title,
+    description,
+    category: form.category,
+    budget: form.budget,
+    deadline: form.deadline,
+    user_id: currentUser.id,
+  },
+]);
+
+if (error) {
+  console.error("Error creating task:", error);
+  alert("Failed to post task. Please try again.");
+} else {
+  alert("Task posted successfully!");
+  setForm({ title: "", description: "", category: "", budget: "", deadline: "" });
+  fetchTasks(); // refresh the dashboard list if you have a function like this
+}
 
       if (!payment) {
         alert("Payment cancelled or failed. Task not posted.");
