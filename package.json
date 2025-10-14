@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/supabase-js": "^2.75.0",
     "classnames": "^2.5.1",
     "jsonwebtoken": "^9.0.2",

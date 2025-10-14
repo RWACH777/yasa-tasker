@@ -27,46 +27,18 @@ export default function ChatModal({ currentUserId, receiverId, receiverName }: C
   const [open, setOpen] = useState(false);
 
   // Fetch chat messages
-  useEffect(() => {
-    if (!currentUserId || !receiverId) return;
+  const loadMessages = async () => {
+  const { data, error } = await supabase
+    .from("messages")
+    .select("*")
+    .or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${currentUserId})`)
+    .order("created_at", { ascending: true });
 
-    const loadMessages = async () => {
-      const { data, error } = await supabase
-        .from("messages")
-        .select("*")
-        .or(
-          `and(sender_id.eq.${currentUserId},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${currentUserId})`
-        )
-        .order("created_at", { ascending: true });
+  if (error) console.error("Error loading messages:", error);
+  else setMessages(data || []);
+};
 
-      if (error) console.error("Error loading messages:", error);
-      else setMessages(data || []);
-    };
-
-    loadMessages();
-
-    // Real-time updates
-    const channel = supabase
-      .channel("chat-room")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        (payload) => {
-          const newMsg = payload.new as Message;
-          if (
-            (newMsg.sender_id === currentUserId && newMsg.receiver_id === receiverId) ||
-            (newMsg.sender_id === receiverId && newMsg.receiver_id === currentUserId)
-          ) {
-            setMessages((prev) => [...prev, newMsg]);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [supabase, currentUserId, receiverId]);
+loadMessages();
 
   // Send message
   const sendMessage = async () => {
