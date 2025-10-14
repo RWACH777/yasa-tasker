@@ -28,6 +28,8 @@ export default function DashboardPage(): JSX.Element {
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [activeFilter, setActiveFilter] = useState<"All" | "Pending" | "In Progress" | "Completed">("All");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+const [notifications, setNotifications] = useState([]);
+  const [userInfo, setUserInfo] = useState(null);
 
   // Load tasks from Supabase
   useEffect(() => {
@@ -60,6 +62,28 @@ export default function DashboardPage(): JSX.Element {
       mounted = false;
     };
   }, []);
+
+useEffect(function() {
+  async function loadUserData() {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", currentUserId)
+      .single();
+
+    setUserInfo(profile);
+
+    const { data: notes } = await supabase
+      .from("notifications")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    setNotifications(notes || []);
+  }
+
+  loadUserData();
+}, [currentUserId]);
 
   // Add a new task (no payment)
   const handleAddTask = async (e: FormEvent<HTMLFormElement>) => {
@@ -248,6 +272,53 @@ export default function DashboardPage(): JSX.Element {
           )}
         </div>
       </main>
-    </div>
+{/* ---------- Notifications and Profile Panels ---------- */}
+
+<div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-6">
+
+  {/* Active Feed / Notifications */}
+  <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 shadow-md">
+    <h2 className="text-lg font-semibold mb-3 text-white">Active Feed</h2>
+    {notifications && notifications.length > 0 ? (
+      <ul className="space-y-2">
+        {notifications.map(function(n, i) {
+          return (
+            <li key={i} className="bg-gray-800 px-3 py-2 rounded-md text-gray-200 text-sm flex justify-between items-center">
+              <span>{n.message}</span>
+              <span className="text-gray-500 text-xs">
+                {new Date(n.created_at).toLocaleTimeString()}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    ) : (
+      <p className="text-gray-500 text-sm">No recent notifications.</p>
+    )}
+  </div>
+
+  {/* Profile / User Info */}
+  <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 shadow-md">
+    <h2 className="text-lg font-semibold mb-3 text-white">My Profile</h2>
+
+    {userInfo ? (
+      <div className="space-y-2 text-gray-200 text-sm">
+        <p><strong>Name:</strong> {userInfo.username || "Anonymous"}</p>
+        <p><strong>Email:</strong> {userInfo.email || "—"}</p>
+        <p><strong>Joined:</strong> {userInfo.created_at ? new Date(userInfo.created_at).toLocaleDateString() : "—"}</p>
+        <p><strong>Pi Balance:</strong> {userInfo.balance != null ? userInfo.balance + " Pi" : "—"}</p>
+        <button
+          onClick={function() {
+            alert("Profile editing will be added soon.");
+          }}
+          className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm"
+        >
+          Edit Profile
+        </button>
+      </div>
+    ) : (
+      <p className="text-gray-500 text-sm">Loading user info...</p>
+    )}
+  </div>
   );
 }
