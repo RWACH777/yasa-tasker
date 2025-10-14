@@ -454,7 +454,8 @@ export default function DashboardPage() {
 
                       {/* show applications (if any) */}
                       <div className="ml-auto text-xs text-gray-300">
-                        {applicationsMap[t.id]?.length ? ${applicationsMap[t.id].length} applications : "0 apps"}
+                        {applicationsMap[t.id]?.length ? `$
+{applicationsMap[t.id].length} applications` : "0 apps"}
                       </div>
                     </>
                   ) : (
