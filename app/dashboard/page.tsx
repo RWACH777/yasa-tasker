@@ -424,7 +424,7 @@ export default function DashboardPage() {
 
                 <p className="text-xs text-gray-400">
                   {t.category ?? "General"} • Due: {t.deadline ?? "—"} • Budget:{" "}
-                  {t.budget != null ? ${t.budget} Pi : "—"}
+                  {t.budget != null ? `${t.budget} Pi` : "—"}
                 </p>
 
                 <div className="mt-3 flex gap-2 items-center">
