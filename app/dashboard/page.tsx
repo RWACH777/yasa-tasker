@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import ChatModal from "../../components/ChatModal"; // 👈 Import chat modal
+import ChatModal from "../../components/ChatModals"; // 👈 Import chat modal
 import { initPiPayment } from "../../lib/piPayment";
 import { supabase } from "../../lib/supabaseClient";
 
