@@ -1,15 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
-
-interface ChatModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  taskTitle: string;
-  receiverId: string;
-  receiverName: string;
-}
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 interface Message {
   id: string;
@@ -19,30 +14,30 @@ interface Message {
   created_at: string;
 }
 
-export default function ChatModal({
-  isOpen,
-  onClose,
-  taskTitle,
-  receiverId,
-  receiverName,
-}: ChatModalProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [newMsg, setNewMsg] = useState("");
-  const currentUserId =
-    typeof window !== "undefined" ? localStorage.getItem("pi_username") : null;
+interface ChatModalProps {
+  currentUserId: string;
+  receiverId: string;
+  receiverName: string;
+}
 
-  // Load messages from Supabase
+export default function ChatModal({ currentUserId, receiverId, receiverName }: ChatModalProps) {
+  const supabase = createClientComponentClient();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [open, setOpen] = useState(false);
+
+  // Fetch chat messages
   useEffect(() => {
-    if (!isOpen || !currentUserId) return;
+    if (!currentUserId || !receiverId) return;
 
     const loadMessages = async () => {
       const { data, error } = await supabase
-  .from("messages")
-  .select("*")
-  .or(
-    `and(sender_id.eq.${currentUserId},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${currentUserId})`
-  )
-  .order("created_at", { ascending: true });
+        .from("messages")
+        .select("*")
+        .or(
+          and(sender_id.eq.${currentUserId},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${currentUserId})
+        )
+        .order("created_at", { ascending: true });
 
       if (error) console.error("Error loading messages:", error);
       else setMessages(data || []);
@@ -50,19 +45,19 @@ export default function ChatModal({
 
     loadMessages();
 
-    // Subscribe for realtime updates
+    // Real-time updates
     const channel = supabase
-      .channel("realtime-messages")
+      .channel("chat-room")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages" },
         (payload) => {
-          const msg = payload.new as Message;
+          const newMsg = payload.new as Message;
           if (
-            (msg.sender_id === currentUserId && msg.receiver_id === receiverId) ||
-            (msg.sender_id === receiverId && msg.receiver_id === currentUserId)
+            (newMsg.sender_id === currentUserId && newMsg.receiver_id === receiverId) ||
+            (newMsg.sender_id === receiverId && newMsg.receiver_id === currentUserId)
           ) {
-            setMessages((prev) => [...prev, msg]);
+            setMessages((prev) => [...prev, newMsg]);
           }
         }
       )
@@ -71,71 +66,59 @@ export default function ChatModal({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isOpen, receiverId, currentUserId]);
+  }, [supabase, currentUserId, receiverId]);
 
-  const handleSend = async () => {
-    if (!newMsg.trim() || !currentUserId) return;
+  // Send message
+  const sendMessage = async () => {
+    if (!newMessage.trim()) return;
 
     const { error } = await supabase.from("messages").insert([
       {
         sender_id: currentUserId,
         receiver_id: receiverId,
-        content: newMsg.trim(),
+        content: newMessage.trim(),
       },
     ]);
 
     if (error) console.error("Error sending message:", error);
-    else setNewMsg("");
+    else setNewMessage("");
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/70 flex justify-center items-center z-50">
-      <div className="bg-[#0a0a2a] w-full max-w-md rounded-2xl p-4 border border-white/10">
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="text-lg font-semibold">
-            Chat with {receiverName} ({taskTitle})
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-red-400"
-          >
-            ✕
-          </button>
-        </div>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="secondary">Chat with {receiverName}</Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Chat with {receiverName}</DialogTitle>
+        </DialogHeader>
 
-        <div className="h-80 overflow-y-auto bg-white/5 rounded-lg p-3 space-y-2">
+        <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto p-2 bg-gray-800 rounded-lg">
           {messages.map((m) => (
             <div
               key={m.id}
-              className={p-2 rounded-lg text-sm max-w-[80%] ${
+              className={`p-2 rounded-lg text-sm max-w-[80%] ${
                 m.sender_id === currentUserId
-                  ? "bg-blue-600 ml-auto"
-                  : "bg-gray-700"
-              }}
+                  ? "bg-blue-600 ml-auto text-white"
+                  : "bg-gray-700 text-gray-100"
+              }`}
             >
               {m.content}
             </div>
           ))}
         </div>
 
-        <div className="mt-3 flex gap-2">
-          <input
-            type="text"
-            value={newMsg}
-            onChange={(e) => setNewMsg(e.target.value)}
+        <div className="flex gap-2 mt-3">
+          <Input
             placeholder="Type a message..."
-            className="flex-1 p-2 rounded-lg bg-white/10 border border-white/20"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
           />
-          <button
-            onClick={handleSend}
-            className="bg-blue-600 hover:bg-blue-700 px-4 rounded-lg"
-          >
-            Send
-          </button>
+          <Button onClick={sendMessage}>Send</Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
