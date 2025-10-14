@@ -35,7 +35,7 @@ export default function ChatModal({ currentUserId, receiverId, receiverName }: C
         .from("messages")
         .select("*")
         .or(
-          and(sender_id.eq.${currentUserId},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${currentUserId})
+          `and(sender_id.eq.${currentUserId},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${currentUserId})`
         )
         .order("created_at", { ascending: true });
 
