@@ -159,9 +159,8 @@ const { error } = await supabase.from("tasks").insert([
   },
 ]);
 
-if (error) {
-  console.error("Error creating task:", error);
-  alert("Failed to post task. Please try again.");
+if (insertError) {
+  console.error("Error creating task:", insertError);  alert("Failed to post task. Please try again.");
 } else {
   alert("Task posted successfully!");
   setForm({ title: "", description: "", category: "", budget: "", deadline: "" });
@@ -174,7 +173,7 @@ if (error) {
       }
 
       // Insert task row to Supabase
-      const { data, error } = await supabase.from("tasks").insert([
+      const { data, error: insertError } = await supabase.from("tasks").insert([
         {
           poster_id: currentUserId,
           title,
@@ -206,7 +205,7 @@ if (error) {
       return;
     }
     try {
-      const { data, error } = await supabase.from("applications").insert([
+      const { data, error: insertError } = await supabase.from("tasks").insert([
         {
           task_id: taskId,
           applicant_id: currentUserId,
