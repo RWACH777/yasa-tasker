@@ -116,7 +116,7 @@ export default function DashboardPage() {
         .limit(10);
       if (!error && data) {
         const notes = (data as any[]).map(function(t) {
-          return "Tx: " + (t.txid  "unknown") + " — " + (t.status  "pending") + " — " + String(t.amount || 0) + " Pi";
+          return "Tx: " + (t.txid ||  "unknown") + " — " + (t.status  || "pending") + " — " + String(t.amount || 0) + " Pi";
         });
         setNotifications(notes);
       }
