@@ -1,349 +1,170 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useUser } from "@/context/UserContext";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import ChatModals from "../../components/ChatModals";
+import { useUser } from "@/context/UserContext";
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const { user, setUser } = useUser() as any;
-
-  const [activeTab, setActiveTab] = useState("All");
+  const { user } = useUser();
   const [tasks, setTasks] = useState<any[]>([]);
-  const [applicationsMap, setApplicationsMap] = useState<Record<string, any[]>>({});
-  const [notifications, setNotifications] = useState<string[]>([]);
-  const [loadingTasks, setLoadingTasks] = useState(false);
-
-  // Task form
+  const [activeTab, setActiveTab] = useState("all");
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
-  const [deadline, setDeadline] = useState("");
   const [description, setDescription] = useState("");
-  const [budget, setBudget] = useState<number | "">("");
   const [isPosting, setIsPosting] = useState(false);
+  const [notifications, setNotifications] = useState<string[]>([]);
 
-  // restore Pi user from localStorage
-  useEffect(() => {
-    if (!user && typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("piUser");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          setUser?.(parsed);
-        }
-      } catch (e) {
-        console.warn("Failed to restore Pi user:", e);
-      }
-    }
-  }, [user, setUser]);
-
-  // fetch tasks
-  const loadTasks = async () => {
-    setLoadingTasks(true);
-    const { data, error } = await supabase.from("tasks").select("*").order("created_at", { ascending: false });
-    if (!error && data) setTasks(data);
-    setLoadingTasks(false);
-  };
-
-  const loadApplications = async () => {
-    const { data, error } = await supabase.from("applications").select("*");
-    if (!error && data) {
-      const map: Record<string, any[]> = {};
-      data.forEach((a) => {
-        if (!map[a.task_id]) map[a.task_id] = [];
-        map[a.task_id].push(a);
-      });
-      setApplicationsMap(map);
-    }
-  };
-
-  const loadNotifications = async () => {
-  const { data, error } = await supabase
-    .from("transactions")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(10);
-
-  if (!error && data) {
-    const notes = data.map(
-      (t) => `Tx: ${t.txid || "unknown"} — ${t.status || "pending"} — ${t.amount || 0} Pi`
-    );
-    setNotifications(notes);
-  }
-};
-
+  // Load tasks
   useEffect(() => {
     loadTasks();
-    loadApplications();
-    loadNotifications();
-  }, []);
+  }, [activeTab]);
 
-  const resolveUser = () => {
-    if (user?.uid) return user.uid;
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("piUser");
-      if (saved) return JSON.parse(saved)?.uid;
+  const loadTasks = async () => {
+    let query = supabase.from("tasks").select("*").order("created_at", { ascending: false });
+
+    if (activeTab !== "all") query = query.eq("status", activeTab);
+
+    const { data, error } = await query;
+    if (error) console.error("Error loading tasks:", error.message);
+    else setTasks(data || []);
+  };
+
+  // Ensure user row in profile table
+  const ensureUserRow = async (uid: string, username: string | null) => {
+    const { data, error } = await supabase.from("profiles").select("*").eq("id", uid).single();
+
+    if (!data && !error) {
+      await supabase.from("profiles").insert([{ id: uid, username }]);
     }
-    return null;
   };
 
-  const ensureUserRow = async (uid: string | null, username: string | null) => {
-    if (!uid) return;
-    const row = { pi_uid: uid, username: username || uid };
-    await supabase.from("users").upsert(row, { onConflict: "pi_uid" });
-  };
-
-  const handleAddTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title || !deadline) return alert("Please fill required fields");
-
-    const uid = resolveUser();
+  // Post a new task
+  const postTask = async () => {
+    if (!user) return alert("Login with Pi to post");
+    const uid = user?.id;
     if (!uid) return alert("Login with Pi to post");
 
     setIsPosting(true);
-    const username = user?.usern JSON.parse(localStorage.getItem("piUser") ) || "{}").username || null;
+    const username =
+     user?.username ||
+ JSON.parse(localStorage.getItem("piUser") || "{}").username || null;
+
     await ensureUserRow(uid, username);
 
     const { data, error } = await supabase.from("tasks").insert([
       {
         poster_id: uid,
         title,
-        description,
         category,
-        budget: budget === "" ? null : Number(budget),
-        deadline,
-        status: "open",
+        description,
+        status: "pending",
       },
     ]).select().single();
 
     if (error) alert("Error posting task: " + error.message);
     else {
       setTasks((prev) => [data, ...prev]);
-      setNotifications((n) => [Task posted: ${data.title}, ...n]);
+      setNotifications((n) => [Task posted: ${data.title}`, ...n]);
       setTitle("");
       setCategory("");
-      setDeadline("");
       setDescription("");
-      setBudget("");
     }
+
     setIsPosting(false);
   };
 
-  const handleApply = async (taskId: string) => {
-    const uid = resolveUser();
-    if (!uid) return alert("Login with Pi to apply");
-    const username = user?.usern JSON.parse(localStorage.getItem("piUser") ) || "{}").username || null;
-    await ensureUserRow(uid, username);
-
-    const { data, error } = await supabase.from("applications").insert([
-      { task_id: taskId, applicant_id: uid, cover_text: "I'd like to apply", proposed_budget: null },
-    ]).select();
-
-    if (error) alert("Error applying: " + error.message);
-    else {
-      setApplicationsMap((m) => ({ ...m, [taskId]: [...(m[taskId] || []), data[0]] }));
-      setNotifications((n) => ["Applied to task", ...n]);
-    }
-  };
-
-  const filtered = activeTab === "All" ? tasks : tasks.filter((t) => t.status === activeTab);
-  const formatBudget = (b: number | null) => (b != null ? ${b} Pi : "—");
-
   return (
-    <div className="min-h-screen bg-[#000222] text-white p-6">
-      <main className="max-w-6xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">Task Marketplace</h1>
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <div className="text-sm text-gray-300">
-                {user?.username ||
-                  JSON.parse(localStorage.getItem("piUse "{}").username e ||
-                  "Guest"}
-              </div>
-              <div className="text-xs text-gray-500">
-                UID: {user?.uid ||
-                  JSON.parse(localStorage.getItem("piUse "{}").uid d ||
-                  "—"}
-              </div>
-            </div>
-            <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-sm">
-              {(user?.username ||
-                JSON.parse(localStorage.getItem("piUse "{}").username e ||
-                "U").charAt(0).toUpperCase()}
-            </div>
-          </div>
-        </div>
+    <div className="min-h-screen bg-[#050827] text-white p-6">
+      <h1 className="text-3xl font-bold mb-6">My Tasks</h1>
 
-        {/* Panels */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="glass p-4 rounded-2xl border border-white/8">
-            <h2 className="font-semibold mb-2">Profile</h2>
-            <p className="text-sm text-gray-300">Name: {user?.username || "—"}</p>
-            <p className="text-sm text-gray-300">Pi UID: {user?.uid || "—"}</p>
-            <p className="text-sm text-gray-300">Role: both</p>
-          </div>
+      {/* --- DASHBOARD NAV TABS --- */}
+      <div className="flex space-x-4 border-b border-gray-700 mb-4">
+        {["all", "pending", "in progress", "completed"].map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`pb-2 capitalize ${
+              activeTab === tab
+                ? "border-b-2 border-blue-500 text-blue-400"
+                : "text-gray-400 hover:text-blue-300"
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
 
-          <div className="glass p-4 rounded-2xl border border-white/8">
-            <h2 className="font-semibold mb-2">Notifications</h2>
-            {notifications.length === 0 ? (
-              <div className="text-sm text-gray-400">No notifications</div>
-            ) : (
-              <ul className="space-y-2 text-sm">
-                {notifications.map((n, i) => (
-                  <li key={i} className="text-gray-300 bg-white/5 p-2 rounded">
-                    {n}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+      {/* --- TASK FORM (Glass Card) --- */}
+      <div className="bg-white/5 backdrop-blur-md rounded-2xl shadow-lg p-6 mb-6 border border-white/10 max-w-md">
+        <input
+          type="text"
+          placeholder="Task title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="w-full mb-3 bg-transparent border border-white/20 rounded-lg p-2 text-white placeholder-gray-400 focus:outline-none focus:border-blue-400"
+        />
 
-          <div className="glass p-4 rounded-2xl border border-white/8">
-            <h2 className="font-semibold mb-2">Overview</h2>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div>
-                <div className="text-xl font-bold">{tasks.length}</div>
-                <div className="text-xs text-gray-400">Tasks</div>
-              </div>
-              <div>
-                <div className="text-xl font-bold">
-                  {Object.values(applicationsMap).reduce((s, a) => s + a.length, 0)}
-                </div>
-                <div className="text-xs text-gray-400">Applications</div>
-              </div>
-              <div>
-                <div className="text-xl font-bold">{notifications.length}</div>
-                <div className="text-xs text-gray-400">Alerts</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          {["All", "open", "in_review", "completed"].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={px-3 py-2 rounded-lg ${
-                activeTab === tab ? "bg-white/10 text-blue-400" : "hover:bg-white/5 text-gray-300"
-              }}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-        {/* Post Task Form */}
-        <form
-          onSubmit={handleAddTask}
-          className="bg-white/5 p-4 rounded-lg border border-white/10 space-y-3"
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="w-full mb-3 bg-transparent border border-white/20 rounded-lg p-2 text-white focus:outline-none focus:border-blue-400"
         >
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Task title"
-              className="w-full p-2 rounded bg-transparent border border-white/20"
-            />
-            <input
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="Category"
-              className="w-full p-2 rounded bg-transparent border border-white/20"
-            />
-            <input
-              type="date"
-              value={deadline}
-              onChange={(e) => setDeadline(e.target.value)}
-              className="w-full p-2 rounded bg-transparent border border-white/20"
-            />
-          </div>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Description"
-            className="w-full p-2 rounded bg-transparent border border-white/20"
-          />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-            <input
-              type="number"
-              value={budget}
-              onChange={(e) =>
-                setBudget(e.target.value === "" ? "" : Number(e.target.value))
-              }
-              placeholder="Budget (Pi)"
-              className="w-full p-2 rounded bg-transparent border border-white/20"
-            />
-            <div />
-            <button
-              type="submit"
-              disabled={isPosting}
-              className={bg-blue-600 hover:bg-blue-700 w-full py-2 rounded-lg font-semibold ${
-                isPosting ? "opacity-50" : ""
-              }}
-            >
-              {isPosting ? "Posting..." : "Post Task"}
-            </button>
-          </div>
-        </form>
+          <option value="" disabled className="text-gray-400 bg-[#050827]">
+            Category
+          </option>
+          <option value="design" className="bg-[#050827]">Design</option>
+          <option value="development" className="bg-[#050827]">Development</option>
+          <option value="testing" className="bg-[#050827]">Testing</option>
+        </select>
 
-        {/* Tasks */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {loadingTasks ? (
-            <div className="text-gray-300">Loading tasks...</div>
-          ) : filtered.length === 0 ? (
-            <div className="text-gray-400">No tasks found.</div>
-          ) : (
-            filtered.map((t) => (
-              <div key={t.id} className="p-4 rounded-lg bg-white/10 border border-white/10">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-semibold">{t.title}</h3>
-                  <span
-                    className={`text-xs px-2 py-1 rounded ${
-                      t.status === "completed"
-                        ? "bg-green-500/20 text-green-400"
-                        : t.status === "in_review"
-                        ? "bg-yellow-500/20 text-yellow-400"
-                        : "bg-gray-500/20 text-gray-400"
-                    }`}
-                  >
-                    {t.status || "open"}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-400">{t.description || "No description"}</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {(t.category || "General") +
-                    " • Due: " +
-                    (t.deadline || "—") +
-                    " • Budget: " +
-                    formatBudget(t.budget)}
-                </p>
-                <div className="mt-3 flex gap-2 items-center">
-                  <button
-                    onClick={() => handleApply(t.id)}
-                    className="px-3 py-1 rounded bg-blue-600 text-white text-sm"
-                  >
-                    Apply
-                  </button>
-                  <ChatModals
-                    currentUserId={resolveUser() || ""}
-                    receiverId={t.poster_id || ""}
-                    receiverName={t.poster_id || "Poster"}
-                  />
-                  <div className="ml-auto text-xs text-gray-300">
-                    {applicationsMap[t.id]?.length || 0} apps
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </main>
+        <textarea
+          placeholder="Description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          className="w-full mb-3 bg-transparent border border-white/20 rounded-lg p-2 text-white placeholder-gray-400 focus:outline-none focus:border-blue-400"
+          rows={3}
+        />
+
+        <button
+          onClick={postTask}
+          disabled={isPosting}
+          className={w-full py-2 rounded-lg font-semibold ${
+            isPosting ? "bg-blue-400/50 cursor-wait" : "bg-blue-600 hover:bg-blue-700"
+          } transition}
+        >
+          {isPosting ? "Posting..." : "Add Task"}
+        </button>
+      </div>
+
+      {/* --- TASK LIST --- */}
+      <div className="space-y-3">
+        {tasks.length === 0 && (
+          <p className="text-gray-400 text-sm">No tasks yet. Add your first one!</p>
+        )}
+        {tasks.map((task) => (
+          <div
+            key={task.id}
+            className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-4 flex flex-col"
+          >
+            <div className="flex justify-between items-center mb-1">
+              <h3 className="font-semibold text-lg">{task.title}</h3>
+              <span
+                className={`text-xs capitalize px-2 py-1 rounded ${
+                  task.status === "completed"
+                    ? "bg-green-500/20 text-green-300"
+                    : task.status === "in progress"
+                    ? "bg-yellow-500/20 text-yellow-300"
+                    : "bg-blue-500/20 text-blue-300"
+                }`}
+              >
+                {task.status}
+              </span>
+            </div>
+            <p className="text-gray-400 text-sm mb-2">{task.description}</p>
+            <span className="text-xs text-gray-500">{task.category || "General"}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
