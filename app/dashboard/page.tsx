@@ -153,18 +153,20 @@ export default function DashboardPage() {
   };
 
   // ensure user exists in users table (upsert by pi_uid)
-  const ensureUserRow = async (piUid: string | null, username: string | null) => {
-    if (!piUid) return;
-    try {
-      const row = { pi_uid: piUid, username: username || piUid };
-      const { error } = await supabase.from("users").upsert(row, { onConflict: "pi_uid" });
-      if (error) {
-        console.warn("Failed upserting user row:", error);
-      }
-    } catch (err) {
-      console.warn("Unexpected ensureUserRow error:", err);
+  async function ensureUserRow(uid: string | null, username: string | null) {
+  if (!uid) return;
+  try {
+    const row = { id: uid, username: username || uid }; // id = FK column
+    const { error } = await supabase.from("users").upsert(row, { onConflict: "id" });
+    if (error) {
+      console.warn("Failed upserting user row:", error.message);
+    } else {
+      console.log("✅ User row ensured:", row);
     }
-  };
+  } catch (err) {
+    console.error("❌ Error ensuring user exists:", err);
+  }
+}
 
   // Posting a task (no payment)
   const handleAddTask = async (e: React.FormEvent) => {
@@ -184,7 +186,7 @@ export default function DashboardPage() {
   setIsPosting(true);
 
   try {
-    // ✅ Ensure user exists in referenced table
+    // ✅ Ensure the user exists in 'users' table before inserting the task
     const username =
       (user && (user as any).username) ??
       (typeof window !== "undefined" ? JSON.parse(localStorage.getItem("piUser") || "{}").username : null) ??
@@ -192,7 +194,7 @@ export default function DashboardPage() {
 
     await ensureUserRow(posterId, username);
 
-    // Insert task
+    // ✅ Insert task safely
     const taskRow = {
       poster_id: posterId,
       title,
@@ -211,7 +213,7 @@ export default function DashboardPage() {
       return;
     }
 
-    // Success
+    // ✅ Update UI
     setTasks((prev) => [data as Task].concat(prev));
     setTitle("");
     setCategory("");
