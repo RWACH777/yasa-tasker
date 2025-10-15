@@ -41,31 +41,39 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User>(null);
 
   useEffect(() => {
-    // 1️⃣ Restore user from localStorage on mount
-    const saved = localStorage.getItem("piUser");
-    if (saved) {
+  if (typeof window === "undefined") return;
+
+  // 1️⃣ Restore user from localStorage on mount
+  const saved = localStorage.getItem("piUser");
+  if (saved) {
+    try {
       const parsed = JSON.parse(saved);
-      setUser(parsed);
-      ensureUserExists(parsed.uid, parsed.username);
-    }
-
-    // 2️⃣ Listen to Supabase auth changes (but do not redirect)
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        const uid = session.user.id;
-        const username = session.user.user_metadata?.name || uid;
-        const userObj = { uid, username };
-        setUser(userObj);
-        localStorage.setItem("piUser", JSON.stringify(userObj));
-        ensureUserExists(uid, username);
-      } else {
-        setUser(null);
-        localStorage.removeItem("piUser");
+      if (parsed?.uid) {
+        setUser(parsed);
+        ensureUserExists(parsed.uid, parsed.username);
       }
-    });
+    } catch (e) {
+      console.warn("Failed to parse piUser from localStorage:", e);
+    }
+  }
 
-    return () => listener.subscription.unsubscribe();
-  }, []);
+  // 2️⃣ Listen to Supabase auth changes
+  const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (session?.user) {
+      const uid = session.user.id;
+      const username = session.user.user_metadata?.name || uid;
+      const userObj = { uid, username };
+      setUser(userObj);
+      localStorage.setItem("piUser", JSON.stringify(userObj));
+      ensureUserExists(uid, username);
+    } else {
+      setUser(null);
+      localStorage.removeItem("piUser");
+    }
+  });
+
+  return () => listener.subscription.unsubscribe();
+}, []);
 
   const handleSetUser = (u: User) => {
     setUser(u);
