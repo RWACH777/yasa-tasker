@@ -39,40 +39,43 @@ async function ensureUserExists(uid: string, username: string) {
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User>(null);
-useEffect(() => {
-  const initUser = async () => {
-    try {
-      // 1️⃣ Try to get Supabase session first
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) {
-        console.warn("Error getting Supabase session:", error.message);
-      }
 
-      if (session && session.user) {
+  // 1️⃣ Subscribe to Supabase auth state changes
+  useEffect(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
         const uid = session.user.id;
         const username = session.user.user_metadata?.name || uid;
-
         const userObj = { uid, username };
-        setUser(userObj); // update context
+        setUser(userObj);
         localStorage.setItem("piUser", JSON.stringify(userObj));
-        ensureUserExists(uid, username); // sync with Supabase profiles
+        ensureUserExists(uid, username);
       } else {
-        // 2️⃣ fallback to localStorage if no session
-        const saved = localStorage.getItem("piUser");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          setUser(parsed);
-          ensureUserExists(parsed.uid, parsed.username);
-        }
+        setUser(null);
+        localStorage.removeItem("piUser");
       }
-    } catch (err) {
-      console.error("Failed to restore user:", err);
-    }
-  };
+    });
 
-  initUser();
-}, []);
-  
+    // 2️⃣ Get initial session on mount
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const uid = session.user.id;
+        const username = session.user.user_metadata?.name || uid;
+        const userObj = { uid, username };
+        setUser(userObj);
+        localStorage.setItem("piUser", JSON.stringify(userObj));
+        ensureUserExists(uid, username);
+      }
+    };
+    init();
+
+    // Cleanup listener on unmount
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
   const handleSetUser = (u: User) => {
     setUser(u);
     if (u) {
@@ -83,7 +86,8 @@ useEffect(() => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut(); // log out from Supabase
     setUser(null);
     localStorage.removeItem("piUser");
   };
