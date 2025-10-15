@@ -40,24 +40,17 @@ async function ensureUserExists(uid: string, username: string) {
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User>(null);
 
-  // hydrate user from Supabase session or localStorage
   useEffect(() => {
-    const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const uid = session.user.id;
-        const username = session.user.user_metadata?.name || uid;
-        const userObj = { uid, username };
-        setUser(userObj);
-        localStorage.setItem("piUser", JSON.stringify(userObj));
-        ensureUserExists(uid, username);
-      }
-    };
+    // 1️⃣ Restore user from localStorage on mount
+    const saved = localStorage.getItem("piUser");
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      setUser(parsed);
+      ensureUserExists(parsed.uid, parsed.username);
+    }
 
-    init();
-
-    // subscribe to auth changes
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+    // 2️⃣ Listen to Supabase auth changes (but do not redirect)
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         const uid = session.user.id;
         const username = session.user.user_metadata?.name || uid;
