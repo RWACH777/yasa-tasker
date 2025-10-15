@@ -92,30 +92,55 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-200 p-4">
-      <h1 className="text-2xl font-semibold mb-4">Yasa Tasker Dashboard</h1>
+    <div className="flex space-x-4 border-b border-gray-700 mb-4">
+  <button
+    onClick={() => setActiveTab("tasks")}
+    className={
+      "pb-2 " +
+      (activeTab === "tasks"
+        ? "border-b-2 border-blue-500 text-blue-400"
+        : "")
+    }
+  >
+    Tasks
+  </button>
 
-      {/* --- Navigation Tabs --- */}
-      <div className="flex space-x-4 border-b border-gray-700 mb-4">
-        <button
-          onClick={() => setActiveTab("tasks")}
-          className={pb-2 ${activeTab === "tasks" ? "border-b-2 border-blue-500 text-blue-400" : ""}}
-        >
-          Tasks
-        </button>
-        <button
-          onClick={() => setActiveTab("notifications")}
-          className={pb-2 ${activeTab === "notifications" ? "border-b-2 border-blue-500 text-blue-400" : ""}}
-        >
-          Notifications
-        </button>
-        <button
-          onClick={() => setActiveTab("profile")}
-          className={pb-2 ${activeTab === "profile" ? "border-b-2 border-blue-500 text-blue-400" : ""}}
-        >
-          Profile
-        </button>
-      </div>
+  <button
+    onClick={() => setActiveTab("applications")}
+    className={
+      "pb-2 " +
+      (activeTab === "applications"
+        ? "border-b-2 border-blue-500 text-blue-400"
+        : "")
+    }
+  >
+    Applications
+  </button>
+
+  <button
+    onClick={() => setActiveTab("messages")}
+    className={
+      "pb-2 " +
+      (activeTab === "messages"
+        ? "border-b-2 border-blue-500 text-blue-400"
+        : "")
+    }
+  >
+    Messages
+  </button>
+
+  <button
+    onClick={() => setActiveTab("profile")}
+    className={
+      "pb-2 " +
+      (activeTab === "profile"
+        ? "border-b-2 border-blue-500 text-blue-400"
+        : "")
+    }
+  >
+    Profile
+  </button>
+</div>
 
       {/* --- TASKS TAB --- */}
       {activeTab === "tasks" && (
