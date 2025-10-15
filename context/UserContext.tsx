@@ -39,17 +39,40 @@ async function ensureUserExists(uid: string, username: string) {
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User>(null);
+useEffect(() => {
+  const initUser = async () => {
+    try {
+      // 1️⃣ Try to get Supabase session first
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.warn("Error getting Supabase session:", error.message);
+      }
 
-  useEffect(() => {
-    const saved = localStorage.getItem("piUser");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      setUser(parsed);
-      // sync with Supabase
-      ensureUserExists(parsed.uid, parsed.username);
+      if (session && session.user) {
+        const uid = session.user.id;
+        const username = session.user.user_metadata?.name || uid;
+
+        const userObj = { uid, username };
+        setUser(userObj); // update context
+        localStorage.setItem("piUser", JSON.stringify(userObj));
+        ensureUserExists(uid, username); // sync with Supabase profiles
+      } else {
+        // 2️⃣ fallback to localStorage if no session
+        const saved = localStorage.getItem("piUser");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setUser(parsed);
+          ensureUserExists(parsed.uid, parsed.username);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to restore user:", err);
     }
-  }, []);
+  };
 
+  initUser();
+}, []);
+  
   const handleSetUser = (u: User) => {
     setUser(u);
     if (u) {
