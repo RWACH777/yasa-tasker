@@ -40,8 +40,23 @@ async function ensureUserExists(uid: string, username: string) {
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User>(null);
 
-  // 1️⃣ Subscribe to Supabase auth state changes
+  // hydrate user from Supabase session or localStorage
   useEffect(() => {
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const uid = session.user.id;
+        const username = session.user.user_metadata?.name || uid;
+        const userObj = { uid, username };
+        setUser(userObj);
+        localStorage.setItem("piUser", JSON.stringify(userObj));
+        ensureUserExists(uid, username);
+      }
+    };
+
+    init();
+
+    // subscribe to auth changes
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
         const uid = session.user.id;
@@ -56,24 +71,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    // 2️⃣ Get initial session on mount
-    const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const uid = session.user.id;
-        const username = session.user.user_metadata?.name || uid;
-        const userObj = { uid, username };
-        setUser(userObj);
-        localStorage.setItem("piUser", JSON.stringify(userObj));
-        ensureUserExists(uid, username);
-      }
-    };
-    init();
-
-    // Cleanup listener on unmount
-    return () => {
-      listener.subscription.unsubscribe();
-    };
+    return () => listener.subscription.unsubscribe();
   }, []);
 
   const handleSetUser = (u: User) => {
@@ -87,7 +85,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    await supabase.auth.signOut(); // log out from Supabase
+    await supabase.auth.signOut();
     setUser(null);
     localStorage.removeItem("piUser");
   };
@@ -98,5 +96,4 @@ export function UserProvider({ children }: { children: ReactNode }) {
     </UserContext.Provider>
   );
 }
-
 export const useUser = () => useContext(UserContext);
