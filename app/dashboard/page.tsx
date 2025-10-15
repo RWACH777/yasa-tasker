@@ -92,7 +92,8 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex space-x-4 border-b border-gray-700 mb-4">
+    {/* --- DASHBOARD NAV TABS --- */}
+<div className="flex space-x-4 border-b border-gray-700 mb-4">
   <button
     onClick={() => setActiveTab("tasks")}
     className={
@@ -141,6 +142,8 @@ export default function Dashboard() {
     Profile
   </button>
 </div>
+
+{/* --- TASKS TAB --- */}
 
       {/* --- TASKS TAB --- */}
       {activeTab === "tasks" && (
