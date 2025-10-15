@@ -184,18 +184,22 @@ export default function DashboardPage() {
   setIsPosting(true);
 
   try {
-    // 1️⃣ Ensure user exists in referenced table
-    const username = (user && (user as any).username)  (typeof window !== "undefined" && JSON.parse(localStorage.getItem("piUser")  "{}").username)  null;
+    // ✅ Ensure user exists in referenced table
+    const username =
+      (user && (user as any).username) ??
+      (typeof window !== "undefined" ? JSON.parse(localStorage.getItem("piUser") || "{}").username : null) ??
+      null;
+
     await ensureUserRow(posterId, username);
 
-    // 2️⃣ Insert task
+    // Insert task
     const taskRow = {
       poster_id: posterId,
       title,
-      description: description  null,
-      category: category  null,
+      description: description || null,
+      category: category || null,
       budget: budget === "" ? null : Number(budget),
-      deadline: deadline  null,
+      deadline: deadline || null,
       status: "open",
     };
 
@@ -207,7 +211,7 @@ export default function DashboardPage() {
       return;
     }
 
-    // 3️⃣ Success: update state
+    // Success
     setTasks((prev) => [data as Task].concat(prev));
     setTitle("");
     setCategory("");
