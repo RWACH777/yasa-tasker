@@ -168,59 +168,60 @@ export default function DashboardPage() {
 
   // Posting a task (no payment)
   const handleAddTask = async (e: React.FormEvent) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (!title || !deadline) {
-      alert("Please fill required fields: title and deadline.");
+  if (!title || !deadline) {
+    alert("Please fill required fields: title and deadline.");
+    return;
+  }
+
+  const posterId = resolvePosterId();
+  if (!posterId) {
+    alert("You must be logged in with Pi to post tasks.");
+    return;
+  }
+
+  setIsPosting(true);
+
+  try {
+    // 1️⃣ Ensure user exists in referenced table
+    const username = (user && (user as any).username)  (typeof window !== "undefined" && JSON.parse(localStorage.getItem("piUser")  "{}").username)  null;
+    await ensureUserRow(posterId, username);
+
+    // 2️⃣ Insert task
+    const taskRow = {
+      poster_id: posterId,
+      title,
+      description: description  null,
+      category: category  null,
+      budget: budget === "" ? null : Number(budget),
+      deadline: deadline  null,
+      status: "open",
+    };
+
+    const { data, error } = await supabase.from("tasks").insert([taskRow]).select().single();
+
+    if (error) {
+      console.error("Supabase insert error:", error);
+      alert("Failed to post task: " + error.message);
       return;
     }
 
-    const posterId = resolvePosterId();
-    if (!posterId) {
-      alert("You must be logged in with Pi to post tasks. Open app in Pi Browser and login.");
-      return;
-    }
-
-    setIsPosting(true);
-    try {
-      // ensure user exists in users table (reduces RLS issues)
-      const username = (user && (user as any).username) || (typeof window !== "undefined" && JSON.parse(localStorage.getItem("piUser") || "{}").username) || null;
-      await ensureUserRow(posterId, username);
-
-      const taskRow = {
-        poster_id: posterId,
-        title: title,
-        description: description || null,
-        category: category || null,
-        budget: budget === "" ? null : Number(budget),
-        deadline: deadline || null,
-        status: "open",
-      };
-
-      const { data, error } = await supabase.from("tasks").insert([taskRow]).select().single();
-
-      if (error) {
-        console.error("Supabase insert error:", error);
-        // Show helpful error including details so you can fix policies if needed
-        alert("Failed to post task: " + (error.message || JSON.stringify(error)));
-        return;
-      }
-
-      // success: prepend to list
-      setTasks((prev) => [data as Task].concat(prev));
-      setTitle("");
-      setCategory("");
-      setDeadline("");
-      setDescription("");
-      setBudget("");
-      setNotifications((n) => ["Task posted: " + (data as any).title].concat(n));
-    } catch (err: any) {
-      console.error("Unexpected error posting task:", err);
-      alert("Failed to post task: " + (err?.message || JSON.stringify(err)));
-    } finally {
-      setIsPosting(false);
-    }
-  };
+    // 3️⃣ Success: update state
+    setTasks((prev) => [data as Task].concat(prev));
+    setTitle("");
+    setCategory("");
+    setDeadline("");
+    setDescription("");
+    setBudget("");
+    setNotifications((n) => ["Task posted: " + (data as any).title].concat(n));
+  } catch (err: any) {
+    console.error("Unexpected error posting task:", err);
+    alert("Failed to post task: " + (err?.message || JSON.stringify(err)));
+  } finally {
+    setIsPosting(false);
+  }
+};
 
   // Apply handler
   const handleApply = async (taskId: string) => {
