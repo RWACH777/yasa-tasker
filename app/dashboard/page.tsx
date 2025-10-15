@@ -60,12 +60,19 @@ export default function DashboardPage() {
   };
 
   const loadNotifications = async () => {
-    const { data, error } = await supabase.from("transactions").select("*").order("created_at", { ascending: false }).limit(10);
-    if (!error && data) {
-      const notes = data.map((t) => Tx: ${t.txid || "unknown"} — ${t.status || "pending"} — ${t.amount || 0} Pi);
-      setNotifications(notes);
-    }
-  };
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (!error && data) {
+    const notes = data.map(
+      (t) => `Tx: ${t.txid || "unknown"} — ${t.status || "pending"} — ${t.amount || 0} Pi`
+    );
+    setNotifications(notes);
+  }
+};
 
   useEffect(() => {
     loadTasks();
