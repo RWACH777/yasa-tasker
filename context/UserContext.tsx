@@ -1,5 +1,6 @@
 "use client";
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
 type User = {
   username: string;
@@ -19,13 +20,45 @@ const UserContext = createContext<UserContextType>({
   logout: () => {},
 });
 
+// Function to ensure user exists in Supabase
+async function ensureUserExists(uid: string, username: string) {
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .upsert([{ id: uid, username }]);
+
+    if (error) {
+      console.warn("⚠️ Supabase profile sync failed:", error.message);
+    } else {
+      console.log("✅ Supabase user synced:", data);
+    }
+  } catch (err) {
+    console.error("❌ Error ensuring user exists:", err);
+  }
+}
+
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem("piUser");
-    if (saved) setUser(JSON.parse(saved));
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      setUser(parsed);
+      // sync with Supabase
+      ensureUserExists(parsed.uid, parsed.username);
+    }
   }, []);
+
+  const handleSetUser = (u: User) => {
+    setUser(u);
+    if (u) {
+      localStorage.setItem("piUser", JSON.stringify(u));
+      ensureUserExists(u.uid, u.username);
+    } else {
+      localStorage.removeItem("piUser");
+    }
+  };
 
   const logout = () => {
     setUser(null);
@@ -33,7 +66,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <UserContext.Provider value={{ user, setUser, logout }}>
+    <UserContext.Provider value={{ user, setUser: handleSetUser, logout }}>
       {children}
     </UserContext.Provider>
   );

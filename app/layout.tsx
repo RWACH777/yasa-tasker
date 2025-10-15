@@ -6,19 +6,22 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Script from "next/script";
 
+// --- Auth wrapper to protect routes ---
 function AuthWrapper({ children }: { children: React.ReactNode }) {
   const { user } = useUser();
   const router = useRouter();
   const pathname = usePathname();
   const [loaded, setLoaded] = useState(false);
 
+  // Small delay to ensure user state loads from context
   useEffect(() => {
     const timer = setTimeout(() => setLoaded(true), 200);
     return () => clearTimeout(timer);
   }, []);
 
+  // Redirect to /login if not logged in
   useEffect(() => {
-    if (loaded && !user && pathname !== "/login") {
+    if (loaded && !user && pathname !== "/login" && pathname !== "/register") {
       router.push("/login");
     }
   }, [user, loaded, pathname, router]);
@@ -30,32 +33,34 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
+
   return <>{children}</>;
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+// --- Root layout ---
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body className="bg-gray-950 text-gray-100">
-        {/* Load Pi SDK early */}
+        {/* ✅ Load Pi SDK before anything interactive */}
         <Script
           src="https://sdk.minepi.com/pi-sdk.js"
           strategy="beforeInteractive"
           onLoad={() => {
-            console.log("✅ Pi SDK loaded (layout)");
-            // Immediately init so window.Pi is ready
             try {
-              (window as any).Pi?.init({ version: "2.0", sandbox: false });
-              console.log("✅ Pi SDK initialized via layout");
-            } catch (e) {
-              console.warn("Pi init failed in layout:", e);
+              if (typeof window !== "undefined" && (window as any).Pi) {
+                (window as any).Pi.init({ version: "2.0", sandbox: false });
+                console.log("✅ Pi SDK initialized via RootLayout");
+              } else {
+                console.warn("⚠️ Pi SDK not available in window");
+              }
+            } catch (error) {
+              console.error("❌ Pi SDK initialization failed:", error);
             }
           }}
         />
+
+        {/* ✅ Global user context and auth protection */}
         <UserProvider>
           <AuthWrapper>{children}</AuthWrapper>
         </UserProvider>
