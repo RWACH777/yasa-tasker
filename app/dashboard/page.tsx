@@ -1,101 +1,226 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabaseClient";
 import { useUser } from "@/context/UserContext";
-import { supabase } from "@/lib/SupabaseClient";
 
-export default function DashboardPage() {
-  const { user, loaded } = useUser();
-  const [username, setUsername] = useState("");
-  const [piUid, setPiUid] = useState("");
-  const [notifications, setNotifications] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function Dashboard() {
+  const { user } = useUser();
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({ title: "", description: "", category: "" });
+  const [showForm, setShowForm] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [activeTab, setActiveTab] = useState("tasks");
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [profile, setProfile] = useState<any>(null);
 
-  // Fetch user profile info from Supabase
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user) return;
-      try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("username, pi_uid")
-          .eq("id", user.id)
-          .single();
-
-        if (error) {
-          console.error("Error fetching profile:", error);
-        } else if (data) {
-          setUsername(data.username || "Anonymous");
-          setPiUid(data.pi_uid || "N/A");
-        }
-      } catch (err) {
-        console.error("Unexpected error fetching profile:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (loaded) fetchProfile();
-  }, [user, loaded]);
-
-  // Simulated notifications (you can connect real Supabase data later)
-  useEffect(() => {
-    setNotifications([
-      "Welcome to Yasa Tasker!",
-      "Remember to complete your profile details.",
-      "Stay tuned for upcoming Pi integration!",
-    ]);
+    fetchTasks();
+    fetchProfile();
   }, []);
 
-  if (!loaded || loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-950 text-gray-300">
-        Loading your dashboard...
-      </div>
-    );
+  async function fetchTasks() {
+    try {
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setTasks(data || []);
+    } catch (e: any) {
+      console.error("Error loading tasks:", e);
+      setErrorMsg(e.message);
+    }
   }
 
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-950 text-gray-300">
-        You are not logged in.
-      </div>
-    );
+  async function fetchProfile() {
+    if (!user?.uid) return;
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.uid)
+        .single();
+
+      if (error && error.code !== "PGRST116") throw error;
+      setProfile(data || { username: user.username, id: user.uid });
+    } catch (e: any) {
+      console.error("Error loading profile:", e);
+    }
+  }
+
+  async function postTask(e: any) {
+    e.preventDefault();
+    if (!form.title || !form.description) {
+      setErrorMsg("Please fill in all fields");
+      return;
+    }
+    if (!user?.uid) {
+      setErrorMsg("User not authenticated");
+      return;
+    }
+    setLoading(true);
+    setErrorMsg("");
+
+    try {
+      const { error } = await supabase.from("tasks").insert([
+        {
+          poster_id: user.uid,
+          title: form.title,
+          description: form.description,
+          category: form.category,
+        },
+      ]);
+
+      if (error) throw error;
+
+      setForm({ title: "", description: "", category: "" });
+      setShowForm(false);
+      await fetchTasks();
+    } catch (e: any) {
+      console.error("Task posting error:", e);
+      setErrorMsg(e.message || "Failed to post. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleApply(task: any) {
+    alert("Applied to task: " + task.title);
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-200 flex flex-col items-center p-6">
-      <div className="max-w-3xl w-full bg-gray-900 bg-opacity-40 backdrop-blur-md border border-gray-800 rounded-2xl shadow-lg p-6 mt-10">
-        <h1 className="text-2xl font-bold mb-4 text-white">Dashboard</h1>
+    <div className="min-h-screen bg-gray-950 text-gray-200 p-4">
+      <h1 className="text-2xl font-semibold mb-4">Yasa Tasker Dashboard</h1>
 
-        <div className="bg-gray-800 rounded-lg p-4 mb-6">
-          <h2 className="text-xl font-semibold mb-2 text-white">User Profile</h2>
-          <p>
-            <strong>Username:</strong> {username}
-          </p>
-          <p>
-            <strong>Pi UID:</strong> {piUid}
-          </p>
-          <p>
-            <strong>Email:</strong> {user.email || "No email available"}
-          </p>
+      {/* --- Navigation Tabs --- */}
+      <div className="flex space-x-4 border-b border-gray-700 mb-4">
+        <button
+          onClick={() => setActiveTab("tasks")}
+          className={pb-2 ${activeTab === "tasks" ? "border-b-2 border-blue-500 text-blue-400" : ""}}
+        >
+          Tasks
+        </button>
+        <button
+          onClick={() => setActiveTab("notifications")}
+          className={pb-2 ${activeTab === "notifications" ? "border-b-2 border-blue-500 text-blue-400" : ""}}
+        >
+          Notifications
+        </button>
+        <button
+          onClick={() => setActiveTab("profile")}
+          className={pb-2 ${activeTab === "profile" ? "border-b-2 border-blue-500 text-blue-400" : ""}}
+        >
+          Profile
+        </button>
+      </div>
+
+      {/* --- TASKS TAB --- */}
+      {activeTab === "tasks" && (
+        <div>
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="bg-blue-600 px-4 py-2 rounded mb-4 hover:bg-blue-700"
+          >
+            {showForm ? "Close Form" : "Post a New Task"}
+          </button>
+
+          {showForm && (
+            <form
+              onSubmit={postTask}
+              className="bg-gray-900 p-4 rounded-lg shadow-lg mb-6"
+            >
+              <input
+                type="text"
+                placeholder="Title"
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                className="w-full mb-2 p-2 rounded bg-gray-800 border border-gray-700"
+              />
+              <textarea
+                placeholder="Description"
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                className="w-full mb-2 p-2 rounded bg-gray-800 border border-gray-700"
+              />
+              <input
+                type="text"
+                placeholder="Category"
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                className="w-full mb-3 p-2 rounded bg-gray-800 border border-gray-700"
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="bg-green-600 px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50"
+              >
+                {loading ? "Posting..." : "Post Task"}
+              </button>
+            </form>
+          )}
+
+          {errorMsg && (
+            <div className="text-red-400 bg-gray-800 p-2 rounded mb-3">
+              {errorMsg}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {tasks.map((t) => (
+              <div
+                key={t.id}
+                className="bg-gray-900 p-4 rounded-lg shadow-md flex justify-between items-center"
+              >
+                <div>
+                  <h2 className="font-semibold text-lg">{t.title}</h2>
+                  <p className="text-gray-400">{t.description}</p>
+                  <p className="text-sm text-gray-500 mt-1">Category: {t.category || "N/A"}</p>
+                </div>
+                <button
+                  onClick={() => handleApply(t)}
+                  className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                >
+                  Apply
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
+      )}
 
-        <div className="bg-gray-800 rounded-lg p-4">
-          <h2 className="text-xl font-semibold mb-2 text-white">Notifications</h2>
-          {notifications.length > 0 ? (
-            <ul className="list-disc list-inside">
-              {notifications.map((note, index) => (
-                <li key={index} className="text-gray-300">
-                  {note}
-                </li>
-              ))}
-            </ul>
+      {/* --- NOTIFICATIONS TAB --- */}
+      {activeTab === "notifications" && (
+        <div className="bg-gray-900 p-4 rounded-lg">
+          <h2 className="text-lg font-semibold mb-3">Notifications</h2>
+          {notifications.length === 0 ? (
+            <p className="text-gray-400">No new notifications</p>
           ) : (
-            <p>No new notifications.</p>
+            notifications.map((n, i) => (
+              <div key={i} className="p-2 border-b border-gray-700">
+                {n.message}
+              </div>
+            ))
           )}
         </div>
-      </div>
+      )}
+
+      {/* --- PROFILE TAB --- */}
+      {activeTab === "profile" && (
+        <div className="bg-gray-900 p-4 rounded-lg">
+          <h2 className="text-lg font-semibold mb-3">Your Profile</h2>
+          {profile ? (
+            <div>
+              <p><strong>Username:</strong> {profile.username}</p>
+              <p><strong>ID:</strong> {profile.id}</p>
+            </div>
+          ) : (
+            <p className="text-gray-400">No profile found.</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
