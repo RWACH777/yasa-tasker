@@ -41,7 +41,8 @@ export default function DashboardPage() {
 
       if (!error && data) {
         const notes = (data as any[]).map((t) => {
-          return "Tx: " + (t.txid  "unknown") + " — " + (t.status  "pending") + " — " + String(t.amount || 0) + " Pi";
+          // <-- ADD BACKTICKS HERE
+          return `Tx: ${t.txid || "unknown"} — ${t.status || "pending"} — ${String(t.amount || 0)} Pi`;
         });
         setNotifications(notes);
       }
@@ -66,15 +67,14 @@ export default function DashboardPage() {
 
   const handleApply = async (taskId: string) => {
     // Dummy apply function
-    alert("Applied to task " + taskId);
+    alert(`Applied to task ${taskId}`); // <-- ADD BACKTICKS HERE
   };
 
   return (
     <div className="p-6 bg-black text-white min-h-screen">
       <header className="mb-6">
         <h1 className="text-2xl font-bold">
-          Welcome,{" "}
-          {(hydratedUser && hydratedUser.username) || "Guest"}
+          Welcome, {hydratedUser?.username || "Guest"}
         </h1>
         <div className="mt-2">
           {notifications.length > 0 ? (
@@ -98,7 +98,8 @@ export default function DashboardPage() {
                 </div>
                 <p className="text-sm text-gray-400 mt-1">{t.description || "No description"}</p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {(t.category  "General") + " • Due: " + (t.deadline  "—") + " • Budget: " + formatBudget(t.budget)}
+                  {/* <-- ADD BACKTICKS HERE */}
+                  {`${t.category || "General"} • Due: ${t.deadline || "—"} • Budget: ${formatBudget(t.budget)}`}
                 </p>
                 <div className="mt-3 flex gap-2 items-center">
                   <button
@@ -107,6 +108,7 @@ export default function DashboardPage() {
                   >
                     Apply
                   </button>
+                  {/* <-- ADD BACKTICKS HERE if needed for ChatModals props */}
                   <ChatModals
                     currentUserId={hydratedUser?.uid || ""}
                     receiverId={t.poster_id || ""}
