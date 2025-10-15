@@ -30,16 +30,13 @@ type Application = {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, setUser } = useUser();
+  const userCtx = useUser();
+  const user = (userCtx as any)?.user ?? null;
+  const setUser = (userCtx as any)?.setUser;
 
-  // -------------------------------
-  // States
-  // -------------------------------
   const [activeTab, setActiveTab] = useState("All");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
-  const [applicationsMap, setApplicationsMap] = useState<Record<string, Application[]>>({});
-  const [notifications, setNotifications] = useState<string[]>([]);
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
@@ -48,33 +45,35 @@ export default function DashboardPage() {
   const [budget, setBudget] = useState<number | "">("");
   const [isPosting, setIsPosting] = useState(false);
 
-  // -------------------------------
-  // 1️⃣ Hydrate User from localStorage
-  // -------------------------------
+  const [applicationsMap, setApplicationsMap] = useState<Record<string, Application[]>>({});
+  const [notifications, setNotifications] = useState<string[]>([]);
+
+  // Hydrate user from localStorage if missing
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!user && setUser) {
-      const raw = localStorage.getItem("piUser");
-      if (raw) {
-        try {
+    try {
+      if (!user && typeof window !== "undefined") {
+        const raw = localStorage.getItem("piUser");
+        if (raw) {
           const parsed = JSON.parse(raw);
-          if (parsed && parsed.uid) setUser(parsed);
-        } catch (e) {
-          console.warn("Failed to parse piUser from localStorage:", e);
+          if (typeof setUser === "function") {
+            setUser(parsed);
+          }
         }
       }
+    } catch (e) {
+      console.warn("Failed to hydrate piUser:", e);
     }
   }, [user, setUser]);
 
-  // -------------------------------
-  // 2️⃣ Load tasks, applications, notifications
-  // -------------------------------
   const loadTasks = async () => {
     setLoadingTasks(true);
     try {
       const { data, error } = await supabase.from("tasks").select("*").order("created_at", { ascending: false });
-      if (error) console.error("Error loading tasks:", error);
-      else setTasks(data || []);
+      if (error) {
+        console.error("Error loading tasks:", error);
+      } else {
+        setTasks((data || []) as Task[]);
+      }
     } catch (err) {
       console.error("Unexpected loadTasks error:", err);
     } finally {
@@ -102,15 +101,11 @@ export default function DashboardPage() {
 
   const loadNotifications = async () => {
     try {
-      const { data, error } = await supabase
-        .from("transactions")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(10);
+      const { data, error } = await supabase.from("transactions").select("*").order("created_at", { ascending: false }).limit(10);
       if (!error && data) {
-        const notes = (data as any[]).map(
-          (t) => Tx: ${t.txid || "unknown"} — ${t.status || "pending"} — ${String(t.amount || 0)} Pi
-        );
+        const notes = (data as any[]).map(function(t) {
+          return "Tx: " + (t.txid || "unknown") + " — " + (t.status || "pending") + " — " + String(t.amount || 0) + " Pi`;
+        });
         setNotifications(notes);
       }
     } catch (err) {
@@ -123,46 +118,62 @@ export default function DashboardPage() {
     loadApplications();
     loadNotifications();
 
-    const interval = setInterval(() => {
+    const id = setInterval(() => {
       loadTasks();
       loadApplications();
       loadNotifications();
     }, 30000);
-    return () => clearInterval(interval);
+    return () => clearInterval(id);
   }, []);
 
-  // -------------------------------
-  // 3️⃣ Helpers
-  // -------------------------------
-  const resolvePosterId = () => user?.uid ?? (typeof window !== "undefined" ? JSON.parse(localStorage.getItem("piUser") || "{}")?.uid : null);
-  const usernameDisplay = user?.username ?? (typeof window !== "undefined" ? JSON.parse(localStorage.getItem("piUser") || "{}")?.username : "Guest");
-  const uidDisplay = user?.uid ?? (typeof window !== "undefined" ? JSON.parse(localStorage.getItem("piUser") || "{}")?.uid : "—");
+  const resolvePosterId = () => {
+    if (user && (user as any).uid) return (user as any).uid;
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("piUser");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.uid) return parsed.uid;
+        }
+      } catch (e) {}
+    }
+    return null;
+  };
 
-  const ensureUserRow = async (uid: string | null, username: string | null) => {
+  async function ensureUserRow(uid: string | null, username: string | null) {
     if (!uid) return;
     try {
       const row = { id: uid, username: username || uid };
       const { error } = await supabase.from("users").upsert(row, { onConflict: "id" });
-      if (error) console.warn("Failed upserting user row:", error.message);
-      else console.log("✅ User row ensured:", row);
+      if (error) {
+        console.warn("Failed upserting user row:", error.message);
+      } else {
+        console.log("✅ User row ensured:", row);
+      }
     } catch (err) {
       console.error("❌ Error ensuring user exists:", err);
     }
-  };
+  }
 
-  // -------------------------------
-  // 4️⃣ Handlers
-  // -------------------------------
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !deadline) return alert("Please fill required fields: title and deadline.");
-
+    if (!title || !deadline) {
+      alert("Please fill required fields: title and deadline.");
+      return;
+    }
     const posterId = resolvePosterId();
-    if (!posterId) return alert("You must be logged in with Pi to post tasks.");
+    if (!posterId) {
+      alert("You must be logged in with Pi to post tasks.");
+      return;
+    }
 
     setIsPosting(true);
     try {
-      await ensureUserRow(posterId, usernameDisplay);
+      const username =
+        (user && (user as any).username) ||
+        (typeof window !== "undefined" ? JSON.parse(localStorage.getItem("piUser") || "{}").username : null) ||
+        null;
+      await ensureUserRow(posterId, username);
 
       const taskRow = {
         poster_id: posterId,
@@ -175,7 +186,11 @@ export default function DashboardPage() {
       };
 
       const { data, error } = await supabase.from("tasks").insert([taskRow]).select().single();
-      if (error) return alert("Failed to post task: " + error.message);
+      if (error) {
+        console.error("Supabase insert error:", error);
+        alert("Failed to post task: " + error.message);
+        return;
+      }
 
       setTasks((prev) => [data as Task].concat(prev));
       setTitle("");
@@ -185,7 +200,7 @@ export default function DashboardPage() {
       setBudget("");
       setNotifications((n) => ["Task posted: " + (data as any).title].concat(n));
     } catch (err: any) {
-      console.error(err);
+      console.error("Unexpected error posting task:", err);
       alert("Failed to post task: " + (err?.message || JSON.stringify(err)));
     } finally {
       setIsPosting(false);
@@ -194,10 +209,14 @@ export default function DashboardPage() {
 
   const handleApply = async (taskId: string) => {
     const applicantId = resolvePosterId();
-    if (!applicantId) return alert("Please log in with Pi to apply.");
-
+    if (!applicantId) {
+      alert("Please log in with Pi to apply.");
+      return;
+    }
     try {
-      await ensureUserRow(applicantId, usernameDisplay);
+      const username =
+        (user && (user as any).username) || (typeof window !== "undefined" && JSON.parse(localStorage.getItem("piUser") || "{}").username) || null;
+      await ensureUserRow(applicantId, username);
 
       const { data, error } = await supabase.from("applications").insert([
         {
@@ -207,8 +226,11 @@ export default function DashboardPage() {
           proposed_budget: null,
         },
       ]);
-      if (error) return alert("Failed to apply: " + (error.message || JSON.stringify(error)));
-
+      if (error) {
+        console.error("Apply error:", error);
+        alert("Failed to apply: " + (error.message || JSON.stringify(error)));
+        return;
+      }
       const newApp: Application = (data as Application[])[0];
       setApplicationsMap((m) => {
         const copy = { ...m };
@@ -218,7 +240,7 @@ export default function DashboardPage() {
       setNotifications((n) => ["Applied to task"].concat(n));
       alert("Applied to task. Open Chat to contact poster.");
     } catch (err: any) {
-      console.error(err);
+      console.error("Unexpected apply error:", err);
       alert("Failed to apply: " + (err?.message || JSON.stringify(err)));
     }
   };
@@ -226,9 +248,6 @@ export default function DashboardPage() {
   const formatBudget = (b: number | null) => (b != null ? String(b) + " Pi" : "—");
   const filteredTasks = activeTab === "All" ? tasks : tasks.filter((t) => (t.status || "open") === activeTab);
 
-  // -------------------------------
-  // 5️⃣ Render
-  // -------------------------------
   return (
     <div className="min-h-screen bg-[#000222] text-white p-6">
       <main className="max-w-6xl mx-auto space-y-8">
@@ -238,11 +257,11 @@ export default function DashboardPage() {
 
           <div className="flex items-center gap-4">
             <div className="text-right">
-              <div className="text-sm text-gray-300">{usernameDisplay}</div>
-              <div className="text-xs text-gray-500">UID: {uidDisplay}</div>
+              <div className="text-sm text-gray-300">{(user && (user as any).username) || (typeof window !== "undefined" && JSON.parse(localStorage.getItem("piUser") || "{}").username) || "Guest"}</div>
+              <div className="text-xs text-gray-500">UID: {(user && (user as any).uid) || (typeof window !== "undefined" && JSON.parse(localStorage.getItem("piUser") || "{}").uid) || "—"}</div>
             </div>
             <div className="w-12 h-12 bg-white/6 rounded-full flex items-center justify-center text-sm">
-              {usernameDisplay.charAt(0).toUpperCase()}
+              {(user && (user as any).username ? (user as any).username.charAt(0).toUpperCase() : (typeof window !== "undefined" && JSON.parse(localStorage.getItem("piUser") || "{}").username ? JSON.parse(localStorage.getItem("piUser") || "{}").username.charAt(0).toUpperCase() : "U"))}
             </div>
           </div>
         </div>
@@ -252,53 +271,27 @@ export default function DashboardPage() {
           {/* Profile Card */}
           <div className="glass p-4 rounded-2xl border border-white/8">
             <h2 className="font-semibold mb-2">Profile</h2>
-            <p className="text-sm text-gray-300">Name: {usernameDisplay}</p>
-            <p className="text-sm text-gray-300">Pi UID: {uidDisplay}</p>
+            <p className="text-sm text-gray-300">Name: {(user && (user as any).username) || (typeof window !== "undefined" && JSON.parse(localStorage.getItem("piUser") || "{}").username) || "—"}</p>
+            <p className="text-sm text-gray-300">Pi UID: {(user && (user as any).uid) || (typeof window !== "undefined" && JSON.parse(localStorage.getItem("piUser") || "{}").uid) || "—"}</p>
             <p className="text-sm text-gray-300">Role: both</p>
             <div className="mt-3">
-              <button
-                className="px-3 py-2 bg-blue-600 rounded-lg text-sm"
-                onClick={() => alert("Profile editing coming soon")}
-              >
-                Edit Profile
-              </button>
+              <button className="px-3 py-2 bg-blue-600 rounded-lg text-sm" onClick={() => alert("Profile editing coming soon")}>Edit Profile</button>
             </div>
           </div>
 
           {/* Notifications */}
           <div className="glass p-4 rounded-2xl border border-white/8">
             <h2 className="font-semibold mb-2">Notifications</h2>
-            {notifications.length === 0 ? (
-              <div className="text-sm text-gray-400">No notifications</div>
-            ) : (
-              <ul className="space-y-2 text-sm">
-                {notifications.map((n, i) => (
-                  <li key={i} className="text-gray-300 bg-white/3 p-2 rounded">
-                    {n}
-                  </li>
-                ))}
-              </ul>
-            )}
+            {notifications.length === 0 ? <div className="text-sm text-gray-400">No notifications</div> : <ul className="space-y-2 text-sm">{notifications.map((n, i) => <li key={i} className="text-gray-300 bg-white/3 p-2 rounded">{n}</li>)}</ul>}
           </div>
 
           {/* Quick Stats */}
           <div className="glass p-4 rounded-2xl border border-white/8">
             <h2 className="font-semibold mb-2">Overview</h2>
             <div className="grid grid-cols-3 gap-2 text-center">
-              <div>
-                <div className="text-xl font-bold">{tasks.length}</div>
-                <div className="text-xs text-gray-400">Total Tasks</div>
-              </div>
-              <div>
-                <div className="text-xl font-bold">
-                  {Object.keys(applicationsMap).reduce((sum, k) => sum + (applicationsMap[k]?.length || 0), 0)}
-                </div>
-                <div className="text-xs text-gray-400">Applications</div>
-              </div>
-              <div>
-                <div className="text-xl font-bold">{notifications.length}</div>
-                <div className="text-xs text-gray-400">Alerts</div>
-              </div>
+              <div><div className="text-xl font-bold">{tasks.length}</div><div className="text-xs text-gray-400">Total Tasks</div></div>
+              <div><div className="text-xl font-bold">{Object.keys(applicationsMap).reduce((sum, k) => sum + (applicationsMap[k]?.length || 0), 0)}</div><div className="text-xs text-gray-400">Applications</div></div>
+              <div><div className="text-xl font-bold">{notifications.length}</div><div className="text-xs text-gray-400">Alerts</div></div>
             </div>
           </div>
         </div>
@@ -306,14 +299,7 @@ export default function DashboardPage() {
         {/* Tabs */}
         <div className="flex gap-2 overflow-x-auto pb-2">
           {["All", "open", "in_review", "completed"].map((name) => (
-            <button
-              key={name}
-              onClick={() => setActiveTab(name)}
-              className={
-                "text-left px-3 py-2 rounded-lg transition " +
-                (activeTab === name ? "bg-white/8 text-blue-300" : "hover:bg-white/5 text-gray-300")
-              }
-            >
+            <button key={name} onClick={() => setActiveTab(name)} className={"text-left px-3 py-2 rounded-lg transition " + (activeTab === name ? "bg-white/8 text-blue-300" : "hover:bg-white/5 text-gray-300")}>
               {name}
             </button>
           ))}
@@ -322,50 +308,17 @@ export default function DashboardPage() {
         {/* Post Task Form */}
         <form onSubmit={handleAddTask} className="bg-white/5 p-4 rounded-lg border border-white/10 space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Task title"
-              className="w-full p-2 rounded bg-transparent border border-white/20"
-            />
-            <input
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="Category"
-              className="w-full p-2 rounded bg-transparent border border-white/20"
-            />
-            <input
-              value={deadline}
-              onChange={(e) => setDeadline(e.target.value)}
-              type="date"
-              className="w-full p-2 rounded bg-transparent border border-white/20"
-            />
+            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Task title" className="w-full p-2 rounded bg-transparent border border-white/20" />
+            <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Category" className="w-full p-2 rounded bg-transparent border border-white/20" />
+            <input value={deadline} onChange={(e) => setDeadline(e.target.value)} type="date" className="w-full p-2 rounded bg-transparent border border-white/20" />
           </div>
 
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Description"
-            className="w-full p-2 rounded bg-transparent border border-white/20"
-          />
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" className="w-full p-2 rounded bg-transparent border border-white/20" />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-            <input
-              value={budget}
-              onChange={(e) => setBudget(e.target.value === "" ? "" : Number(e.target.value))}
-              placeholder="Budget (Pi)"
-              type="number"
-              className="w-full p-2 rounded bg-transparent border border-white/20"
-            />
+            <input value={budget} onChange={(e) => setBudget(e.target.value === "" ? "" : Number(e.target.value))} placeholder="Budget (Pi)" type="number" className="w-full p-2 rounded bg-transparent border border-white/20" />
             <div />
-            <button
-              type="submit"
-              disabled={isPosting}
-              className={
-                "bg-blue-600 hover:bg-blue-700 w-full py-2 rounded-lg font-semibold " +
-                (isPosting ? "opacity-60 cursor-not-allowed" : "")
-              }
-            >
+            <button type="submit" disabled={isPosting} className={"bg-blue-600 hover:bg-blue-700 w-full py-2 rounded-lg font-semibold " + (isPosting ? "opacity-60 cursor-not-allowed" : "")}>
               {isPosting ? "Posting..." : "Post Task"}
             </button>
           </div>
@@ -373,54 +326,27 @@ export default function DashboardPage() {
 
         {/* Tasks Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {loadingTasks ? (
-            <div className="text-gray-300">Loading tasks...</div>
-          ) : filteredTasks.length === 0 ? (
-            <div className="text-gray-400">No tasks found.</div>
-          ) : (
-            filteredTasks.map((t) => (
-              <div key={t.id} className="p-4 rounded-lg bg-white/6 border border-white/8">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-semibold">{t.title}</h3>
-                  <span
-                    className={
-                      "text-xs px-2 py-1 rounded " +
-                      (t.status === "completed"
-                        ? "bg-green-500/20 text-green-400"
-                        : t.status === "in_review"
-                        ? "bg-yellow-500/20 text-yellow-400"
-                        : "bg-gray-500/20 text-gray-400")
-                    }
-                  >
-                    {t.status || "open"}
-                  </span>
-                </div>
-
-                <p className="text-sm text-gray-400">{t.description || "No description"}</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {(t.category || "General") + " • Due: " + (t.deadline || "—") + " • Budget: " + formatBudget(t.budget)}
-                </p>
-
-                <div className="mt-3 flex gap-2 items-center">
-                  <button onClick={() => handleApply(t.id)} className="px-3 py-1 rounded bg-blue-600 text-white text-sm">
-                    Apply
-                  </button>
-
-                  <ChatModals
-                    currentUserId={resolvePosterId() || ""}
-                    receiverId={t.poster_id || ""}
-                    receiverName={t.poster_id ? t.poster_id : "Poster"}
-                  />
-
-                  <div className="ml-auto text-xs text-gray-300">
-                    {applicationsMap[t.id] && applicationsMap[t.id].length
-                      ? String(applicationsMap[t.id].length) + " applications"
-                      : "0 apps"}
-                  </div>
-                </div>
+          {loadingTasks ? <div className="text-gray-300">Loading tasks...</div> : filteredTasks.length === 0 ? <div className="text-gray-400">No tasks found.</div> : filteredTasks.map((t) => (
+            <div key={t.id} className="p-4 rounded-lg bg-white/6 border border-white/8">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="font-semibold">{t.title}</h3>
+                <span className={"text-xs px-2 py-1 rounded " + ((t.status === "completed") ? "bg-green-500/20 text-green-400" : (t.status === "in_review") ? "bg-yellow-500/20 text-yellow-400" : "bg-gray-500/20 text-gray-400")}>
+                  {t.status || "open"}
+                </span>
               </div>
-            ))
-          )}
+
+              <p className="text-sm text-gray-400">{t.description || "No description"}</p>
+              <p className="text-xs text-gray-500 mt-1">{(t.category || "General") + " • Due: " + (t.deadline || "—") + " • Budget: " + formatBudget(t.budget)}</p>
+
+              <div className="mt-3 flex gap-2 items-center">
+                <button onClick={() => handleApply(t.id)} className="px-3 py-1 rounded bg-blue-600 text-white text-sm">Apply</button>
+
+                <ChatModals currentUserId={(user && (user as any).uid) || (typeof window !== "undefined" && JSON.parse(localStorage.getItem("piUser") || "{}").uid) || ""} receiverId={t.poster_id || ""} receiverName={t.poster_id ? (t.poster_id as string) : "Poster"} />
+
+                <div className="ml-auto text-xs text-gray-300">{applicationsMap[t.id] && applicationsMap[t.id].length ? String(applicationsMap[t.id].length) + " applications" : "0 apps"}</div>
+              </div>
+            </div>
+          ))}
         </div>
       </main>
     </div>
