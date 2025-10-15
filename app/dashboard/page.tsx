@@ -1,263 +1,158 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useUser } from "@/context/UserContext";
 
-export default function Dashboard() {
+export default function DashboardPage() {
   const { user } = useUser();
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ title: "", description: "", category: "" });
-  const [showForm, setShowForm] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
   const [activeTab, setActiveTab] = useState("tasks");
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [profile, setProfile] = useState<any>(null);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [loading, setLoading] = useState(false);
 
+  // Fetch tasks for the logged-in user
   useEffect(() => {
+    if (!user) return;
     fetchTasks();
-    fetchProfile();
-  }, []);
+  }, [user]);
 
   async function fetchTasks() {
-    try {
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setTasks(data || []);
-    } catch (e: any) {
-      console.error("Error loading tasks:", e);
-      setErrorMsg(e.message);
-    }
+    const { data, error } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("poster_id", user?.id)
+      .order("created_at", { ascending: false });
+    if (error) console.error("Fetch error:", error.message);
+    else setTasks(data || []);
   }
 
-  async function fetchProfile() {
-    if (!user?.uid) return;
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.uid)
-        .single();
-
-      if (error && error.code !== "PGRST116") throw error;
-      setProfile(data || { username: user.username, id: user.uid });
-    } catch (e: any) {
-      console.error("Error loading profile:", e);
-    }
-  }
-
-  async function postTask(e: any) {
+  // Create a new task
+  async function handlePostTask(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.title || !form.description) {
-      setErrorMsg("Please fill in all fields");
-      return;
-    }
-    if (!user?.uid) {
-      setErrorMsg("User not authenticated");
-      return;
-    }
+    if (!user) return alert("You must be logged in.");
+
     setLoading(true);
-    setErrorMsg("");
+    const { error } = await supabase.from("tasks").insert([
+      {
+        poster_id: user.id,
+        title,
+        description,
+      },
+    ]);
+    setLoading(false);
 
-    try {
-      const { error } = await supabase.from("tasks").insert([
-        {
-          poster_id: user.uid,
-          title: form.title,
-          description: form.description,
-          category: form.category,
-        },
-      ]);
-
-      if (error) throw error;
-
-      setForm({ title: "", description: "", category: "" });
-      setShowForm(false);
-      await fetchTasks();
-    } catch (e: any) {
-      console.error("Task posting error:", e);
-      setErrorMsg(e.message || "Failed to post. Try again.");
-    } finally {
-      setLoading(false);
+    if (error) {
+      alert("Failed to post task: " + error.message);
+    } else {
+      alert("Task posted successfully!");
+      setTitle("");
+      setDescription("");
+      fetchTasks();
     }
-  }
-
-  async function handleApply(task: any) {
-    alert("Applied to task: " + task.title);
   }
 
   return (
-  <div className="p-4">
-
-    {/* --- DASHBOARD NAV TABS --- */}
-    <div className="flex space-x-4 border-b border-gray-700 mb-4">
-      <button
-        onClick={() => setActiveTab("tasks")}
-        className={
-          "pb-2 " +
-          (activeTab === "tasks"
-            ? "border-b-2 border-blue-500 text-blue-400"
-            : "")
-        }
-      >
-        Tasks
-      </button>
-
-      <button
-        onClick={() => setActiveTab("applications")}
-        className={
-          "pb-2 " +
-          (activeTab === "applications"
-            ? "border-b-2 border-blue-500 text-blue-400"
-            : "")
-        }
-      >
-        Applications
-      </button>
-
-      <button
-        onClick={() => setActiveTab("messages")}
-        className={
-          "pb-2 " +
-          (activeTab === "messages"
-            ? "border-b-2 border-blue-500 text-blue-400"
-            : "")
-        }
-      >
-        Messages
-      </button>
-
-      <button
-        onClick={() => setActiveTab("profile")}
-        className={
-          "pb-2 " +
-          (activeTab === "profile"
-            ? "border-b-2 border-blue-500 text-blue-400"
-            : "")
-        }
-      >
-        Profile
-      </button>
-    </div>
-
-    {/* --- TASKS TAB --- */}
-    {activeTab === "tasks" && (
-      <div>
-        {/* content of tasks tab goes here */}
+    <div className="p-4 text-gray-100">
+      {/* --- DASHBOARD NAV TABS --- */}
+      <div className="flex space-x-4 border-b border-gray-700 mb-4">
+        {["tasks", "applications", "messages", "profile"].map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`pb-2 capitalize ${
+              activeTab === tab
+                ? "border-b-2 border-blue-500 text-blue-400"
+                : ""
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
       </div>
-    )}
-
-  </div>
-);
-
-{/* --- TASKS TAB --- */}
 
       {/* --- TASKS TAB --- */}
       {activeTab === "tasks" && (
         <div>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="bg-blue-600 px-4 py-2 rounded mb-4 hover:bg-blue-700"
+          <form
+            onSubmit={handlePostTask}
+            className="space-y-3 bg-gray-800 p-4 rounded-2xl mb-6"
           >
-            {showForm ? "Close Form" : "Post a New Task"}
-          </button>
-
-          {showForm && (
-            <form
-              onSubmit={postTask}
-              className="bg-gray-900 p-4 rounded-lg shadow-lg mb-6"
+            <input
+              type="text"
+              placeholder="Task title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+              required
+            />
+            <textarea
+              placeholder="Task description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+              required
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-700 p-2 rounded-xl"
             >
-              <input
-                type="text"
-                placeholder="Title"
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                className="w-full mb-2 p-2 rounded bg-gray-800 border border-gray-700"
-              />
-              <textarea
-                placeholder="Description"
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                className="w-full mb-2 p-2 rounded bg-gray-800 border border-gray-700"
-              />
-              <input
-                type="text"
-                placeholder="Category"
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-                className="w-full mb-3 p-2 rounded bg-gray-800 border border-gray-700"
-              />
-              <button
-                type="submit"
-                disabled={loading}
-                className="bg-green-600 px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50"
-              >
-                {loading ? "Posting..." : "Post Task"}
-              </button>
-            </form>
-          )}
-
-          {errorMsg && (
-            <div className="text-red-400 bg-gray-800 p-2 rounded mb-3">
-              {errorMsg}
-            </div>
-          )}
+              {loading ? "Posting..." : "Post Task"}
+            </button>
+          </form>
 
           <div className="space-y-3">
-            {tasks.map((t) => (
-              <div
-                key={t.id}
-                className="bg-gray-900 p-4 rounded-lg shadow-md flex justify-between items-center"
-              >
-                <div>
-                  <h2 className="font-semibold text-lg">{t.title}</h2>
-                  <p className="text-gray-400">{t.description}</p>
-                  <p className="text-sm text-gray-500 mt-1">Category: {t.category || "N/A"}</p>
-                </div>
-                <button
-                  onClick={() => handleApply(t)}
-                  className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+            {tasks.length === 0 ? (
+              <p className="text-gray-400 text-center">
+                No tasks yet. Create one above.
+              </p>
+            ) : (
+              tasks.map((task) => (
+                <div
+                  key={task.id}
+                  className="bg-gray-800 p-3 rounded-xl border border-gray-700"
                 >
-                  Apply
-                </button>
-              </div>
-            ))}
+                  <h3 className="font-semibold text-lg text-blue-400">
+                    {task.title}
+                  </h3>
+                  <p className="text-gray-300">{task.description}</p>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
 
-      {/* --- NOTIFICATIONS TAB --- */}
-      {activeTab === "notifications" && (
-        <div className="bg-gray-900 p-4 rounded-lg">
-          <h2 className="text-lg font-semibold mb-3">Notifications</h2>
-          {notifications.length === 0 ? (
-            <p className="text-gray-400">No new notifications</p>
-          ) : (
-            notifications.map((n, i) => (
-              <div key={i} className="p-2 border-b border-gray-700">
-                {n.message}
-              </div>
-            ))
-          )}
-        </div>
+      {/* --- APPLICATIONS TAB --- */}
+      {activeTab === "applications" && (
+        <div className="p-4 text-gray-400">Applications will appear here.</div>
+      )}
+
+      {/* --- MESSAGES TAB --- */}
+      {activeTab === "messages" && (
+        <div className="p-4 text-gray-400">Messages feature coming soon.</div>
       )}
 
       {/* --- PROFILE TAB --- */}
       {activeTab === "profile" && (
-        <div className="bg-gray-900 p-4 rounded-lg">
-          <h2 className="text-lg font-semibold mb-3">Your Profile</h2>
-          {profile ? (
+        <div className="p-4 bg-gray-800 rounded-2xl">
+          <h2 className="text-xl font-semibold mb-2 text-blue-400">
+            User Profile
+          </h2>
+          {user ? (
             <div>
-              <p><strong>Username:</strong> {profile.username}</p>
-              <p><strong>ID:</strong> {profile.id}</p>
+              <p>
+                <span className="font-semibold">UID:</span> {user.id}
+              </p>
+              <p>
+                <span className="font-semibold">Email:</span>{" "}
+                {user.email || "N/A"}
+              </p>
             </div>
           ) : (
-            <p className="text-gray-400">No profile found.</p>
+            <p>Loading user info...</p>
           )}
         </div>
       )}
