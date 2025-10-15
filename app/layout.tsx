@@ -22,9 +22,7 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
   // ✅ Only redirect if trying to access protected pages (like /dashboard)
 useEffect(() => {
   const protectedPaths = ["/dashboard"];
-  if (loaded && !user && protectedPaths.includes(pathname)) {
-    router.push("/login"); // or show Pi login page
-  }
+  
 }, [user, loaded, pathname, router]);
   
   if (!loaded) {
