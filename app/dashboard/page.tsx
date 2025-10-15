@@ -1,169 +1,113 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
-import { useUser } from "@/context/UserContext";
+import React, { useState } from "react";
+import { Bell, Menu, LogOut } from "lucide-react";
 
 export default function DashboardPage() {
-  const { user } = useUser();
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState("all");
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState("");
-  const [description, setDescription] = useState("");
-  const [isPosting, setIsPosting] = useState(false);
-  const [notifications, setNotifications] = useState<string[]>([]);
-
-  // Load tasks
-  useEffect(() => {
-    loadTasks();
-  }, [activeTab]);
-
-  const loadTasks = async () => {
-    let query = supabase.from("tasks").select("*").order("created_at", { ascending: false });
-
-    if (activeTab !== "all") query = query.eq("status", activeTab);
-
-    const { data, error } = await query;
-    if (error) console.error("Error loading tasks:", error.message);
-    else setTasks(data || []);
-  };
-
-  // Ensure user row in profile table
-  const ensureUserRow = async (uid: string, username: string | null) => {
-    const { data, error } = await supabase.from("profiles").select("*").eq("id", uid).single();
-
-    if (!data && !error) {
-      await supabase.from("profiles").insert([{ id: uid, username }]);
-    }
-  };
-
-  // Post a new task
-  const postTask = async () => {
-    if (!user) return alert("Login with Pi to post");
-    const uid = user?.id;
-    if (!uid) return alert("Login with Pi to post");
-
-    setIsPosting(true);
-    const username =
-     user?.username ||
- JSON.parse(localStorage.getItem("piUser") || "{}").username || null;
-
-    await ensureUserRow(uid, username);
-
-    const { data, error } = await supabase.from("tasks").insert([
-      {
-        poster_id: uid,
-        title,
-        category,
-        description,
-        status: "pending",
-      },
-    ]).select().single();
-
-    if (error) alert("Error posting task: " + error.message);
-    else {
-      setTasks((prev) => [data, ...prev]);
-      setNotifications((n) => [Task posted: ${data.title}`, ...n]);
-      setTitle("");
-      setCategory("");
-      setDescription("");
-    }
-
-    setIsPosting(false);
-  };
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#050827] text-white p-6">
-      <h1 className="text-3xl font-bold mb-6">My Tasks</h1>
+    <div className="min-h-screen bg-gradient-to-br from-[#000222] via-black to-[#000222] text-white flex">
+      {/* Sidebar */}
+      <aside
+        className={${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } lg:translate-x-0 fixed lg:static z-40 h-full w-64 bg-white/10 backdrop-blur-xl border-r border-white/10 transition-transform duration-300}
+      >
+        <div className="flex flex-col h-full p-4">
+          <h1 className="text-2xl font-bold mb-6 text-center">YASA TASKER</h1>
 
-      {/* --- DASHBOARD NAV TABS --- */}
-      <div className="flex space-x-4 border-b border-gray-700 mb-4">
-        {["all", "pending", "in progress", "completed"].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`pb-2 capitalize ${
-              activeTab === tab
-                ? "border-b-2 border-blue-500 text-blue-400"
-                : "text-gray-400 hover:text-blue-300"
-            }`}
-          >
-            {tab}
+          <nav className="flex-1 space-y-2">
+            <button className="w-full text-left px-4 py-2 rounded-lg bg-white/5 hover:bg-white/15 transition">
+              Dashboard
+            </button>
+            <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-white/10 transition">
+              My Tasks
+            </button>
+            <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-white/10 transition">
+              Create Task
+            </button>
+            <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-white/10 transition">
+              Wallet
+            </button>
+            <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-white/10 transition">
+              Settings
+            </button>
+          </nav>
+
+          <button className="mt-auto flex items-center justify-center gap-2 px-4 py-2 bg-white/10 rounded-lg hover:bg-white/20 transition">
+            <LogOut size={18} />
+            Logout
           </button>
-        ))}
-      </div>
+        </div>
+      </aside>
 
-      {/* --- TASK FORM (Glass Card) --- */}
-      <div className="bg-white/5 backdrop-blur-md rounded-2xl shadow-lg p-6 mb-6 border border-white/10 max-w-md">
-        <input
-          type="text"
-          placeholder="Task title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="w-full mb-3 bg-transparent border border-white/20 rounded-lg p-2 text-white placeholder-gray-400 focus:outline-none focus:border-blue-400"
-        />
-
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="w-full mb-3 bg-transparent border border-white/20 rounded-lg p-2 text-white focus:outline-none focus:border-blue-400"
-        >
-          <option value="" disabled className="text-gray-400 bg-[#050827]">
-            Category
-          </option>
-          <option value="design" className="bg-[#050827]">Design</option>
-          <option value="development" className="bg-[#050827]">Development</option>
-          <option value="testing" className="bg-[#050827]">Testing</option>
-        </select>
-
-        <textarea
-          placeholder="Description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className="w-full mb-3 bg-transparent border border-white/20 rounded-lg p-2 text-white placeholder-gray-400 focus:outline-none focus:border-blue-400"
-          rows={3}
-        />
-
-        <button
-          onClick={postTask}
-          disabled={isPosting}
-          className={w-full py-2 rounded-lg font-semibold ${
-            isPosting ? "bg-blue-400/50 cursor-wait" : "bg-blue-600 hover:bg-blue-700"
-          } transition}
-        >
-          {isPosting ? "Posting..." : "Add Task"}
-        </button>
-      </div>
-
-      {/* --- TASK LIST --- */}
-      <div className="space-y-3">
-        {tasks.length === 0 && (
-          <p className="text-gray-400 text-sm">No tasks yet. Add your first one!</p>
-        )}
-        {tasks.map((task) => (
-          <div
-            key={task.id}
-            className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-4 flex flex-col"
-          >
-            <div className="flex justify-between items-center mb-1">
-              <h3 className="font-semibold text-lg">{task.title}</h3>
-              <span
-                className={`text-xs capitalize px-2 py-1 rounded ${
-                  task.status === "completed"
-                    ? "bg-green-500/20 text-green-300"
-                    : task.status === "in progress"
-                    ? "bg-yellow-500/20 text-yellow-300"
-                    : "bg-blue-500/20 text-blue-300"
-                }`}
-              >
-                {task.status}
-              </span>
-            </div>
-            <p className="text-gray-400 text-sm mb-2">{task.description}</p>
-            <span className="text-xs text-gray-500">{task.category || "General"}</span>
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <header className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-white/5 backdrop-blur-xl sticky top-0 z-30">
+          <div className="flex items-center gap-3">
+            <button
+              className="lg:hidden p-2 rounded-lg bg-white/10 hover:bg-white/20"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+            >
+              <Menu size={20} />
+            </button>
+            <h2 className="text-lg font-semibold">Dashboard Overview</h2>
           </div>
-        ))}
+          <div className="flex items-center gap-4">
+            <button className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition">
+              <Bell size={18} />
+            </button>
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500"></div>
+          </div>
+        </header>
+
+        {/* Dashboard Body */}
+        <main className="flex-1 p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {/* Example Card */}
+          <div className="bg-white/10 backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-lg hover:bg-white/15 transition">
+            <h3 className="text-lg font-semibold mb-2">Active Tasks</h3>
+            <p className="text-sm text-gray-300">
+              View and manage the tasks you’re currently working on.
+            </p>
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-lg hover:bg-white/15 transition">
+            <h3 className="text-lg font-semibold mb-2">Completed Tasks</h3>
+            <p className="text-sm text-gray-300">
+              See all your previously completed tasks and reviews.
+            </p>
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-lg hover:bg-white/15 transition">
+            <h3 className="text-lg font-semibold mb-2">Wallet Balance</h3>
+            <p className="text-sm text-gray-300">
+              Track your Pi earnings and manage transactions securely.
+            </p>
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-lg hover:bg-white/15 transition">
+            <h3 className="text-lg font-semibold mb-2">New Opportunities</h3>
+            <p className="text-sm text-gray-300">
+              Browse available tasks to earn more Pi.
+            </p>
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-lg hover:bg-white/15 transition">
+            <h3 className="text-lg font-semibold mb-2">Leaderboard</h3>
+            <p className="text-sm text-gray-300">
+              See the top contributors in the Yasa Tasker community.
+            </p>
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-lg hover:bg-white/15 transition">
+            <h3 className="text-lg font-semibold mb-2">Support</h3>
+            <p className="text-sm text-gray-300">
+              Get help or contact the Yasa Tasker support team anytime.
+            </p>
+          </div>
+        </main>
       </div>
     </div>
   );
