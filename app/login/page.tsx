@@ -1,177 +1,168 @@
-// app/login/page.tsx
 "use client";
 
-import Image from "next/image";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 import { useUser } from "@/context/UserContext";
 
-export default function LoginPage() {
-  const router = useRouter();
-  const userCtx = useUser();
-  const setUser = userCtx?.setUser;
+export default function DashboardPage() {
+  const { user } = useUser();
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState("all");
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("");
+  const [description, setDescription] = useState("");
+  const [isPosting, setIsPosting] = useState(false);
+  const [notifications, setNotifications] = useState<string[]>([]);
 
-  const [piReady, setPiReady] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-
-  // Poll for Pi SDK injected by Pi Browser
+  // Load tasks
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const interval = setInterval(function () {
-      if ((window as any).Pi) {
-        setPiReady(true);
-        clearInterval(interval);
-        console.log("✅ Pi SDK detected by login page.");
-      }
-    }, 400);
+    loadTasks();
+  }, [activeTab]);
 
-    // safety: stop after 20s
-    const timeout = setTimeout(function () {
-      clearInterval(interval);
-    }, 20000);
+  const loadTasks = async () => {
+    let query = supabase.from("tasks").select("*").order("created_at", { ascending: false });
 
-    return function cleanup() {
-      clearInterval(interval);
-      clearTimeout(timeout);
-    };
-  }, []);
+    if (activeTab !== "all") query = query.eq("status", activeTab);
 
-  // Ensure SDK script is requested when possible (Pi browser injects it normally;
-  // this is a no-op in Pi Browser but helps some environments)
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!(window as any).Pi) {
-      // try to attach the official SDK script - harmless if Pi Browser already has it
-      var s = document.createElement("script");
-      s.src = "https://sdk.minepi.com/pi-sdk.js";
-      s.async = true;
-      s.onload = function () {
-        console.log("Pi SDK script appended on login page.");
-      };
-      document.body.appendChild(s);
-    }
-  }, []);
+    const { data, error } = await query;
+    if (error) console.error("Error loading tasks:", error.message);
+    else setTasks(data || []);
+  };
 
-  const handlePiLogin = async () => {
-    if (typeof window === "undefined") return;
+  // Ensure user row in profile table
+  const ensureUserRow = async (uid: string, username: string | null) => {
+    const { data, error } = await supabase.from("profiles").select("*").eq("id", uid).single();
 
-    const Pi = (window as any).Pi;
-    if (!Pi) {
-      alert(
-        "⚠️ Pi SDK not detected. Please open this link in the Pi Browser to log in with Pi."
-      );
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-
-      // Init the SDK (harmless if already initialized)
-      try {
-        if (typeof Pi.init === "function") {
-          Pi.init({ version: "2.0", sandbox: false });
-          console.log("✅ Pi.init called on login page.");
-        }
-      } catch (e) {
-        console.warn("Pi.init threw:", e);
-      }
-
-      // Request username and payments permission (payments used later)
-      var scopes = ["username", "payments"];
-
-      // Pi.authenticate returns a Promise
-      var authResult = await Pi.authenticate(scopes, function (payment: any) {
-        // optional callback for incomplete payments
-        console.log("Incomplete payment callback (login):", payment);
-      });
-
-      // normalize user object shapes across SDK versions
-      var username =
-        (authResult && authResult.user && authResult.user.username) ||
-        authResult.username ||
-        "PiUser";
-      var uid =
-        (authResult && authResult.user && authResult.user.uid) ||
-        authResult.uid ||
-        null;
-      var accessToken = authResult && authResult.accessToken ? authResult.accessToken : null;
-
-      var newUser = { username: username, uid: uid, accessToken: accessToken };
-
-      // Save in context (if provided) and localStorage
-      try {
-        if (typeof setUser === "function") setUser(newUser);
-      } catch (e) {
-        console.warn("setUser failed:", e);
-      }
-      try {
-        localStorage.setItem("piUser", JSON.stringify(newUser));
-      } catch (e) {
-        console.warn("localStorage set failed:", e);
-      }
-
-      // friendly message then redirect to dashboard
-      alert("Welcome " + username + "!");
-      router.push("/dashboard");
-    } catch (err) {
-      console.error("Pi login error:", err);
-      var msg = "Login failed. Please try again inside Pi Browser.";
-      if (err && (err as any).message) msg = "Login failed: " + (err as any).message;
-      alert(msg);
-    } finally {
-      setIsLoading(false);
+    if (!data && !error) {
+      await supabase.from("profiles").insert([{ id: uid, username }]);
     }
   };
 
+  // Post a new task
+  const postTask = async () => {
+    if (!user) return alert("Login with Pi to post");
+    const uid = user?.id;
+    if (!uid) return alert("Login with Pi to post");
+
+    setIsPosting(true);
+    const username =
+      user?.username  JSON.parse(localStorage.getItem("piUser")  "{}").username || null;
+
+    await ensureUserRow(uid, username);
+
+    const { data, error } = await supabase.from("tasks").insert([
+      {
+        poster_id: uid,
+        title,
+        category,
+        description,
+        status: "pending",
+      },
+    ]).select().single();
+
+    if (error) alert("Error posting task: " + error.message);
+    else {
+      setTasks((prev) => [data, ...prev]);
+      setNotifications((n) => [Task posted: ${data.title}, ...n]);
+      setTitle("");
+      setCategory("");
+      setDescription("");
+    }
+
+    setIsPosting(false);
+  };
+
   return (
-    <div
-      className="flex flex-col items-center justify-start min-h-screen text-white px-4 pt-12 pb-12"
-      style={{ backgroundColor: "#000222" }}
-    >
-      {/* Logo and Title */}
-      <div className="flex flex-col items-center text-center space-y-6 mb-8">
-        <Image
-          src="/logo.png"
-          alt="Yasa TASKER"
-          width={420}
-          height={420}
-          priority
-          className="mb-4 w-[85vw] max-w-[420px] h-auto"
+    <div className="min-h-screen bg-[#050827] text-white p-6">
+      <h1 className="text-3xl font-bold mb-6">My Tasks</h1>
+
+      {/* --- DASHBOARD NAV TABS --- */}
+      <div className="flex space-x-4 border-b border-gray-700 mb-4">
+        {["all", "pending", "in progress", "completed"].map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`pb-2 capitalize ${
+              activeTab === tab
+                ? "border-b-2 border-blue-500 text-blue-400"
+                : "text-gray-400 hover:text-blue-300"
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {/* --- TASK FORM (Glass Card) --- */}
+      <div className="bg-white/5 backdrop-blur-md rounded-2xl shadow-lg p-6 mb-6 border border-white/10 max-w-md">
+        <input
+          type="text"
+          placeholder="Task title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="w-full mb-3 bg-transparent border border-white/20 rounded-lg p-2 text-white placeholder-gray-400 focus:outline-none focus:border-blue-400"
         />
-        <h1 className="text-4xl font-bold">Welcome to Yasa TASKER</h1>
-        <p className="text-lg text-gray-300 max-w-md">
-          Connect with talented freelancers and get paid in Pi cryptocurrency.
-        </p>
-      </div>
 
-      {/* Feature Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full mb-12">
-        <div className="glass p-6 rounded-2xl text-center">
-          <h2 className="text-2xl font-semibold mb-2">Post Tasks</h2>
-          <p className="text-gray-300 text-sm">Create tasks and find skilled freelancers.</p>
-        </div>
-        <div className="glass p-6 rounded-2xl text-center">
-          <h2 className="text-2xl font-semibold mb-2">Chat</h2>
-          <p className="text-gray-300 text-sm">Contact taskers and discuss work directly.</p>
-        </div>
-        <div className="glass p-6 rounded-2xl text-center">
-          <h2 className="text-2xl font-semibold mb-2">Secure</h2>
-          <p className="text-gray-300 text-sm">All authentication via Pi Network only.</p>
-        </div>
-      </div>
-
-      {/* Login Button */}
-      <div className="w-full flex items-center justify-center">
-        <button
-          onClick={handlePiLogin}
-          disabled={!piReady || isLoading}
-          className={
-            "glass px-10 py-4 rounded-xl text-white text-lg font-semibold transition duration-300 backdrop-blur-lg shadow-lg border border-white/20 " +
-            (isLoading ? "bg-white/10 cursor-not-allowed" : "hover:bg-white/20 active:scale-95 active:shadow-inner")
-          }
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="w-full mb-3 bg-transparent border border-white/20 rounded-lg p-2 text-white focus:outline-none focus:border-blue-400"
         >
-          {isLoading ? "Connecting..." : piReady ? "Login with Pi" : "Open in Pi Browser to log in"}
+          <option value="" disabled className="text-gray-400 bg-[#050827]">
+            Category
+          </option>
+          <option value="design" className="bg-[#050827]">Design</option>
+          <option value="development" className="bg-[#050827]">Development</option>
+          <option value="testing" className="bg-[#050827]">Testing</option>
+        </select>
+
+        <textarea
+          placeholder="Description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          className="w-full mb-3 bg-transparent border border-white/20 rounded-lg p-2 text-white placeholder-gray-400 focus:outline-none focus:border-blue-400"
+          rows={3}
+        />
+
+        <button
+          onClick={postTask}
+          disabled={isPosting}
+          className={w-full py-2 rounded-lg font-semibold ${
+            isPosting ? "bg-blue-400/50 cursor-wait" : "bg-blue-600 hover:bg-blue-700"
+          } transition}
+        >
+          {isPosting ? "Posting..." : "Add Task"}
         </button>
+      </div>
+
+      {/* --- TASK LIST --- */}
+      <div className="space-y-3">
+        {tasks.length === 0 && (
+          <p className="text-gray-400 text-sm">No tasks yet. Add your first one!</p>
+        )}
+        {tasks.map((task) => (
+          <div
+            key={task.id}
+            className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-4 flex flex-col"
+          >
+            <div className="flex justify-between items-center mb-1">
+              <h3 className="font-semibold text-lg">{task.title}</h3>
+              <span
+                className={`text-xs capitalize px-2 py-1 rounded ${
+                  task.status === "completed"
+                    ? "bg-green-500/20 text-green-300"
+                    : task.status === "in progress"
+                    ? "bg-yellow-500/20 text-yellow-300"
+                    : "bg-blue-500/20 text-blue-300"
+                }`}
+              >
+                {task.status}
+              </span>
+            </div>
+            <p className="text-gray-400 text-sm mb-2">{task.description}</p>
+            <span className="text-xs text-gray-500">{task.category || "General"}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
