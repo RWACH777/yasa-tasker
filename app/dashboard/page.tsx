@@ -10,9 +10,9 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gradient-to-br from-[#000222] via-black to-[#000222] text-white flex">
       {/* Sidebar */}
       <aside
-        className={${
+        className={`${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 fixed lg:static z-40 h-full w-64 bg-white/10 backdrop-blur-xl border-r border-white/10 transition-transform duration-300}
+        } lg:translate-x-0 fixed lg:static z-40 h-full w-64 bg-white/10 backdrop-blur-xl border-r border-white/10 transition-transform duration-300`}
       >
         <div className="flex flex-col h-full p-4">
           <h1 className="text-2xl font-bold mb-6 text-center">YASA TASKER</h1>
