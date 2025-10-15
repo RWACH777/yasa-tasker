@@ -92,56 +92,68 @@ export default function Dashboard() {
   }
 
   return (
+  <div className="p-4">
+
     {/* --- DASHBOARD NAV TABS --- */}
-<div className="flex space-x-4 border-b border-gray-700 mb-4">
-  <button
-    onClick={() => setActiveTab("tasks")}
-    className={
-      "pb-2 " +
-      (activeTab === "tasks"
-        ? "border-b-2 border-blue-500 text-blue-400"
-        : "")
-    }
-  >
-    Tasks
-  </button>
+    <div className="flex space-x-4 border-b border-gray-700 mb-4">
+      <button
+        onClick={() => setActiveTab("tasks")}
+        className={
+          "pb-2 " +
+          (activeTab === "tasks"
+            ? "border-b-2 border-blue-500 text-blue-400"
+            : "")
+        }
+      >
+        Tasks
+      </button>
 
-  <button
-    onClick={() => setActiveTab("applications")}
-    className={
-      "pb-2 " +
-      (activeTab === "applications"
-        ? "border-b-2 border-blue-500 text-blue-400"
-        : "")
-    }
-  >
-    Applications
-  </button>
+      <button
+        onClick={() => setActiveTab("applications")}
+        className={
+          "pb-2 " +
+          (activeTab === "applications"
+            ? "border-b-2 border-blue-500 text-blue-400"
+            : "")
+        }
+      >
+        Applications
+      </button>
 
-  <button
-    onClick={() => setActiveTab("messages")}
-    className={
-      "pb-2 " +
-      (activeTab === "messages"
-        ? "border-b-2 border-blue-500 text-blue-400"
-        : "")
-    }
-  >
-    Messages
-  </button>
+      <button
+        onClick={() => setActiveTab("messages")}
+        className={
+          "pb-2 " +
+          (activeTab === "messages"
+            ? "border-b-2 border-blue-500 text-blue-400"
+            : "")
+        }
+      >
+        Messages
+      </button>
 
-  <button
-    onClick={() => setActiveTab("profile")}
-    className={
-      "pb-2 " +
-      (activeTab === "profile"
-        ? "border-b-2 border-blue-500 text-blue-400"
-        : "")
-    }
-  >
-    Profile
-  </button>
-</div>
+      <button
+        onClick={() => setActiveTab("profile")}
+        className={
+          "pb-2 " +
+          (activeTab === "profile"
+            ? "border-b-2 border-blue-500 text-blue-400"
+            : "")
+        }
+      >
+        Profile
+      </button>
+    </div>
+
+    {/* --- TASKS TAB --- */}
+    {activeTab === "tasks" && (
+      <div>
+        {/* content of tasks tab goes here */}
+      </div>
+    )}
+
+  </div>
+);
 
 {/* --- TASKS TAB --- */}
 
