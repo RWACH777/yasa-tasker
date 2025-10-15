@@ -19,13 +19,14 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(timer);
   }, []);
 
-  // Redirect to /login if not logged in
-  useEffect(() => {
-    if (loaded && !user && pathname !== "/login" && pathname !== "/register") {
-      router.push("/login");
-    }
-  }, [user, loaded, pathname, router]);
-
+  // ✅ Only redirect if trying to access protected pages (like /dashboard)
+useEffect(() => {
+  const protectedPaths = ["/dashboard"];
+  if (loaded && !user && protectedPaths.includes(pathname)) {
+    router.push("/login"); // or show Pi login page
+  }
+}, [user, loaded, pathname, router]);
+  
   if (!loaded) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-950 text-gray-300">
