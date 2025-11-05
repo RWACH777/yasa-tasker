@@ -143,7 +143,7 @@ export default function DashboardPage() {
           {loading
   ? "Loading..."
   : user
-  ? Welcome to YASA Tasker, ${user.username || "Pi User"}!
+  ? `Welcome to YASA Tasker, ${user.username || "Pi User"}!`
   : "Welcome to YASA Tasker!"}
         </h1>
       </div>
