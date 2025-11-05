@@ -1,114 +1,82 @@
-"use client";
+---
 
-import React, { useState } from "react";
-import { Bell, Menu, LogOut } from "lucide-react";
+`tsx
+"use client"
+
+import { useState, useEffect } from "react"
+import Image from "next/image"
+import { supabase } from "@/lib/supabaseClient"
 
 export default function DashboardPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profile, setProfile] = useState<any>(null)
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase
+        .from("Profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single()
+      setProfile(data)
+    }
+    fetchProfile()
+  }, [])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#000222] via-black to-[#000222] text-white flex">
-      {/* Sidebar */}
-      <aside
-        className={`${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 fixed lg:static z-40 h-full w-64 bg-white/10 backdrop-blur-xl border-r border-white/10 transition-transform duration-300`}
-      >
-        <div className="flex flex-col h-full p-4">
-          <h1 className="text-2xl font-bold mb-6 text-center">YASA TASKER</h1>
-
-          <nav className="flex-1 space-y-2">
-            <button className="w-full text-left px-4 py-2 rounded-lg bg-white/5 hover:bg-white/15 transition">
-              Dashboard
-            </button>
-            <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-white/10 transition">
-              My Tasks
-            </button>
-            <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-white/10 transition">
-              Create Task
-            </button>
-            <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-white/10 transition">
-              Wallet
-            </button>
-            <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-white/10 transition">
-              Settings
-            </button>
-          </nav>
-
-          <button className="mt-auto flex items-center justify-center gap-2 px-4 py-2 bg-white/10 rounded-lg hover:bg-white/20 transition">
-            <LogOut size={18} />
-            Logout
-          </button>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-950 flex flex-col items-center text-white px-4 py-10">
+      {/* Header */}
+      <div className="w-full max-w-3xl flex justify-between items-center mb-10 bg-gray-900/40 backdrop-blur-xl border border-white/10 rounded-2xl px-6 py-4">
+        <div className="flex items-center gap-3">
+          {profile?.avatar_url && (
+            <Image
+              src={profile.avatar_url}
+              alt="Avatar"
+              width={40}
+              height={40}
+              className="rounded-full border border-white/20"
+            />
+          )}
+          <div>
+            <h2 className="text-lg font-semibold">
+              {profile?.pi_username || "Loading..."}
+            </h2>
+            <p className="text-sm text-gray-400">Welcome to Yasa Tasker 👋</p>
+          </div>
         </div>
-      </aside>
+      </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-white/5 backdrop-blur-xl sticky top-0 z-30">
-          <div className="flex items-center gap-3">
-            <button
-              className="lg:hidden p-2 rounded-lg bg-white/10 hover:bg-white/20"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-            >
-              <Menu size={20} />
-            </button>
-            <h2 className="text-lg font-semibold">Dashboard Overview</h2>
-          </div>
-          <div className="flex items-center gap-4">
-            <button className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition">
-              <Bell size={18} />
-            </button>
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500"></div>
-          </div>
-        </header>
+      {/* Task Input Card */}
+      <div className="w-full max-w-3xl bg-gray-900/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6 mb-8">
+        <h3 className="text-lg font-semibold mb-4">Add a New Task</h3>
+        <form className="space-y-3">
+          <input
+            type="text"
+            placeholder="Task title"
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-white/30"
+          />
+          <textarea
+            placeholder="Describe your task..."
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-white/30"
+            rows={3}
+          />
+          <button
+            type="submit"
+            className="w-full bg-blue-600/90 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition"
+          >
+            Post Task
+          </button>
+        </form>
+      </div>
 
-        {/* Dashboard Body */}
-        <main className="flex-1 p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {/* Example Card */}
-          <div className="bg-white/10 backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-lg hover:bg-white/15 transition">
-            <h3 className="text-lg font-semibold mb-2">Active Tasks</h3>
-            <p className="text-sm text-gray-300">
-              View and manage the tasks you’re currently working on.
-            </p>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-lg hover:bg-white/15 transition">
-            <h3 className="text-lg font-semibold mb-2">Completed Tasks</h3>
-            <p className="text-sm text-gray-300">
-              See all your previously completed tasks and reviews.
-            </p>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-lg hover:bg-white/15 transition">
-            <h3 className="text-lg font-semibold mb-2">Wallet Balance</h3>
-            <p className="text-sm text-gray-300">
-              Track your Pi earnings and manage transactions securely.
-            </p>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-lg hover:bg-white/15 transition">
-            <h3 className="text-lg font-semibold mb-2">New Opportunities</h3>
-            <p className="text-sm text-gray-300">
-              Browse available tasks to earn more Pi.
-            </p>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-lg hover:bg-white/15 transition">
-            <h3 className="text-lg font-semibold mb-2">Leaderboard</h3>
-            <p className="text-sm text-gray-300">
-              See the top contributors in the Yasa Tasker community.
-            </p>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-lg hover:bg-white/15 transition">
-            <h3 className="text-lg font-semibold mb-2">Support</h3>
-            <p className="text-sm text-gray-300">
-              Get help or contact the Yasa Tasker support team anytime.
-            </p>
-          </div>
-        </main>
+      {/* Task Feed Placeholder */}
+      <div className="w-full max-w-3xl bg-gray-900/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
+        <h3 className="text-lg font-semibold mb-4">Available Tasks</h3>
+        <p className="text-gray-400 text-sm">
+          Tasks posted by other users will appear here.
+        </p>
       </div>
     </div>
-  );
+  )
 }
