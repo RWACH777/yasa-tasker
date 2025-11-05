@@ -140,7 +140,11 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 text-center mb-10">
         <h1 className="text-2xl font-semibold">
-          {loading ? "Loading..." : user ? Welcome to YASA Tasker, ${user.username || "Pi User"}! : "Welcome to YASA Tasker!"}
+          {loading
+  ? "Loading..."
+  : user
+  ? Welcome to YASA Tasker, ${user.username || "Pi User"}!
+  : "Welcome to YASA Tasker!"}
         </h1>
       </div>
 
