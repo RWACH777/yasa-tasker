@@ -40,7 +40,7 @@ export async function syncPiUserWithSupabase(piUser: PiUser) {
         {
           id: user.id,
           username: piUser.username,
-          email: ${piUser.username}@pi.mock,
+          email: `${piUser.username}@pi.mock`,
           created_at: new Date().toISOString(),
         },
         { onConflict: "id" }
