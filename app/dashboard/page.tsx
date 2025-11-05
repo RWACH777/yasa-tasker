@@ -79,7 +79,7 @@ export default function DashboardPage() {
       return
     }
 
-    if (!form.title  !form.description  !form.category  !form.budget  !form.deadline) {
+    if (!form.title || !form.description || !form.category || !form.budget || !form.deadline) {
       setMessage("⚠️ Please fill in all required fields.")
       return
     }
