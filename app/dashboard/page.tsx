@@ -69,7 +69,7 @@ export default function DashboardPage() {
   // Handle post or edit
   const handleSubmit = async (e: any) => {
     e.preventDefault();
-    if (!form.title  !form.description  !form.budget) {
+    if (!form.title || !form.description || !form.budget) {
       setMessage("Please fill in all required fields.");
       return;
     }
