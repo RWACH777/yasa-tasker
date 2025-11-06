@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
 
-console.log("📩 /api/login route called");
-// POST /api/login
 export async function POST(req: Request) {
+  console.log("📩 /api/login route hit"); // 👈 Add this line
+
   try {
     const { pi_uid, username, avatar_url } = await req.json();
+    console.log("➡️ Incoming data:", { pi_uid, username, avatar_url }); // 👈 Add this
 
     if (!pi_uid || !username) {
       return NextResponse.json(
@@ -14,39 +15,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ Sign in anonymously just to ensure Supabase client has a session
-    const { data: authData, error: authError } = await supabase.auth.signInAnonymously();
-
-    if (authError) {
-      console.error("❌ Supabase auth error:", authError.message);
-      return NextResponse.json({ error: authError.message }, { status: 500 });
-    }
-
-    const userId = authData.user?.id;
-
-    // ✅ Upsert into "profiles" table instead of "users"
-    const { data: upsertData, error: upsertError } = await supabase
-      .from("profiles")
-      .upsert(
-        {
-          id: userId,
-          username,
-          email: `${pi_uid}@pi.mock`,
-          created_at: new Date().toISOString(),
-        },
-        { onConflict: "id" }
-      )
-      .select()
-      .single();
-
-    if (upsertError) {
-      console.error("❌ Upsert error:", upsertError.message);
-      return NextResponse.json({ error: upsertError.message }, { status: 500 });
-    }
-
-    console.log("✅ User profile synced:", upsertData.username);
-
-    return NextResponse.json({ user: upsertData });
+    // rest of your existing code...
   } catch (err: any) {
     console.error("❌ Login route error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
