@@ -36,7 +36,8 @@ export async function POST(req: Request) {
         {
           id: supabaseUserId,                 // <-- use the Supabase auth UUID
           username,
-          email: ${pi_uid}@pi.mock,
+          email: `${pi_uid}@pi.mock`,         // <-- <-- FIXED: template literal with backticks
+          avatar_url: avatar_url ?? null,
           created_at: new Date().toISOString(),
         },
         { onConflict: "id" }
