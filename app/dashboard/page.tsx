@@ -36,7 +36,13 @@ export default function DashboardPage() {
     const initUser = async () => {
       try {
         const { data: existing } = await supabase.auth.getUser()
-
+useEffect(() => {
+  const testAuth = async () => {
+    const { data, error } = await supabase.auth.signInAnonymously()
+    console.log("🔍 signInAnonymously result:", data, error)
+  }
+  testAuth()
+}, [])
         if (!existing.user) {
           const piUser = await mockPiAuthenticate()
           const { data: sessionData, error: loginError } = await supabase.auth.signInAnonymously()

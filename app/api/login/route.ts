@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
 
+console.log("📩 /api/login route called");
+// POST /api/login
 export async function POST(req: Request) {
   try {
     const { pi_uid, username, avatar_url } = await req.json();
@@ -12,37 +14,39 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if user already exists
-    const { data: existing, error: findError } = await supabase
-      .from("users")
-      .select("*")
-      .eq("pi_uid", pi_uid)
-      .single();
+    // ✅ Sign in anonymously just to ensure Supabase client has a session
+    const { data: authData, error: authError } = await supabase.auth.signInAnonymously();
 
-    if (findError && findError.code !== "PGRST116") throw findError;
-
-    if (existing) {
-      // Update last login timestamp
-      const { data: updated } = await supabase
-        .from("users")
-        .update({ updated_at: new Date().toISOString() })
-        .eq("id", existing.id)
-        .select()
-        .single();
-
-      return NextResponse.json({ user: updated });
+    if (authError) {
+      console.error("❌ Supabase auth error:", authError.message);
+      return NextResponse.json({ error: authError.message }, { status: 500 });
     }
 
-    // Otherwise, insert new user
-    const { data: newUser, error: insertError } = await supabase
-      .from("users")
-      .insert([{ pi_uid, username, avatar_url }])
+    const userId = authData.user?.id;
+
+    // ✅ Upsert into "profiles" table instead of "users"
+    const { data: upsertData, error: upsertError } = await supabase
+      .from("profiles")
+      .upsert(
+        {
+          id: userId,
+          username,
+          email: `${pi_uid}@pi.mock`,
+          created_at: new Date().toISOString(),
+        },
+        { onConflict: "id" }
+      )
       .select()
       .single();
 
-    if (insertError) throw insertError;
+    if (upsertError) {
+      console.error("❌ Upsert error:", upsertError.message);
+      return NextResponse.json({ error: upsertError.message }, { status: 500 });
+    }
 
-    return NextResponse.json({ user: newUser });
+    console.log("✅ User profile synced:", upsertData.username);
+
+    return NextResponse.json({ user: upsertData });
   } catch (err: any) {
     console.error("❌ Login route error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });

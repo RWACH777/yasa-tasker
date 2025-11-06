@@ -1,3 +1,4 @@
+// lib/piAuth.ts
 import { supabase } from "./supabaseClient"
 
 export interface PiUser {
@@ -6,7 +7,7 @@ export interface PiUser {
   accessToken: string
 }
 
-// 🔹 Simulated Pi authentication
+// Simulated authenticate function for Pi login
 export async function mockPiAuthenticate(): Promise<PiUser> {
   await new Promise((r) => setTimeout(r, 800))
 
@@ -16,42 +17,27 @@ export async function mockPiAuthenticate(): Promise<PiUser> {
     accessToken: "mock_access_token_12345",
   }
 
-  // ✅ After authenticating with Pi, sync the user to Supabase
-  await syncPiUserWithSupabase(piUser)
+  // ✅ Sign in or create a Supabase anonymous user session
+  const { data, error } = await supabase.auth.signInAnonymously()
+  if (error) console.error("❌ Supabase sign-in error:", error)
+  else console.log("✅ Supabase anonymous sign-in:", data?.user?.id)
+
+  // ✅ Upsert into profiles table with matching schema
+  const { error: upsertError } = await supabase.from("profiles").upsert(
+    {
+      id: data?.user?.id,                     // uuid from Supabase auth
+      username: piUser.username,              // mock Pi username
+      email: ${piUser.uid}@pi.mock,         // fake email for now
+      created_at: new Date().toISOString(),   // timestamp
+    },
+    { onConflict: "id" }
+  )
+
+  if (upsertError) {
+    console.error("❌ Profile upsert error:", upsertError)
+  } else {
+    console.log("✅ Profile upsert success for:", piUser.username)
+  }
 
   return piUser
-}
-
-// 🔹 Ensure the Pi user exists in Supabase and has a profile
-export async function syncPiUserWithSupabase(piUser: PiUser) {
-  try {
-    // 1️⃣ Get or create Supabase session
-    let { data: { user }, error } = await supabase.auth.getUser()
-    if (error || !user) {
-      const { data, error: signInError } = await supabase.auth.signInAnonymously()
-      if (signInError) throw signInError
-      user = data.user
-    }
-
-    // 2️⃣ Upsert profile record (create if missing)
-    const { error: upsertError } = await supabase
-      .from("profiles")
-      .upsert(
-        {
-          id: user.id,
-          username: piUser.username,
-          email: `${piUser.username}@pi.mock`,
-          created_at: new Date().toISOString(),
-        },
-        { onConflict: "id" }
-      )
-
-    if (upsertError) throw upsertError
-
-    console.log("✅ Pi user synced with Supabase:", piUser.username)
-    return { success: true, user }
-  } catch (err) {
-    console.error("❌ Failed to sync Pi user:", err)
-    return { success: false, error: err }
-  }
 }
