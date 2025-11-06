@@ -93,10 +93,16 @@ export default function DashboardPage() {
       return;
     }
 
-    if (!form.title  !form.description  !form.category  !form.budget  !form.deadline) {
-      setMessage("⚠️ Please fill in all required fields.");
-      return;
-    }
+    if (
+  !form.title ||
+  !form.description ||
+  !form.category ||
+  !form.budget ||
+  !form.deadline
+) {
+  setMessage("⚠️ Please fill in all required fields.");
+  return;
+}
 
     const taskData = {
       poster_id: user.id, // ✅ This now matches the profile.id
