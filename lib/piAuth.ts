@@ -23,16 +23,15 @@ export async function mockPiAuthenticate(): Promise<PiUser> {
   else console.log("✅ Supabase anonymous sign-in:", data?.user?.id)
 
   // ✅ Upsert into profiles table with matching schema
-  const { error: upsertError } = await supabase.from("profiles").upsert(
-    email: `${piUser.uid}@pi.mock`,
-    { onConflict: "id" }
-  )
+const { error: upsertError } = await supabase.from("profiles").upsert(
+  {
+    id: data?.user?.id,                     // uuid from Supabase auth
+    username: piUser.username,              // mock Pi username
+    email: `${piUser.uid}@pi.mock`,         // ✅ FIXED: proper template literal
+    created_at: new Date().toISOString(),   // timestamp
+  },
+  { onConflict: "id" }
+);
 
-  if (upsertError) {
-    console.error("❌ Profile upsert error:", upsertError)
-  } else {
-    console.log("✅ Profile upsert success for:", piUser.username)
-  }
-
-  return piUser
-}
+if (upsertError) console.error("❌ Supabase upsert error:", upsertError);
+else console.log("✅ Profile upserted successfully");
