@@ -1,25 +1,25 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { supabase } from "@/lib/supabaseClient"
-import { mockPiAuthenticate } from "@/lib/piAuth"
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import { mockPiAuthenticate } from "@/lib/piAuth";
 
 interface Task {
-  id: string
-  poster_id: string
-  title: string
-  description: string
-  category: string
-  budget: number
-  deadline: string
-  status: string
-  created_at: string
-  updated_at: string
+  id: string;
+  poster_id: string;
+  title: string;
+  description: string;
+  category: string;
+  budget: number;
+  deadline: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<any>(null)
-  const [tasks, setTasks] = useState<Task[]>([])
+  const [user, setUser] = useState<any>(null);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [form, setForm] = useState({
     id: "",
     title: "",
@@ -27,71 +27,79 @@ export default function DashboardPage() {
     category: "",
     budget: "",
     deadline: "",
-  })
-  const [message, setMessage] = useState("")
-  const [loading, setLoading] = useState(true)
+  });
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  // ✅ Authenticate Pi user and sync with Supabase
+  // ✅ Initialize and authenticate Pi user + Supabase
   useEffect(() => {
     const initUser = async () => {
       try {
-        const { data: existing } = await supabase.auth.getUser()
-useEffect(() => {
-  const testAuth = async () => {
-    const { data, error } = await supabase.auth.signInAnonymously()
-    console.log("🔍 signInAnonymously result:", data, error)
-  }
-  testAuth()
-}, [])
-        if (!existing.user) {
-          const piUser = await mockPiAuthenticate()
-          const { data: sessionData, error: loginError } = await supabase.auth.signInAnonymously()
-          if (loginError) console.error("Supabase login error:", loginError)
-          setUser({ ...piUser, id: sessionData.user?.id })
+        // Check for an existing Supabase auth session
+        const { data: existing } = await supabase.auth.getUser();
+        let authUser = existing.user;
+
+        // If no session, authenticate with Pi + anonymous sign-in
+        if (!authUser) {
+          const piUser = await mockPiAuthenticate();
+          const { data: sessionData, error: loginError } = await supabase.auth.signInAnonymously();
+          if (loginError) console.error("Supabase login error:", loginError);
+          authUser = sessionData.user;
+        }
+
+        // ✅ Fetch the user's profile from Supabase
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", authUser.id)
+          .single();
+
+        if (profileError) {
+          console.error("Profile fetch error:", profileError);
         } else {
-          setUser(existing.user)
+          console.log("✅ Loaded profile:", profile);
+          setUser(profile);
         }
       } catch (err) {
-        console.error("Auth init error:", err)
+        console.error("Auth init error:", err);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    initUser()
-  }, [])
+    initUser();
+  }, []);
 
-  // ✅ Fetch tasks
+  // ✅ Fetch tasks once user is loaded
   useEffect(() => {
-    if (!user) return
-    fetchTasks()
-  }, [user])
+    if (user) fetchTasks();
+  }, [user]);
 
   const fetchTasks = async () => {
     const { data, error } = await supabase
       .from("tasks")
       .select("*")
-      .order("created_at", { ascending: false })
-    if (error) console.error("Error fetching tasks:", error)
-    else setTasks(data || [])
-  }
+      .order("created_at", { ascending: false });
+    if (error) console.error("Error fetching tasks:", error);
+    else setTasks(data || []);
+  };
 
-  // ✅ Handle form submit (create or edit)
+  // ✅ Handle task creation / update
   const handleSubmit = async (e: any) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!user) {
-      setMessage("⚠️ You must be logged in to post a task.")
-      return
+      setMessage("⚠️ You must be logged in to post a task.");
+      return;
     }
 
-    if (!form.title || !form.description || !form.category || !form.budget || !form.deadline) {
-      setMessage("⚠️ Please fill in all required fields.")
-      return
+    if (!form.title  !form.description  !form.category  !form.budget  !form.deadline) {
+      setMessage("⚠️ Please fill in all required fields.");
+      return;
     }
 
     const taskData = {
-      poster_id: user.id,
+      poster_id: user.id, // ✅ This now matches the profile.id
       title: form.title,
       description: form.description,
       category: form.category,
@@ -99,23 +107,23 @@ useEffect(() => {
       deadline: form.deadline,
       status: "open",
       updated_at: new Date().toISOString(),
-    }
+    };
 
     const { error } = form.id
       ? await supabase.from("tasks").update(taskData).eq("id", form.id)
-      : await supabase.from("tasks").insert([taskData])
+      : await supabase.from("tasks").insert([taskData]);
 
     if (error) {
-      console.error("Task submit error:", error)
-      setMessage("❌ Failed to save task.")
+      console.error("Task submit error:", error);
+      setMessage("❌ Failed to save task.");
     } else {
-      setMessage("✅ Task saved successfully.")
-      setForm({ id: "", title: "", description: "", category: "", budget: "", deadline: "" })
-      fetchTasks()
+      setMessage("✅ Task saved successfully.");
+      setForm({ id: "", title: "", description: "", category: "", budget: "", deadline: "" });
+      fetchTasks();
     }
-  }
+  };
 
-  // ✅ Edit existing task
+  // ✅ Edit an existing task
   const handleEdit = (task: Task) => {
     setForm({
       id: task.id,
@@ -124,33 +132,34 @@ useEffect(() => {
       category: task.category,
       budget: task.budget.toString(),
       deadline: task.deadline.split("T")[0],
-    })
-    setMessage("Editing task...")
-  }
+    });
+    setMessage("Editing task...");
+  };
 
-  // ✅ Delete task
+  // ✅ Delete a task
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this task?")) return
-    const { error } = await supabase.from("tasks").delete().eq("id", id)
+    if (!confirm("Are you sure you want to delete this task?")) return;
+    const { error } = await supabase.from("tasks").delete().eq("id", id);
     if (error) {
-      console.error("Delete error:", error)
-      setMessage("❌ Failed to delete task.")
+      console.error("Delete error:", error);
+      setMessage("❌ Failed to delete task.");
     } else {
-      setMessage("🗑 Task deleted.")
-      fetchTasks()
+      setMessage("🗑 Task deleted.");
+      fetchTasks();
     }
-  }
+  };
 
+  // ✅ UI
   return (
     <div className="min-h-screen bg-[#000222] text-white flex flex-col items-center px-4 py-10">
       {/* Header */}
       <div className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 text-center mb-10">
         <h1 className="text-2xl font-semibold">
           {loading
-  ? "Loading..."
-  : user
-  ? `Welcome to YASA Tasker, ${user.username || "Pi User"}!`
-  : "Welcome to YASA Tasker!"}
+            ? "Loading..."
+            : user
+            ? `Welcome to YASA Tasker, ${user.username || "Pi User"}!`
+            : "Welcome to YASA Tasker!"}
         </h1>
       </div>
 
@@ -246,5 +255,5 @@ useEffect(() => {
         )}
       </div>
     </div>
-  )
+  );
 }
