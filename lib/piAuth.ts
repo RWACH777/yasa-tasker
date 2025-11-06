@@ -24,12 +24,7 @@ export async function mockPiAuthenticate(): Promise<PiUser> {
 
   // ✅ Upsert into profiles table with matching schema
   const { error: upsertError } = await supabase.from("profiles").upsert(
-    {
-      id: data?.user?.id,                     // uuid from Supabase auth
-      username: piUser.username,              // mock Pi username
-      email: ${piUser.uid}@pi.mock,         // fake email for now
-      created_at: new Date().toISOString(),   // timestamp
-    },
+    email: ${piUser.uid}@pi.mock,
     { onConflict: "id" }
   )
 
