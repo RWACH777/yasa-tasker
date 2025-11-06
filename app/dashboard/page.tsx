@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { mockPiAuthenticate } from "@/lib/piAuth";
 
 interface Task {
   id: string;
@@ -31,37 +30,41 @@ export default function DashboardPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // ✅ Initialize and authenticate Pi user + Supabase
+  // ✅ Authenticate Pi user
   useEffect(() => {
     const initUser = async () => {
       try {
-        // Check for an existing Supabase auth session
         const { data: existing } = await supabase.auth.getUser();
-        let authUser = existing.user;
 
-        // If no session, authenticate with Pi + anonymous sign-in
-        if (!authUser) {
-          const piUser = await mockPiAuthenticate();
-          const { data: sessionData, error: loginError } = await supabase.auth.signInAnonymously();
-          if (loginError) console.error("Supabase login error:", loginError);
-          authUser = sessionData.user;
+        if (existing?.user) {
+          setUser(existing.user);
+          setLoading(false);
+          return;
         }
 
-        // ✅ Fetch the user's profile from Supabase
-        const { data: profile, error: profileError } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", authUser.id)
-          .single();
+        // 🟣 Simulate Pi authentication (replace with Pi SDK later)
+        const piUser = {
+          username: "PiUser123",
+          pi_uid: "pi_mock_user_001",
+        };
 
-        if (profileError) {
-          console.error("Profile fetch error:", profileError);
-        } else {
-          console.log("✅ Loaded profile:", profile);
-          setUser(profile);
-        }
+        const res = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(piUser),
+        });
+
+        const result = await res.json();
+
+        if (!res.ok) throw new Error(result.error || "Login failed");
+
+        const { data: sessionData, error: signInError } = await supabase.auth.signInAnonymously();
+        if (signInError) console.error("Supabase sign-in error:", signInError);
+
+        setUser({ ...piUser, id: sessionData.user?.id });
       } catch (err) {
         console.error("Auth init error:", err);
+        setMessage("❌ Login failed. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -70,9 +73,10 @@ export default function DashboardPage() {
     initUser();
   }, []);
 
-  // ✅ Fetch tasks once user is loaded
+  // ✅ Fetch tasks
   useEffect(() => {
-    if (user) fetchTasks();
+    if (!user) return;
+    fetchTasks();
   }, [user]);
 
   const fetchTasks = async () => {
@@ -84,7 +88,7 @@ export default function DashboardPage() {
     else setTasks(data || []);
   };
 
-  // ✅ Handle task creation / update
+  // ✅ Submit new or edited task
   const handleSubmit = async (e: any) => {
     e.preventDefault();
 
@@ -94,18 +98,18 @@ export default function DashboardPage() {
     }
 
     if (
-  !form.title ||
-  !form.description ||
-  !form.category ||
-  !form.budget ||
-  !form.deadline
-) {
-  setMessage("⚠️ Please fill in all required fields.");
-  return;
-}
+      !form.title ||
+      !form.description ||
+      !form.category ||
+      !form.budget ||
+      !form.deadline
+    ) {
+      setMessage("⚠️ Please fill in all required fields.");
+      return;
+    }
 
     const taskData = {
-      poster_id: user.id, // ✅ This now matches the profile.id
+      poster_id: user.id,
       title: form.title,
       description: form.description,
       category: form.category,
@@ -129,7 +133,7 @@ export default function DashboardPage() {
     }
   };
 
-  // ✅ Edit an existing task
+  // ✅ Edit existing task
   const handleEdit = (task: Task) => {
     setForm({
       id: task.id,
