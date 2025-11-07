@@ -39,13 +39,12 @@ if (upsertError) {
   return NextResponse.json({ error: "Profile update failed" }, { status: 500 });
 }
 
-// 🟣 Debug: Confirm the API actually ran
+// 🟣 Debug log to confirm the endpoint runs
 console.log("✅ /api/login called successfully for user:", username);
 
 return NextResponse.json({ success: true });
-      
-  } catch (err) {
-    console.error("Login API error:", err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
-  }
+} catch (err) {
+  console.error("Login API error:", err);
+  return NextResponse.json({ error: "Server error" }, { status: 500 });
+}
 }
