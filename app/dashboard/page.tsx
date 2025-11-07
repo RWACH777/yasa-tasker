@@ -62,6 +62,8 @@ export default function DashboardPage() {
               }),
             });
 
+alert("Login API response: " + JSON.stringify(data));
+
             const result = await res.json();
             if (!result.success) throw new Error(result.error || "Login failed");
           }
