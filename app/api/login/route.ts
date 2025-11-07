@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// Create normal Supabase client (uses anon key)
+// Create normal Supabase client (anon key)
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function POST(req: Request) {
@@ -15,11 +15,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
-    // Check if a profile already exists for this Pi user
+    // ✅ Check if a profile already exists
     const { data: existingProfile, error: fetchError } = await supabase
       .from("profiles")
       .select("*")
-      .eq("email", ${pi_uid}@pi.mock)
+      .eq("email", `${pi_uid}@pi.mock`)
       .single();
 
     if (fetchError && fetchError.code !== "PGRST116") {
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     }
 
     if (!existingProfile) {
-      // Insert a new profile (allowed by your RLS policies)
+      // ✅ Insert new profile
       const { error: insertError } = await supabase.from("profiles").insert({
         username,
         email: `${pi_uid}@pi.mock`,
