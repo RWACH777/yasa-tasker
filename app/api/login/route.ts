@@ -17,7 +17,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "You must be logged in to post a task." }, { status: 401 });
     }
 
-    if (!title  !description  !category  !budget  !deadline) {
+    if (!title || !description || !category || !budget || !deadline) {
       return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
     }
 
