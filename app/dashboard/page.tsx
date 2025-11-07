@@ -47,7 +47,7 @@ export default function DashboardPage() {
               email: `${mockUser.pi_uid}@pi.mock`,
               created_at: new Date().toISOString(),
             });
-            setMessage(✅ Welcome ${mockUser.username}!);
+            setMessage(`✅ Welcome ${mockUser.username}!`);
           }
 
           setLoading(false);
