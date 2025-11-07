@@ -16,8 +16,15 @@ interface Task {
   updated_at: string;
 }
 
+interface Profile {
+  id: string;
+  username: string;
+  email: string;
+  created_at: string;
+}
+
 export default function DashboardPage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<Profile | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [form, setForm] = useState({
     id: "",
@@ -30,47 +37,63 @@ export default function DashboardPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // ✅ Authenticate Pi user
+  // ✅ Authenticate with Pi Network
   useEffect(() => {
-    const initUser = async () => {
+    const authenticatePiUser = async () => {
       try {
-        const { data: existing } = await supabase.auth.getUser();
-
-        if (existing?.user) {
-          setUser(existing.user);
+        if (!window.Pi) {
+          setMessage("⚠️ Pi SDK not found. Open this in Pi Browser.");
           setLoading(false);
           return;
         }
 
-        // 🟣 Simulate Pi authentication (replace with Pi SDK later)
-        const piUser = {
-          username: "PiUser123",
-          pi_uid: "pi_mock_user_001",
-        };
+        // Request permissions from Pi SDK
+        const scopes = ["username", "payments"];
+        window.Pi.authenticate(scopes, async (authResult) => {
+          if (!authResult || !authResult.user) {
+            setMessage("❌ Pi authentication failed.");
+            setLoading(false);
+            return;
+          }
 
-        const res = await fetch("/api/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(piUser),
+          // Real Pi user info
+          const piUser = {
+            username: authResult.user.username,
+            pi_uid: authResult.user.uid,
+          };
+
+          // Send to backend /api/login to sync with Supabase
+          const res = await fetch("/api/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(piUser),
+          });
+
+          const data = await res.json();
+          if (data.error) {
+            console.error("Login API error:", data.error);
+            setMessage("❌ Login failed: " + data.error);
+          } else {
+            console.log("✅ Logged in user:", data);
+            setMessage("✅ Logged in successfully!");
+            setUser({
+              id: data.userId,
+              username: piUser.username,
+              email: `${piUser.pi_uid}@pi.mock`,
+              created_at: new Date().toISOString(),
+            });
+          }
+
+          setLoading(false);
         });
-
-        const result = await res.json();
-
-        if (!res.ok) throw new Error(result.error || "Login failed");
-
-        const { data: sessionData, error: signInError } = await supabase.auth.signInAnonymously();
-        if (signInError) console.error("Supabase sign-in error:", signInError);
-
-        setUser({ ...piUser, id: sessionData.user?.id });
       } catch (err) {
         console.error("Auth init error:", err);
-        setMessage("❌ Login failed. Please try again.");
-      } finally {
+        setMessage("❌ Authentication error.");
         setLoading(false);
       }
     };
 
-    initUser();
+    authenticatePiUser();
   }, []);
 
   // ✅ Fetch tasks
@@ -88,7 +111,7 @@ export default function DashboardPage() {
     else setTasks(data || []);
   };
 
-  // ✅ Submit new or edited task
+  // ✅ Create or edit task
   const handleSubmit = async (e: any) => {
     e.preventDefault();
 
@@ -97,13 +120,7 @@ export default function DashboardPage() {
       return;
     }
 
-    if (
-      !form.title ||
-      !form.description ||
-      !form.category ||
-      !form.budget ||
-      !form.deadline
-    ) {
+    if (!form.title || !form.description || !form.category || !form.budget || !form.deadline) {
       setMessage("⚠️ Please fill in all required fields.");
       return;
     }
@@ -133,7 +150,6 @@ export default function DashboardPage() {
     }
   };
 
-  // ✅ Edit existing task
   const handleEdit = (task: Task) => {
     setForm({
       id: task.id,
@@ -146,7 +162,6 @@ export default function DashboardPage() {
     setMessage("Editing task...");
   };
 
-  // ✅ Delete a task
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this task?")) return;
     const { error } = await supabase.from("tasks").delete().eq("id", id);
@@ -159,21 +174,25 @@ export default function DashboardPage() {
     }
   };
 
-  // ✅ UI
   return (
     <div className="min-h-screen bg-[#000222] text-white flex flex-col items-center px-4 py-10">
-      {/* Header */}
-      <div className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 text-center mb-10">
-        <h1 className="text-2xl font-semibold">
-          {loading
-            ? "Loading..."
-            : user
-            ? `Welcome to YASA Tasker, ${user.username || "Pi User"}!`
-            : "Welcome to YASA Tasker!"}
-        </h1>
+      {/* 🔹 Profile Section (Glassmorphism) */}
+      <div className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 text-center mb-10 shadow-lg">
+        {loading ? (
+          <h1 className="text-2xl font-semibold">Loading...</h1>
+        ) : user ? (
+          <>
+            <h1 className="text-2xl font-semibold">
+              👋 Welcome, {user.username || "Pi User"}!
+            </h1>
+            <p className="text-sm text-gray-300 mt-2">{user.email}</p>
+          </>
+        ) : (
+          <h1 className="text-2xl font-semibold">Welcome to YASA Tasker!</h1>
+        )}
       </div>
 
-      {/* Task Form */}
+      {/* 🔹 Task Form */}
       <div className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 mb-8">
         <h2 className="text-lg font-semibold mb-4">{form.id ? "Edit Task" : "Post a New Task"}</h2>
         {message && <p className="text-sm text-gray-300 mb-3">{message}</p>}
@@ -223,8 +242,8 @@ export default function DashboardPage() {
         </form>
       </div>
 
-      {/* Task Feed */}
-      <div className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
+      {/* 🔹 Task Feed */}
+      <div className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 shadow-lg">
         <h2 className="text-lg font-semibold mb-4">Available Tasks</h2>
         {tasks.length === 0 ? (
           <p className="text-gray-400 text-sm">No tasks yet. Post one above!</p>
