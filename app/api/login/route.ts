@@ -1,67 +1,48 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-console.log("🔑 Service role key present?", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
-
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+// Create normal Supabase client (uses anon key)
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function POST(req: Request) {
   try {
     const { username, pi_uid } = await req.json();
-    if (!username || !pi_uid)
+
+    if (!username || !pi_uid) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
-
-    const mockEmail = `${pi_uid}@pi.mock`;
-
-    // ✅ Try to find the user first
-    const { data: usersList, error: listError } =
-      await supabaseAdmin.auth.admin.listUsers();
-
-    if (listError)
-      throw new Error("Failed to list users: " + listError.message);
-
-    let existingUser = usersList.users.find((u) => u.email === mockEmail);
-    let supabaseUserId = existingUser?.id;
-
-    // ✅ If not found, create new user
-    if (!supabaseUserId) {
-      const { data: newUser, error: createError } =
-        await supabaseAdmin.auth.admin.createUser({
-          email: mockEmail,
-          email_confirm: true,
-        });
-      if (createError) throw createError;
-      supabaseUserId = newUser.user?.id;
     }
 
-    if (!supabaseUserId)
-      throw new Error("Supabase user ID not found after create/list.");
-
-    // ✅ Upsert into profiles (bypass RLS)
-    const { error: upsertError } = await supabaseAdmin
+    // Check if a profile already exists for this Pi user
+    const { data: existingProfile, error: fetchError } = await supabase
       .from("profiles")
-      .upsert(
-        {
-          id: supabaseUserId,
-          username,
-          email: mockEmail,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "id" }
-      );
+      .select("*")
+      .eq("email", ${pi_uid}@pi.mock)
+      .single();
 
-    if (upsertError) throw upsertError;
+    if (fetchError && fetchError.code !== "PGRST116") {
+      console.error("Fetch error:", fetchError);
+    }
 
-    console.log("✅ Profile upserted successfully for", username);
-    return NextResponse.json({ success: true, userId: supabaseUserId });
-  } catch (err: any) {
-    console.error("❌ Login API error:", err.message);
-    return NextResponse.json(
-      { error: "Auth creation failed", details: err.message },
-      { status: 500 }
-    );
+    if (!existingProfile) {
+      // Insert a new profile (allowed by your RLS policies)
+      const { error: insertError } = await supabase.from("profiles").insert({
+        username,
+        email: `${pi_uid}@pi.mock`,
+        created_at: new Date().toISOString(),
+      });
+
+      if (insertError) {
+        console.error("Insert error:", insertError);
+        return NextResponse.json({ error: "Profile insert failed" }, { status: 500 });
+      }
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("Login API error:", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
