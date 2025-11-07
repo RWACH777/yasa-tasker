@@ -1,288 +1,223 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabaseClient";
-
-interface Task {
-  id: string;
-  poster_id: string;
-  title: string;
-  description: string;
-  category: string;
-  budget: number;
-  deadline: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface Profile {
-  id: string;
-  username: string;
-  email: string;
-  created_at: string;
-}
+import { useEffect, useState } from "react";
+import { useUser } from "@/context/UserContext";
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<Profile | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const { user, setUser } = useUser();
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
-    id: "",
     title: "",
     description: "",
     category: "",
     budget: "",
     deadline: "",
   });
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(true);
 
-  // ✅ Authenticate with Pi Network
+  // 🟣 Handle login with Pi SDK or mock fallback
   useEffect(() => {
-    const authenticatePiUser = async () => {
+    async function handleLogin() {
+      setLoading(true);
       try {
-        if (!window.Pi) {
-          setMessage("⚠️ Pi SDK not found. Open this in Pi Browser.");
+        if (typeof window === "undefined") return;
+        const Pi = (window as any).Pi;
+
+        // ✅ Mock login for testing outside Pi Browser
+        if (!Pi) {
+          console.warn("⚠️ Pi SDK not found — using mock login.");
+
+          const mockUser = {
+            username: "MockUser",
+            pi_uid: "mock_uid_001",
+          };
+
+          const res = await fetch("/api/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(mockUser),
+          });
+
+          const data = await res.json();
+          if (data.error) setMessage("Login failed: " + data.error);
+          else {
+            setUser({
+              id: data.userId,
+              username: mockUser.username,
+              email: `${mockUser.pi_uid}@pi.mock`,
+              created_at: new Date().toISOString(),
+            });
+            setMessage(✅ Welcome ${mockUser.username}!);
+          }
+
           setLoading(false);
           return;
         }
 
-        // Request permissions from Pi SDK
+        // ✅ Real Pi login
+        Pi.init({ version: "2.0", sandbox: false });
+
         const scopes = ["username", "payments"];
-        window.Pi.authenticate(scopes, async (authResult) => {
-          if (!authResult || !authResult.user) {
-            setMessage("❌ Pi authentication failed.");
-            setLoading(false);
-            return;
-          }
+        const authResult = await Pi.authenticate(scopes, onIncompletePaymentFound);
 
-          // Real Pi user info
-          const piUser = {
-            username: authResult.user.username,
-            pi_uid: authResult.user.uid,
-          };
+        const piUser = {
+          username: authResult.user.username,
+          pi_uid: authResult.user.uid,
+        };
 
-          // Send to backend /api/login to sync with Supabase
-          const res = await fetch("/api/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(piUser),
-          });
-
-          const data = await res.json();
-          if (data.error) {
-            console.error("Login API error:", data.error);
-            setMessage("❌ Login failed: " + data.error);
-          } else {
-            console.log("✅ Logged in user:", data);
-            setMessage("✅ Logged in successfully!");
-            setUser({
-              id: data.userId,
-              username: piUser.username,
-              email: `${piUser.pi_uid}@pi.mock`,
-              created_at: new Date().toISOString(),
-            });
-          }
-
-          setLoading(false);
+        const res = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(piUser),
         });
+
+        const data = await res.json();
+        if (data.error) setMessage("Login failed: " + data.error);
+        else {
+          setUser({
+            id: data.userId,
+            username: piUser.username,
+            email: `${piUser.pi_uid}@pi.mock`,
+            created_at: new Date().toISOString(),
+          });
+          setMessage(`✅ Welcome ${piUser.username}!`);
+        }
       } catch (err) {
-        console.error("Auth init error:", err);
-        setMessage("❌ Authentication error.");
+        console.error("❌ Login error:", err);
+        setMessage("Login failed — please try again.");
+      } finally {
         setLoading(false);
       }
-    };
+    }
 
-    authenticatePiUser();
-  }, []);
+    handleLogin();
+  }, [setUser]);
 
-  // ✅ Fetch tasks
-  useEffect(() => {
-    if (!user) return;
-    fetchTasks();
-  }, [user]);
-
-  const fetchTasks = async () => {
-    const { data, error } = await supabase
-      .from("tasks")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error) console.error("Error fetching tasks:", error);
-    else setTasks(data || []);
-  };
-
-  // ✅ Create or edit task
-  const handleSubmit = async (e: any) => {
+  // 🟢 Handle task posting
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!user) {
       setMessage("⚠️ You must be logged in to post a task.");
       return;
     }
 
-    if (!form.title || !form.description || !form.category || !form.budget || !form.deadline) {
-      setMessage("⚠️ Please fill in all required fields.");
-      return;
-    }
+    try {
+      setLoading(true);
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          poster_id: user.id,
+        }),
+      });
 
-    const taskData = {
-      poster_id: user.id,
-      title: form.title,
-      description: form.description,
-      category: form.category,
-      budget: parseFloat(form.budget),
-      deadline: form.deadline,
-      status: "open",
-      updated_at: new Date().toISOString(),
-    };
-
-    const { error } = form.id
-      ? await supabase.from("tasks").update(taskData).eq("id", form.id)
-      : await supabase.from("tasks").insert([taskData]);
-
-    if (error) {
-      console.error("Task submit error:", error);
-      setMessage("❌ Failed to save task.");
-    } else {
-      setMessage("✅ Task saved successfully.");
-      setForm({ id: "", title: "", description: "", category: "", budget: "", deadline: "" });
-      fetchTasks();
+      const data = await res.json();
+      if (data.error) setMessage("❌ " + data.error);
+      else {
+        setMessage("✅ Task posted successfully!");
+        setForm({
+          title: "",
+          description: "",
+          category: "",
+          budget: "",
+          deadline: "",
+        });
+      }
+    } catch (err) {
+      console.error("❌ Task post error:", err);
+      setMessage("⚠️ Failed to post task.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleEdit = (task: Task) => {
-    setForm({
-      id: task.id,
-      title: task.title,
-      description: task.description,
-      category: task.category,
-      budget: task.budget.toString(),
-      deadline: task.deadline.split("T")[0],
-    });
-    setMessage("Editing task...");
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this task?")) return;
-    const { error } = await supabase.from("tasks").delete().eq("id", id);
-    if (error) {
-      console.error("Delete error:", error);
-      setMessage("❌ Failed to delete task.");
-    } else {
-      setMessage("🗑 Task deleted.");
-      fetchTasks();
-    }
+  // 🟣 Handle Pi payments (stub)
+  const onIncompletePaymentFound = (payment: any) => {
+    console.log("Incomplete payment found:", payment);
   };
 
   return (
-    <div className="min-h-screen bg-[#000222] text-white flex flex-col items-center px-4 py-10">
-      {/* 🔹 Profile Section (Glassmorphism) */}
-      <div className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 text-center mb-10 shadow-lg">
-        {loading ? (
-          <h1 className="text-2xl font-semibold">Loading...</h1>
-        ) : user ? (
-          <>
-            <h1 className="text-2xl font-semibold">
-              👋 Welcome, {user.username || "Pi User"}!
-            </h1>
-            <p className="text-sm text-gray-300 mt-2">{user.email}</p>
-          </>
-        ) : (
-          <h1 className="text-2xl font-semibold">Welcome to YASA Tasker!</h1>
-        )}
-      </div>
-
-      {/* 🔹 Task Form */}
-      <div className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 mb-8">
-        <h2 className="text-lg font-semibold mb-4">{form.id ? "Edit Task" : "Post a New Task"}</h2>
-        {message && <p className="text-sm text-gray-300 mb-3">{message}</p>}
-
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <input
-            type="text"
-            placeholder="Task title"
-            value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-400"
-          />
-          <textarea
-            placeholder="Task description"
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-400"
-            rows={3}
-          />
-          <input
-            type="text"
-            placeholder="Category"
-            value={form.category}
-            onChange={(e) => setForm({ ...form, category: e.target.value })}
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-400"
-          />
-          <input
-            type="number"
-            placeholder="Budget (in Pi)"
-            value={form.budget}
-            onChange={(e) => setForm({ ...form, budget: e.target.value })}
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-400"
-          />
-          <input
-            type="date"
-            value={form.deadline}
-            onChange={(e) => setForm({ ...form, deadline: e.target.value })}
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-400"
-          />
-
-          <button
-            type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition"
-          >
-            {form.id ? "Update Task" : "Post Task"}
-          </button>
-        </form>
-      </div>
-
-      {/* 🔹 Task Feed */}
-      <div className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 shadow-lg">
-        <h2 className="text-lg font-semibold mb-4">Available Tasks</h2>
-        {tasks.length === 0 ? (
-          <p className="text-gray-400 text-sm">No tasks yet. Post one above!</p>
-        ) : (
-          <div className="space-y-4">
-            {tasks.map((task) => (
-              <div
-                key={task.id}
-                className="bg-white/5 border border-white/10 rounded-lg p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center"
-              >
-                <div>
-                  <h3 className="font-semibold">{task.title}</h3>
-                  <p className="text-gray-300 text-sm mb-2">{task.description}</p>
-                  <p className="text-xs text-gray-400">
-                    Category: {task.category} • Budget: {task.budget} π • Deadline:{" "}
-                    {new Date(task.deadline).toLocaleDateString()}
-                  </p>
-                </div>
-                {user?.id === task.poster_id && (
-                  <div className="flex gap-2 mt-3 sm:mt-0">
-                    <button
-                      onClick={() => handleEdit(task)}
-                      className="px-3 py-1 bg-blue-500/80 rounded-md text-sm hover:bg-blue-600 transition"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(task.id)}
-                      className="px-3 py-1 bg-red-500/80 rounded-md text-sm hover:bg-red-600 transition"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+    <div className="min-h-screen bg-gray-950 text-gray-200 flex flex-col items-center p-4">
+      {/* 🟣 Glassmorphic user profile bar */}
+      <div className="w-full max-w-2xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-4 mb-6 shadow-xl flex items-center justify-between">
+        {user ? (
+          <div>
+            <h2 className="text-xl font-semibold text-purple-300">
+              👋 Welcome, {user.username}
+            </h2>
+            <p className="text-sm text-gray-300">
+              {user.email || "No email"}  
+            </p>
           </div>
+        ) : (
+          <p className="text-gray-400">Loading user profile...</p>
         )}
+        <div className="text-sm text-right">
+          {loading ? (
+            <p className="text-yellow-400 animate-pulse">Loading...</p>
+          ) : (
+            <p className="text-green-400">{message}</p>
+          )}
+        </div>
       </div>
+
+      {/* 🟢 Post Task Form */}
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-2xl bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 shadow-lg"
+      >
+        <h3 className="text-lg font-semibold text-purple-300 mb-4">
+          📝 Post a Task
+        </h3>
+
+        <input
+          type="text"
+          placeholder="Task Title"
+          value={form.title}
+          onChange={(e) => setForm({ ...form, title: e.target.value })}
+          className="w-full mb-3 p-2 rounded-md bg-gray-900 border border-gray-700 text-gray-100"
+          required
+        />
+        <textarea
+          placeholder="Task Description"
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
+          className="w-full mb-3 p-2 rounded-md bg-gray-900 border border-gray-700 text-gray-100"
+          required
+        />
+        <input
+          type="text"
+          placeholder="Category"
+          value={form.category}
+          onChange={(e) => setForm({ ...form, category: e.target.value })}
+          className="w-full mb-3 p-2 rounded-md bg-gray-900 border border-gray-700 text-gray-100"
+          required
+        />
+        <input
+          type="number"
+          placeholder="Budget (Pi)"
+          value={form.budget}
+          onChange={(e) => setForm({ ...form, budget: e.target.value })}
+          className="w-full mb-3 p-2 rounded-md bg-gray-900 border border-gray-700 text-gray-100"
+          required
+        />
+        <input
+          type="date"
+          value={form.deadline}
+          onChange={(e) => setForm({ ...form, deadline: e.target.value })}
+          className="w-full mb-4 p-2 rounded-md bg-gray-900 border border-gray-700 text-gray-100"
+          required
+        />
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-purple-600 hover:bg-purple-700 transition-all text-white p-2 rounded-lg font-semibold"
+        >
+          {loading ? "Posting..." : "Post Task"}
+        </button>
+      </form>
     </div>
   );
 }
