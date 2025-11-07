@@ -1,48 +1,49 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+// ✅ Use your public Supabase keys (RLS still applies here)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// Create normal Supabase client (anon key)
+// Create client for inserting with logged-in user's context
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function POST(req: Request) {
   try {
-    const { username, pi_uid } = await req.json();
+    const { title, description, category, budget, deadline, userId } = await req.json();
 
-    if (!username || !pi_uid) {
-      return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    // 🧩 Validation
+    if (!userId) {
+      return NextResponse.json({ error: "You must be logged in to post a task." }, { status: 401 });
     }
 
-    // ✅ Check if a profile already exists
-    const { data: existingProfile, error: fetchError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("email", `${pi_uid}@pi.mock`)
-      .single();
-
-    if (fetchError && fetchError.code !== "PGRST116") {
-      console.error("Fetch error:", fetchError);
+    if (!title  !description  !category  !budget  !deadline) {
+      return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
     }
 
-    if (!existingProfile) {
-      // ✅ Insert new profile
-      const { error: insertError } = await supabase.from("profiles").insert({
-        username,
-        email: `${pi_uid}@pi.mock`,
+    // ✅ Insert task record
+    const { error } = await supabase.from("tasks").insert([
+      {
+        poster_id: userId,  // comes from logged-in user's Supabase ID
+        title,
+        description,
+        category,
+        budget,
+        deadline,
+        status: "open",
         created_at: new Date().toISOString(),
-      });
+        updated_at: new Date().toISOString(),
+      },
+    ]);
 
-      if (insertError) {
-        console.error("Insert error:", insertError);
-        return NextResponse.json({ error: "Profile insert failed" }, { status: 500 });
-      }
+    if (error) {
+      console.error("❌ Task insert error:", error);
+      return NextResponse.json({ error: "Failed to post task." }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: "Task posted successfully!" });
   } catch (err) {
-    console.error("Login API error:", err);
+    console.error("❌ Server error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
