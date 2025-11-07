@@ -34,13 +34,16 @@ export async function POST(req: Request) {
         created_at: new Date().toISOString(),
       });
 
-      if (insertError) {
-        console.error("Insert error:", insertError);
-        return NextResponse.json({ error: "Profile insert failed" }, { status: 500 });
-      }
-    }
+if (upsertError) {
+  console.error("Profile upsert error:", upsertError);
+  return NextResponse.json({ error: "Profile update failed" }, { status: 500 });
+}
 
-    return NextResponse.json({ success: true });
+// 🟣 Debug: Confirm the API actually ran
+console.log("✅ /api/login called successfully for user:", username);
+
+return NextResponse.json({ success: true });
+      
   } catch (err) {
     console.error("Login API error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
