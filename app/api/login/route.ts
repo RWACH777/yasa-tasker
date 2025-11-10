@@ -33,19 +33,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, user: existingProfile });
     }
 
-    // 🟢 Otherwise, create a new profile
-    const { data: newProfile, error: insertError } = await supabase
-      .from("profiles")
-      .insert([
-        {
-          username,
-          pi_uid,
-          email: `${pi_uid}@pi.mock`,
-          created_at: new Date().toISOString(),
-        },
-      ])
-      .select()
-      .single();
+    // 🟢 Otherwise, create a new profile (upsert to avoid username clash)
+const { data: newProfile, error: insertError } = await supabase
+  .from("profiles")
+  .upsert(
+    {
+      username,          // unique key
+      pi_uid,            // will be updated if user exists
+      email: `${pi_uid}@pi.mock`,
+      created_at: new Date().toISOString(),
+    },
+    { onConflict: "username" }   // tells Postgres to DO UPDATE if username exists
+  )
+  .select()
+  .single();
 
     if (insertError) {
       console.error("Profile insert error:", insertError);
