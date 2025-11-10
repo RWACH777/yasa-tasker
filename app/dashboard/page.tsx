@@ -44,12 +44,14 @@ export default function DashboardPage() {
   const initUser = async () => {
     setLoading(true);
     try {
-      // 1. Ensure we have a Supabase session
+      // 1. Check Supabase session FIRST
       let { data: authData } = await supabase.auth.getUser();
+
+      // 2. No session → mandatory Pi login
       if (!authData?.user) {
-        // No cookie yet → exchange Pi token
         const pi = (window as any).Pi;
-        if (!pi) throw new Error("Pi SDK not found");
+        if (!pi) throw new Error("Pi SDK not available – open in Pi Browser");
+
         const authResult = await pi.authenticate(
           ["username", "payments"],
           (p) => p
@@ -67,11 +69,11 @@ export default function DashboardPage() {
         const result = await res.json();
         if (!result.success) throw new Error(result.error || "Login failed");
 
-        // Re-fetch auth user now that cookie exists
+        // 3. Re-check session after cookie is set
         authData = (await supabase.auth.getUser()).data;
       }
 
-      // 2. Load profile
+      // 4. Load profile
       if (authData?.user) {
         const { data: profile } = await supabase
           .from("profiles")
