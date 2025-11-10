@@ -83,7 +83,7 @@ export default function DashboardPage() {
         setUser(profile);
       }
     } catch (err: any) {
-      console.error("Auth error:", err);
+      console.error("Auth error:", err); alert("Login failed: " + err.message);
       setMessage("⚠️ " + err.message);
     } finally {
       setLoading(false);
