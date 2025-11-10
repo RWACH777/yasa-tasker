@@ -41,53 +41,55 @@ export default function DashboardPage() {
 
   // ✅ Authenticate via Pi + Supabase
   useEffect(() => {
-    const initUser = async () => {
-      try {
-        const { data: authData } = await supabase.auth.getUser();
+  const initUser = async () => {
+    setLoading(true);
+    try {
+      // 1. Ensure we have a Supabase session
+      let { data: authData } = await supabase.auth.getUser();
+      if (!authData?.user) {
+        // No cookie yet → exchange Pi token
+        const pi = (window as any).Pi;
+        if (!pi) throw new Error("Pi SDK not found");
+        const authResult = await pi.authenticate(
+          ["username", "payments"],
+          (p) => p
+        );
+        const piUser = authResult.user;
 
-        if (!authData?.user) {
-          // Try existing Pi session if not signed in
-          const pi = (window as any).Pi;
-          if (pi) {
-            const scopes = ["username", "payments"];
-            const authResult = await pi.authenticate(scopes, () => {});
-            const piUser = authResult.user;
+        const res = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: piUser.username,
+            pi_uid: piUser.uid,
+          }),
+        });
+        const result = await res.json();
+        if (!result.success) throw new Error(result.error || "Login failed");
 
-            const res = await fetch("/api/login", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                username: piUser.username,
-                pi_uid: piUser.uid,
-              }),
-            });
-
-alert("Login API response: " + JSON.stringify(data));
-
-            const result = await res.json();
-            if (!result.success) throw new Error(result.error || "Login failed");
-          }
-        }
-
-        // Fetch current user profile
-        const { data: currentUser } = await supabase.auth.getUser();
-        if (currentUser?.user) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", currentUser.user.id)
-            .single();
-          setUser(profile);
-        }
-      } catch (err) {
-        console.error("Auth error:", err);
-      } finally {
-        setLoading(false);
+        // Re-fetch auth user now that cookie exists
+        authData = (await supabase.auth.getUser()).data;
       }
-    };
 
-    initUser();
-  }, []);
+      // 2. Load profile
+      if (authData?.user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", authData.user.id)
+          .single();
+        setUser(profile);
+      }
+    } catch (err: any) {
+      console.error("Auth error:", err);
+      setMessage("⚠️ " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  initUser();
+}, []);
 
   // ✅ Fetch tasks
   useEffect(() => {
