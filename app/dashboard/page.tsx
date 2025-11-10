@@ -216,7 +216,9 @@ alert("Login API response: " + JSON.stringify(data));
         <h2 className="text-lg font-semibold mb-4">{form.id ? "Edit Task" : "Post a Task"}</h2>
         {message && <p className="text-sm text-gray-300 mb-3">{message}</p>}
 
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form 
+          onSubmit={handleSubmit} 
+          className="space-y-3" relative z-10 pointer-events-auto">
           <input
             type="text"
             placeholder="Task title"
