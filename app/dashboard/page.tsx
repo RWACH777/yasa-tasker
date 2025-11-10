@@ -43,47 +43,49 @@ export default function DashboardPage() {
   useEffect(() => {
   const initUser = async () => {
     setLoading(true);
+    alert("Step 0: effect running");
+
     try {
-      // 1. Check Supabase session FIRST
-      let { data: authData } = await supabase.auth.getUser();
-
-      // 2. No session → mandatory Pi login
-      if (!authData?.user) {
-        const pi = (window as any).Pi;
-        if (!pi) throw new Error("Pi SDK not available – open in Pi Browser");
-
-        const authResult = await pi.authenticate(
-          ["username", "payments"],
-          (p) => p
-        );
-        const piUser = authResult.user;
-
-        const res = await fetch("/api/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            username: piUser.username,
-            pi_uid: piUser.uid,
-          }),
-        });
-        const result = await res.json();
-        if (!result.success) throw new Error(result.error || "Login failed");
-
-        // 3. Re-check session after cookie is set
-        authData = (await supabase.auth.getUser()).data;
+      // 1. always re-authenticate Pi first
+      const pi = (window as any).Pi;
+      if (!pi) {
+        alert("Pi SDK not found – use Pi Browser");
+        throw new Error("Pi SDK not available");
       }
+      alert("Step 1: Pi found, authenticating…");
 
-      // 4. Load profile
-      if (authData?.user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", authData.user.id)
-          .single();
-        setUser(profile);
-      }
+      const authResult = await pi.authenticate(["username"], (p) => p);
+      const piUser = authResult.user;
+      alert(`Step 2: Pi user = ${piUser.username}`);
+
+      // 2. exchange for Supabase token
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: piUser.username,
+          pi_uid: piUser.uid,
+        }),
+      });
+      const result = await res.json();
+      alert(`Step 3: /api/login result = ${JSON.stringify(result)}`);
+      if (!result.success) throw new Error(result.error || "Login failed");
+
+      // 3. fetch profile
+      const { data: authData } = await supabase.auth.getUser();
+      alert(`Step 4: Supabase user = ${authData.user?.id}`);
+      if (!authData.user) throw new Error("No Supabase session");
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", authData.user.id)
+        .single();
+      alert(`Step 5: profile = ${JSON.stringify(profile)}`);
+      setUser(profile);
     } catch (err: any) {
-      console.error("Auth error:", err); alert("Login failed: " + err.message);
+      console.error(err);
+      alert(`Catch: ${err.message}`);
       setMessage("⚠️ " + err.message);
     } finally {
       setLoading(false);
