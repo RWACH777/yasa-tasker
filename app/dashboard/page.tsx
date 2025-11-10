@@ -218,7 +218,7 @@ alert("Login API response: " + JSON.stringify(data));
 
         <form 
           onSubmit={handleSubmit} 
-          className="space-y-3" relative z-10 pointer-events-auto">
+          className="space-y-3 relative z-10 pointer-events-auto">
           <input
             type="text"
             placeholder="Task title"
