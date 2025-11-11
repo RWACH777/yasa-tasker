@@ -41,63 +41,69 @@ export default function DashboardPage() {
 
   // ✅ Authenticate via Pi + Supabase
   useEffect(() => {
-  const initUser = async () => {
-    setLoading(true);
-    alert("Step 0: effect running");
+    const initUser = async () => {
+      setLoading(true);
 
-    try {
-      // 1. always re-authenticate Pi first
-      const pi = (window as any).Pi;
-      if (!pi) {
-        alert("Pi SDK not found – use Pi Browser");
-        throw new Error("Pi SDK not available");
+      // 1. Restore token from localStorage (Pi Browser safe)
+      const stored = localStorage.getItem("sb-access-token");
+      if (stored) {
+        const { data: authData } = await supabase.auth.getUser(stored);
+        if (authData.user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", authData.user.id)
+            .single();
+          setUser(profile);
+          setLoading(false);
+          return;
+        }
       }
-      alert("Step 1: Pi found, authenticating…");
 
-      const authResult = await pi.authenticate(["username"], (p) => p);
-      const piUser = authResult.user;
-      alert(`Step 2: Pi user = ${piUser.username}`);
+      // 2. No token → Pi flow
+      try {
+        const pi = (window as any).Pi;
+        if (!pi) throw new Error("Pi SDK not available – open in Pi Browser");
 
-      // 2. exchange for Supabase token
-      const res = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: piUser.username,
-          pi_uid: piUser.uid,
-        }),
-      });
+        const authResult = await pi.authenticate(["username"], (p) => p);
+        const piUser = authResult.user;
 
-const cookies = res.headers.get("set-cookie");
-      alert(`Response cookies: ${cookies}`);
+        const res = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: piUser.username,
+            pi_uid: piUser.uid,
+          }),
+        });
 
-      const result = await res.json();
-      alert(`Step 3: /api/login result = ${JSON.stringify(result)}`);
-      if (!result.success) throw new Error(result.error || "Login failed");
+        // Save token to localStorage
+        const cookieHeader = res.headers.get("set-cookie") || "";
+        const token = cookieHeader.split(";")[0].split("=")[1] || "";
+        localStorage.setItem("sb-access-token", token);
 
-      // 3. fetch profile
-      const { data: authData } = await supabase.auth.getUser();
-      alert(`Step 4: Supabase user = ${authData.user?.id}`);
-      if (!authData.user) throw new Error("No Supabase session");
+        const result = await res.json();
+        if (!result.success) throw new Error(result.error || "Login failed");
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", authData.user.id)
-        .single();
-      alert(`Step 5: profile = ${JSON.stringify(profile)}`);
-      setUser(profile);
-    } catch (err: any) {
-      console.error(err);
-      alert(`Catch: ${err.message}`);
-      setMessage("⚠️ " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+        const { data: authData } = await supabase.auth.getUser(token);
+        if (!authData.user) throw new Error("No Supabase session");
 
-  initUser();
-}, []);
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", authData.user.id)
+          .single();
+        setUser(profile);
+      } catch (err: any) {
+        console.error(err);
+        setMessage("⚠️ " + err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initUser();
+  }, []);
 
   // ✅ Fetch tasks
   useEffect(() => {
@@ -116,22 +122,14 @@ const cookies = res.headers.get("set-cookie");
   // ✅ Handle task creation
   const handleSubmit = async (e: any) => {
     e.preventDefault();
-
     if (!user?.id) {
       setMessage("⚠️ You must be logged in to post a task.");
       return;
     }
-
-    if (
-  !form.title ||
-  !form.description ||
-  !form.category ||
-  !form.budget ||
-  !form.deadline
-) {
-  setMessage("⚠️ Please fill in all fields.");
-  return;
-}
+    if (!form.title || !form.description || !form.category || !form.budget || !form.deadline) {
+      setMessage("⚠️ Please fill in all fields.");
+      return;
+    }
 
     const taskData = {
       poster_id: user.id,
@@ -183,52 +181,36 @@ const cookies = res.headers.get("set-cookie");
   };
 
   // ✅ Category filter list
-  const categories = [
-    "all",
-    "design",
-    "writing",
-    "development",
-    "marketing",
-    "translation",
-    "other",
-  ];
+  const categories = ["all", "design", "writing", "development", "marketing", "translation", "other"];
 
   return (
     <div className="min-h-screen bg-[#000222] text-white flex flex-col items-center px-4 py-10">
-      {/* ✅ USER PROFILE SECTION */}
+      {/* USER PROFILE SECTION */}
       <div className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 text-center mb-8">
         {loading ? (
           <p>Loading profile...</p>
         ) : user ? (
-          <>
-            <div className="flex flex-col items-center space-y-2">
-              <img
-                src={
-                  user.avatar_url ||
-                  "https://api.dicebear.com/8.x/thumbs/svg?seed=" + user.username
-                }
-                alt="Avatar"
-                className="w-20 h-20 rounded-full border border-white/30"
-              />
-              <h2 className="text-xl font-semibold">{user.username}</h2>
-              <p className="text-sm text-gray-300">
-                ⭐️ {user.rating || "New User"} • {user.completed_tasks || 0} Tasks Completed
-              </p>
-            </div>
-          </>
+          <div className="flex flex-col items-center space-y-2">
+            <img
+              src={user.avatar_url || `https://api.dicebear.com/8.x/thumbs/svg?seed=${user.username}`}
+              alt="Avatar"
+              className="w-20 h-20 rounded-full border border-white/30"
+            />
+            <h2 className="text-xl font-semibold">{user.username}</h2>
+            <p className="text-sm text-gray-300">
+              ⭐️ {user.rating  "New User"} • {user.completed_tasks  0} Tasks Completed
+            </p>
+          </div>
         ) : (
           <p>⚠️ Please log in with Pi to view your profile.</p>
         )}
       </div>
 
-      {/* ✅ POST TASK FORM */}
+      {/* POST TASK FORM */}
       <div className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 mb-8">
         <h2 className="text-lg font-semibold mb-4">{form.id ? "Edit Task" : "Post a Task"}</h2>
         {message && <p className="text-sm text-gray-300 mb-3">{message}</p>}
-
-        <form 
-          onSubmit={handleSubmit} 
-          className="space-y-3 relative z-10 pointer-events-auto">
+        <form onSubmit={handleSubmit} className="space-y-3 relative z-10 pointer-events-auto">
           <input
             type="text"
             placeholder="Task title"
@@ -272,7 +254,7 @@ const cookies = res.headers.get("set-cookie");
         </form>
       </div>
 
-      {/* ✅ FILTER + TASK FEED */}
+      {/* FILTER + TASK FEED */}
       <div className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold">Available Tasks</h2>
