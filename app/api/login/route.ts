@@ -14,6 +14,8 @@ export async function POST(req: Request) {
   try {
     const { username, pi_uid } = await req.json();
 
+console.log("LOGIN HIT:", { username, pi_uid });
+
     if (!username || !pi_uid) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
@@ -67,6 +69,8 @@ const { data: newProfile, error: insertError } = await supabase
       process.env.SUPABASE_JWT_SECRET!, // add this env var = service role key
       { expiresIn: "1h" }
     );
+
+console.log("ABOUT TO MINT JWT for user:", newProfile?.id ?? existingProfile.id);
 
     // 2. Set cookie & return
     return NextResponse.json(
