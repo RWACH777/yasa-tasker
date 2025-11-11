@@ -55,26 +55,26 @@ const { data: newProfile, error: insertError } = await supabase
       return NextResponse.json({ error: "Profile creation failed" }, { status: 500 });
     }
 
-    // 1. Mint Supabase session (JWT) for this user
-    const { data: sessionData, error: tokenError } =
-      await supabase.auth.signInWithIdToken({
-        provider: "pi",
-        token: pi_uid, // we use the Pi uid as the JWT subject
-      });
+    // 1. Mint our own Supabase JWT (service-role)
+    import jwt from "jsonwebtoken"; // npm install jsonwebtoken @types/jsonwebtoken
+    const supabaseJwt = jwt.sign(
+      {
+        sub: newProfile?.id ?? existingProfile.id,
+        email: `${pi_uid}@pi.mock`,
+        role: "authenticated",
+        pi_uid,
+      },
+      process.env.SUPABASE_JWT_SECRET!, // add this env var = service role key
+      { expiresIn: "1h" }
+    );
 
-    if (tokenError || !sessionData.session)
-      throw new Error("Failed to create Supabase session");
-
-    const { access_token, refresh_token } = sessionData.session;
-
-    // 2. Return success + set auth cookies
+    // 2. Set cookie & return
     return NextResponse.json(
       { success: true, user: newProfile || existingProfile },
       {
         status: 200,
         headers: {
-          "Set-Cookie": `sb-access-token=${access_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600`,
-          "Set-Cookie": `sb-refresh-token=${refresh_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800`,
+          "Set-Cookie": `sb-access-token=${supabaseJwt}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600`,
         },
       }
     );
