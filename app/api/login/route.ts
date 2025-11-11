@@ -49,9 +49,4 @@ export async function POST(req: Request) {
     console.error("Login API error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
-
-      } catch (err) {
-    console.error("Login API error:", err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
-  }
 }
