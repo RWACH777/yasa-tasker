@@ -55,8 +55,29 @@ const { data: newProfile, error: insertError } = await supabase
       return NextResponse.json({ error: "Profile creation failed" }, { status: 500 });
     }
 
-    console.log("✅ /api/login called successfully for user:", username);
-    return NextResponse.json({ success: true, user: newProfile });
+    // 1. Mint Supabase session (JWT) for this user
+    const { data: sessionData, error: tokenError } =
+      await supabase.auth.signInWithIdToken({
+        provider: "pi",
+        token: pi_uid, // we use the Pi uid as the JWT subject
+      });
+
+    if (tokenError || !sessionData.session)
+      throw new Error("Failed to create Supabase session");
+
+    const { access_token, refresh_token } = sessionData.session;
+
+    // 2. Return success + set auth cookies
+    return NextResponse.json(
+      { success: true, user: newProfile || existingProfile },
+      {
+        status: 200,
+        headers: {
+          "Set-Cookie": sb-access-token=${access_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600,
+          "Set-Cookie": sb-refresh-token=${refresh_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800,
+        },
+      }
+    );
 
   } catch (err) {
     console.error("Login API error:", err);
