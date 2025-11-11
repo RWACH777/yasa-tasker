@@ -67,6 +67,10 @@ export default function DashboardPage() {
           pi_uid: piUser.uid,
         }),
       });
+
+const cookies = res.headers.get("set-cookie");
+      alert(`Response cookies: ${cookies}`);
+
       const result = await res.json();
       alert(`Step 3: /api/login result = ${JSON.stringify(result)}`);
       if (!result.success) throw new Error(result.error || "Login failed");
