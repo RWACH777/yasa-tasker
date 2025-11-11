@@ -32,10 +32,9 @@ console.log("LOGIN HIT:", { username, pi_uid });
       return NextResponse.json({ error: "Failed to fetch profile" }, { status: 500 });
     }
 
-    // 🟢 If profile exists, return it
+    // 🟢 Profile exists – still mint JWT & set cookie
     if (existingProfile) {
       console.log("✅ Existing user logged in:", existingProfile.username);
-      return NextResponse.json({ success: true, user: existingProfile });
     }
 
     // 🟢 Otherwise, create a new profile (upsert to avoid username clash)
