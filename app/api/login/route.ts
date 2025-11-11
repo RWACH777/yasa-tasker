@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import jwt from "jsonwebtoken";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -56,8 +57,7 @@ const { data: newProfile, error: insertError } = await supabase
     }
 
     // 1. Mint our own Supabase JWT (service-role)
-    import jwt from "jsonwebtoken"; // npm install jsonwebtoken @types/jsonwebtoken
-    const supabaseJwt = jwt.sign(
+        const supabaseJwt = jwt.sign(
       {
         sub: newProfile?.id ?? existingProfile.id,
         email: `${pi_uid}@pi.mock`,
