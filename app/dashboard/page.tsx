@@ -198,7 +198,7 @@ export default function DashboardPage() {
             />
             <h2 className="text-xl font-semibold">{user.username}</h2>
             <p className="text-sm text-gray-300">
-              ⭐️ {user.rating  "New User"} • {user.completed_tasks  0} Tasks Completed
+              ⭐️ {user.rating || "New User"} • {user.completed_tasks || 0} Tasks Completed
             </p>
           </div>
         ) : (
