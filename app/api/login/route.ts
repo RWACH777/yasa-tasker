@@ -73,8 +73,8 @@ const { data: newProfile, error: insertError } = await supabase
       {
         status: 200,
         headers: {
-          "Set-Cookie": sb-access-token=${access_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600,
-          "Set-Cookie": sb-refresh-token=${refresh_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800,
+          "Set-Cookie": `sb-access-token=${access_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600`,
+          "Set-Cookie": `sb-refresh-token=${refresh_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800`,
         },
       }
     );
