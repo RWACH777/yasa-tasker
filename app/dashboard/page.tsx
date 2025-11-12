@@ -79,6 +79,7 @@ export default function DashboardPage() {
 
         // Save token to localStorage
         const cookieHeader = res.headers.get("set-cookie") || "";
+        alert(`Raw Set-Cookie header: ${cookieHeader}`);
         const token = cookieHeader.split(";")[0].split("=")[1] || "";
         localStorage.setItem("sb-access-token", token);
 
