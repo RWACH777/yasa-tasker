@@ -15,40 +15,41 @@ export async function POST(req: Request) {
     const { username, pi_uid } = await req.json();
     console.log("LOGIN HIT:", { username, pi_uid });
 
-    // 1. Ensure a Supabase user exists (use pi_uid as email local-part)
     const email = `${pi_uid}@pi.mock`;
-    const { data: existing } = await supabase.auth.admin.listUsers();
-    const found = existing.users.find((u) => u.email === email);
 
-    let userId: string;
-    if (found) {
-      userId = found.id;
-    } else {
+    // 1. Create user (or fetch existing) with strong random password
+    const { data: existing } = await supabase.auth.admin.listUsers();
+    let user = existing.users.find((u) => u.email === email);
+    if (!user) {
       const { data: created } = await supabase.auth.admin.createUser({
         email,
-        password: "PiStorageTempPassword123!", //fixed strong password
+        password: crypto.randomUUID(), // one-time random password
         email_confirmed: true,
         user_metadata: { username, pi_uid },
       });
-      if (!created.user) throw new Error("User creation failed");
-      userId = created.user.id;
+      user = created.user;
+      if (!user) throw new Error("User creation failed");
     }
 
-    // 2. Create a session (access + refresh token)
-    const { data: sessionData, error: sessionErr } =
-      await supabase.auth.signInWithPassword({ email, password: pi_uid });
-    if (sessionErr) throw sessionErr;
+    // 2. Generate a magic-link (OTP) token
+    const { data: otpData, error: otpErr } =
+      await supabase.auth.signInWithOtp({ email });
+    if (otpErr) throw otpErr;
 
-    // 3. Upsert profile row (same id)
-    const { error: profileErr } = await supabase
+    // 3. Immediately verify the OTP ourselves (server-side)
+    const { data: sessionData, error: verifyErr } =
+      await supabase.auth.verifyOtp({ email, token: otpData.session?.access_token || "", type: "magiclink" });
+    if (verifyErr) throw verifyErr;
+
+    // 4. Upsert profile row
+    await supabase
       .from("profiles")
-      .upsert({ id: userId, username, pi_uid, email }, { onConflict: "id" });
-    if (profileErr) throw profileErr;
+      .upsert({ id: user.id, username, pi_uid, email }, { onConflict: "id" });
 
-    // 4. Return session tokens to frontend
+    // 5. Return official Supabase tokens
     return NextResponse.json({
       success: true,
-      user: { id: userId, username, email },
+      user: { id: user.id, username, email },
       access_token: sessionData.session.access_token,
       refresh_token: sessionData.session.refresh_token,
     });
