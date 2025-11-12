@@ -36,15 +36,11 @@ export async function POST(req: Request) {
       { expiresIn: "1h" }
     );
 
-    return NextResponse.json(
-      { success: true, user: profile },
-      {
-        status: 200,
-        headers: {
-          "Set-Cookie": `sb-access-token=${supabaseJwt}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600`,
-        },
-      }
-    );
+ return NextResponse.json(
+      { success: true, user: profile, token: supabaseJwt }, // <-- token in body
+      { status: 200 }
+    );   
+
   } catch (err) {
     console.error("Login API error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
