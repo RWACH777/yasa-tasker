@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     } else {
       const { data: created } = await supabase.auth.admin.createUser({
         email,
-        password: pi_uid, // temporary, never used by Pi users
+        password: "PiStorageTempPassword123!", //fixed strong password
         email_confirmed: true,
         user_metadata: { username, pi_uid },
       });
