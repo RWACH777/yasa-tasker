@@ -15,34 +15,45 @@ export async function POST(req: Request) {
     const { username, pi_uid } = await req.json();
     console.log("LOGIN HIT:", { username, pi_uid });
 
-    // 1. upsert profile (new or existing)
-    const { data: profile, error: upsertError } = await supabase
+    // 1. Ensure a Supabase user exists (use pi_uid as email local-part)
+    const email = `${pi_uid}@pi.mock`;
+    const { data: existing } = await supabase.auth.admin.listUsers();
+    const found = existing.users.find((u) => u.email === email);
+
+    let userId: string;
+    if (found) {
+      userId = found.id;
+    } else {
+      const { data: created } = await supabase.auth.admin.createUser({
+        email,
+        password: pi_uid, // temporary, never used by Pi users
+        email_confirmed: true,
+        user_metadata: { username, pi_uid },
+      });
+      if (!created.user) throw new Error("User creation failed");
+      userId = created.user.id;
+    }
+
+    // 2. Create a session (access + refresh token)
+    const { data: sessionData, error: sessionErr } =
+      await supabase.auth.signInWithPassword({ email, password: pi_uid });
+    if (sessionErr) throw sessionErr;
+
+    // 3. Upsert profile row (same id)
+    const { error: profileErr } = await supabase
       .from("profiles")
-      .upsert(
-        { username, pi_uid, email: `${pi_uid}@pi.mock` },
-        { onConflict: "username" }
-      )
-      .select()
-      .single();
-    if (upsertError) throw upsertError;
+      .upsert({ id: userId, username, pi_uid, email }, { onConflict: "id" });
+    if (profileErr) throw profileErr;
 
-    console.log("Profile upserted:", profile);
-
-    // 2. mint JWT & set cookie
-    console.log("ABOUT TO MINT JWT for user:", profile.id);
-    const supabaseJwt = jwt.sign(
-      { sub: profile.id, email: `${pi_uid}@pi.mock`, role: "authenticated", pi_uid },
-      process.env.SUPABASE_JWT_SECRET!,
-      { expiresIn: "1h" }
-    );
-
- return NextResponse.json(
-      { success: true, user: profile, token: supabaseJwt }, // <-- token in body
-      { status: 200 }
-    );   
-
-  } catch (err) {
+    // 4. Return session tokens to frontend
+    return NextResponse.json({
+      success: true,
+      user: { id: userId, username, email },
+      access_token: sessionData.session.access_token,
+      refresh_token: sessionData.session.refresh_token,
+    });
+  } catch (err: any) {
     console.error("Login API error:", err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json({ error: err.message || "Server error" }, { status: 500 });
   }
 }
