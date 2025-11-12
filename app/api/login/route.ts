@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     console.log("LOGIN HIT:", { username, pi_uid });
 
     const clean = pi_uid.replace(/[^a-zA-Z0-9]/g, "").slice(-8);
-const email = `${clean}@pi.mock`;
+    const email = `${clean}@pi.mock`;
 
     // 1. Create user (or fetch existing) with strong random password
     const { data: existing } = await supabase.auth.admin.listUsers();
