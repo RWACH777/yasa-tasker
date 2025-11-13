@@ -38,72 +38,40 @@ export default function DashboardPage() {
   const [message, setMessage] = useState("");
   const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [showPiButton, setShowPiButton] = useState(false);
 
   // ✅ Authenticate via Pi + Supabase
-  
-   useEffect(() => {
-  const initUser = async () => {
-    setLoading(true);
+  useEffect(() => {
+    const initUser = async () => {
+      setLoading(true);
 
-    // 1. Restore session from localStorage
-    const at = localStorage.getItem("sb-access-token");
-    const rt = localStorage.getItem("sb-refresh-token");
-    if (at) {
-      const { data, error } = await supabase.auth.setSession({
-        access_token: at,
-        refresh_token: rt,
-      });
-      if (!error && data.user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", data.user.id)
-          .single();
-        setUser(profile);
-        setLoading(false);
-        return;
+      // 1. Restore session from localStorage
+      const at = localStorage.getItem("sb-access-token");
+      const rt = localStorage.getItem("sb-refresh-token");
+      if (at) {
+        const { data, error } = await supabase.auth.setSession({
+          access_token: at,
+          refresh_token: rt,
+        });
+        if (!error && data.user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", data.user.id)
+            .single();
+          setUser(profile);
+          setLoading(false);
+          return;
+        }
       }
-    }
 
-    // 2. No session → Pi flow
-    try {
-      const pi = (window as any).Pi;
-      if (!pi) throw new Error("Pi SDK not available – open in Pi Browser");
-      const authResult = await pi.authenticate(["username"], (p) => p);
-      const piUser = authResult.user;
-
-      const res = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: piUser.username, pi_uid: piUser.uid }),
-      });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error || "Login failed");
-
-      // 3. Set Supabase session
-      await supabase.auth.setSession({
-        access_token: json.access_token,
-        refresh_token: json.refresh_token,
-      });
-      localStorage.setItem("sb-access-token", json.access_token);
-      localStorage.setItem("sb-refresh-token", json.refresh_token);
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", json.user.id)
-        .single();
-      setUser(profile);
-    } catch (err: any) {
-      console.error(err);
-      setMessage("⚠️ " + err.message);
-    } finally {
+      // 2. No session → show Pi login button
+      setShowPiButton(true);
       setLoading(false);
-    }
-  };
+    };
 
-  initUser();
-}, []);
+    initUser();
+  }, []);
 
   // ✅ Fetch tasks
   useEffect(() => {
@@ -202,7 +170,54 @@ export default function DashboardPage() {
             </p>
           </div>
         ) : (
-          <p>⚠️ Please log in with Pi to view your profile.</p>
+          <>
+            <p>⚠️ Please log in with Pi to view your profile.</p>
+            {showPiButton && (
+              <button
+                onClick={async () => {
+                  setShowPiButton(false);
+                  setLoading(true);
+                  try {
+                    const pi = (window as any).Pi;
+                    if (!pi) throw new Error("Pi SDK not available – open in Pi Browser");
+                    const authResult = await pi.authenticate(["username"], (p) => p);
+                    const piUser = authResult.user;
+
+                    const res = await fetch("/api/login", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ username: piUser.username, pi_uid: piUser.uid }),
+                    });
+                    const json = await res.json();
+                    if (!json.success) throw new Error(json.error || "Login failed");
+
+                    // Save & set Supabase session
+                    localStorage.setItem("sb-access-token", json.access_token);
+                    localStorage.setItem("sb-refresh-token", json.refresh_token);
+                    await supabase.auth.setSession({
+                      access_token: json.access_token,
+                      refresh_token: json.refresh_token,
+                    });
+
+                    const { data: profile } = await supabase
+                      .from("profiles")
+                      .select("*")
+                      .eq("id", json.user.id)
+                      .single();
+                    setUser(profile);
+                  } catch (err: any) {
+                    console.error(err);
+                    setMessage("⚠️ " + err.message);
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                className="mt-4 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg transition"
+              >
+                Login with Pi
+              </button>
+            )}
+          </>
         )}
       </div>
 
@@ -229,7 +244,7 @@ export default function DashboardPage() {
             type="text"
             placeholder="Category (e.g. design)"
             value={form.category}
-            onChange={(e) => setForm({ ...form, category: e.target.value })}
+            onClick={(e) => setForm({ ...form, category: e.target.value })}
             className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm"
           />
           <input
