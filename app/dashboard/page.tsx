@@ -175,46 +175,46 @@ export default function DashboardPage() {
             {showPiButton && (
               <button
                 onClick={async () => {
-                  setShowPiButton(false);
-                  setLoading(true);
-                  try {
-                    const pi = (window as any).Pi;
-                    if (!pi) throw new Error("Pi SDK not available – open in Pi Browser");
-                    const authResult = await pi.authenticate(["username"], (p) => p);
-                    const piUser = authResult.user;
+  setShowPiButton(false);
+  setLoading(true);
+  try {
+    const pi = (window as any).Pi;
+    if (!pi) throw new Error("Pi SDK not available – open in Pi Browser");
+    const authResult = await pi.authenticate(["username"], (p) => p);
+    const piUser = authResult.user;
+    if (!piUser) throw new Error("Pi user is null");
 
-                    const res = await fetch("/api/login", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ username: piUser.username, pi_uid: piUser.uid }),
-                    });
-                    const json = await res.json();
-                    if (!json.success) throw new Error(json.error || "Login failed");
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: piUser.username, pi_uid: piUser.uid }),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || "Login failed");
 
-                    // Save & set Supabase session
-                    localStorage.setItem("sb-access-token", json.access_token);
-                    localStorage.setItem("sb-refresh-token", json.refresh_token);
-                    await supabase.auth.setSession({
-                      access_token: json.access_token,
-                      refresh_token: json.refresh_token,
-                    });
+    localStorage.setItem("sb-access-token", json.access_token);
+    localStorage.setItem("sb-refresh-token", json.refresh_token);
+    await supabase.auth.setSession({
+      access_token: json.access_token,
+      refresh_token: json.refresh_token,
+    });
 
-                    const { data: profile } = await supabase
-                      .from("profiles")
-                      .select("*")
-                      .eq("id", json.user.id)
-                      .single();
-                    setUser(profile);
-
-alert(`✅ Logged in as ${profile.username} – session set`);
-
-                  } catch (err: any) {
-                    console.error(err);
-                    setMessage("⚠️ " + err.message);
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", json.user.id)
+      .single();
+    if (!profile) throw new Error("Profile not found");
+    setUser(profile);
+    alert(`✅ Logged in as ${profile.username}`);
+  } catch (err: any) {
+    alert(`Login error: ${err.message}`);
+    console.error(err);
+    setMessage("⚠️ " + err.message);
+  } finally {
+    setLoading(false);
+  }
+}}
                 className="mt-4 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg transition"
               >
                 Login with Pi
