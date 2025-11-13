@@ -205,6 +205,9 @@ export default function DashboardPage() {
                       .eq("id", json.user.id)
                       .single();
                     setUser(profile);
+
+alert(`✅ Logged in as ${profile.username} – session set`);
+
                   } catch (err: any) {
                     console.error(err);
                     setMessage("⚠️ " + err.message);
