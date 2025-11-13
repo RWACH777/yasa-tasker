@@ -17,9 +17,8 @@ export async function POST(req: Request) {
 
     const clean = pi_uid.replace(/[^a-zA-Z0-9]/g, "").slice(-7);
     const email = `p${clean}@pi.mock`;
-    console.log("EMAIL:", email);
 
-    // 1. Create or fetch user via service-role
+    // 1. Create / fetch user
     const { data: existing } = await supabase.auth.admin.listUsers();
     let user = existing.users.find((u) => u.email === email);
     if (!user) {
@@ -33,31 +32,28 @@ export async function POST(req: Request) {
       if (!user) throw new Error("User creation failed");
     }
 
-    // 2. ADMIN create session instantly (no password, no OTP)
-    const { data: sessionData, error: sessionErr } =
-      await supabase.auth.admin.generateLink({
-        type: "magiclink",
-        email,
-        options: { redirectTo: "https://yasa-tasker-official.vercel.app" },
-      });
-    if (sessionErr) throw sessionErr;
+    // 2. Mint official Supabase JWT (service-role)
+    const token = await supabase.auth.admin.generateLink({
+      type: "magiclink",
+      email,
+    });
+    const access_token = token.data.properties.access_token;
+    const refresh_token = token.data.properties.refresh_token;
 
-    // 3. Use the generated access_token
-    const { data: session, error: signErr } =
-      await supabase.auth.getUser(sessionData.properties.access_token);
-    if (signErr) throw signErr;
+    // 3. Force the session on the client side
+    await supabase.auth.setSession({ access_token, refresh_token });
 
     // 4. Upsert profile
     await supabase
       .from("profiles")
       .upsert({ id: user.id, username, pi_uid, email }, { onConflict: "id" });
 
-    // 5. Return official tokens
+    // 5. Return tokens
     return NextResponse.json({
       success: true,
       user: { id: user.id, username, email },
-      access_token: sessionData.properties.access_token,
-      refresh_token: sessionData.properties.refresh_token,
+      access_token,
+      refresh_token,
     });
   } catch (err: any) {
     console.error("Login API error:", err);
