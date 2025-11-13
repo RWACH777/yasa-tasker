@@ -15,8 +15,8 @@ export async function POST(req: Request) {
     const { username, pi_uid } = await req.json();
     console.log("LOGIN HIT:", { username, pi_uid });
 
-    const clean = pi_uid.replace(/[^a-zA-Z0-9]/g, "").slice(-8);
-    const email = `${clean}@pi.mock`;
+    const clean = pi_uid.replace(/[^a-zA-Z0-9]/g, "").slice(-7); // 7 chars
+const email = `p${clean}@pi.mock`; // always starts with 'p'
     
     console.log("PI_UID:", pi_uid, "CLEAN:", clean, "EMAIL:", email);
 
