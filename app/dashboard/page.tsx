@@ -229,48 +229,15 @@ export default function DashboardPage() {
       <div className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 mb-8">
         <h2 className="text-lg font-semibold mb-4">{form.id ? "Edit Task" : "Post a Task"}</h2>
         {message && <p className="text-sm text-gray-300 mb-3">{message}</p>}
-        <form onSubmit={handleSubmit} className="space-y-3 relative z-10 pointer-events-auto">
-          <input
-            type="text"
-            placeholder="Task title"
-            value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm"
-          />
-          <textarea
-            placeholder="Task description"
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm"
-            rows={3}
-          />
-          <input
-            type="text"
-            placeholder="Category (e.g. design)"
-            value={form.category}
-            onChange={(e) => setForm({ ...form, category: e.target.value })}
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm"
-          />
-          <input
-            type="number"
-            placeholder="Budget (in π)"
-            value={form.budget}
-            onChange={(e) => setForm({ ...form, budget: e.target.value })}
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm"
-          />
-          <input
-            type="date"
-            value={form.deadline}
-            onChange={(e) => setForm({ ...form, deadline: e.target.value })}
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm"
-          />
-          <button
-            type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded-lg transition"
-          >
-            {form.id ? "Update Task" : "Post Task"}
+        <form className="space-y-3">
+          <input type="text" placeholder="Task title" className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm" />
+          <textarea placeholder="Task description" className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm" rows={3} />
+          <input type="text" placeholder="Category (e.g. design)" className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm" />
+          <input type="number" placeholder="Budget (in π)" className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm" />
+          <input type="date" className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm" />
+          <button type="button" className="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded-lg transition">
+            Post Task (test)
           </button>
-        </form>
       </div>
 
       {/* FILTER + TASK FEED */}
