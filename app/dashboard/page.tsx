@@ -91,14 +91,6 @@ export default function DashboardPage() {
   const handleSubmit = async (e: any) => {
     e.preventDefault();
 
-    // 1. Quick session check (non-blocking)
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData.session) {
-      alert("Session expired – please log in again.");
-      setMessage("⚠️ Session expired – please log in again.");
-      return;
-    }
-
     if (!user?.id) {
       setMessage("⚠️ You must be logged in to post a task.");
       return;
