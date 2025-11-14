@@ -99,6 +99,14 @@ export default function DashboardPage() {
       return;
     }
 
+// Ensure session is still alive
+const { data: sessionData } = await supabase.auth.getSession();
+if (!sessionData.session) {
+  alert("Session expired – please log in again.");
+  setMessage("⚠️ Session expired – please log in again.");
+  return;
+}
+
     const taskData = {
       poster_id: user.id,
       title: form.title,
@@ -117,7 +125,6 @@ export default function DashboardPage() {
     if (error) {
       console.error("Task save error:", error);
       setMessage("❌ Failed to save task.");
-alert(`Save error: ${error.message}\nCode: ${error.code}`);
     } else {
       setMessage("✅ Task posted successfully!");
       setForm({ id: "", title: "", description: "", category: "", budget: "", deadline: "" });
