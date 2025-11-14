@@ -87,9 +87,18 @@ export default function DashboardPage() {
     else setTasks(data || []);
   };
 
-  // ✅ Handle task creation
+// ✅ Handle task creation
   const handleSubmit = async (e: any) => {
     e.preventDefault();
+
+    // 1. Quick session check (non-blocking)
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) {
+      alert("Session expired – please log in again.");
+      setMessage("⚠️ Session expired – please log in again.");
+      return;
+    }
+
     if (!user?.id) {
       setMessage("⚠️ You must be logged in to post a task.");
       return;
@@ -98,14 +107,6 @@ export default function DashboardPage() {
       setMessage("⚠️ Please fill in all fields.");
       return;
     }
-
-// Ensure session is still alive
-const { data: sessionData } = await supabase.auth.getSession();
-if (!sessionData.session) {
-  alert("Session expired – please log in again.");
-  setMessage("⚠️ Session expired – please log in again.");
-  return;
-}
 
     const taskData = {
       poster_id: user.id,
@@ -131,7 +132,7 @@ if (!sessionData.session) {
       fetchTasks();
     }
   };
-
+  
   // ✅ Handle edit
   const handleEdit = (task: Task) => {
     setForm({
