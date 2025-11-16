@@ -54,11 +54,7 @@ export async function POST(req: Request) {
       .upsert({ id: user.id, username, pi_uid, email }, { onConflict: "id" });
     if (profileErr) throw profileErr;
 
-// Ensure profile row exists (conflict on id only)
-const { error: profileErr } = await supabase
-  .from("profiles")
-  .upsert({ id: user.id, username, pi_uid, email }, { onConflict: "id" });
-if (profileErr) throw profileErr;
+await supabase.from("profiles").upsert({ id: user.id, username, pi_uid, email }, { onConflict: "id" });
 
     // 6. Return tokens
     return NextResponse.json({

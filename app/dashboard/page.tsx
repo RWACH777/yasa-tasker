@@ -124,8 +124,7 @@ export default function DashboardPage() {
       setMessage("⚠️ You must be logged in to post a task.");
       return;
     }
-    if (!form.title || !form.description || !form.category || !form.budget
-|| !form.deadline) {
+    if (!form.title || !form.description || !form.category || !form.budget || !form.deadline) {
       setMessage("⚠️ Please fill in all fields.");
       return;
     }
@@ -175,7 +174,7 @@ export default function DashboardPage() {
             />
             <h2 className="text-xl font-semibold">{user.username}</h2>
             <p className="text-sm text-gray-300">
-              ⭐️ {user.rating  "New User"} • {user.completed_tasks  0} Tasks Completed
+              ⭐️ {user.rating || "New User"} • {user.completed_tasks || 0} Tasks Completed
             </p>
           </div>
         ) : (
