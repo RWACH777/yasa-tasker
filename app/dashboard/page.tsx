@@ -155,8 +155,27 @@ export default function DashboardPage() {
   };
 
   // ✅ Handle edit / delete / filter unchanged
-  const handleEdit = (task: Task) => { ... };
-  const handleDelete = async (id: string) => { ... };
+  const handleEdit = (task: Task) => {
+    setForm({
+      id: task.id,
+      title: task.title,
+      description: task.description,
+      category: task.category,
+      budget: task.budget.toString(),
+      deadline: task.deadline.split("T")[0],
+    });
+    setMessage("Editing task...");
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this task?")) return;
+    const { error } = await supabase.from("tasks").delete().eq("id", id);
+    if (error) setMessage("❌ Failed to delete task.");
+    else {
+      setMessage("🗑 Task deleted.");
+      fetchTasks();
+    }
+  };
   const categories = ["all", "design", "writing", "development", "marketing", "translation", "other"];
 
   return (
