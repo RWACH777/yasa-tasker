@@ -118,6 +118,7 @@ export default function DashboardPage() {
     if (error) {
       console.error("Task save error:", error);
       setMessage("❌ Failed to save task.");
+alert(`Save error: ${error.message}\nCode: ${error.code}`);
     } else {
       setMessage("✅ Task posted successfully!");
       setForm({ id: "", title: "", description: "", category: "", budget: "", deadline: "" });
