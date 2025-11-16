@@ -42,41 +42,35 @@ export default function DashboardPage() {
 
   // ✅ Authenticate via Pi + Supabase
   useEffect(() => {
-    const initUser = async () => {
-      setLoading(true);
+  const initUser = async () => {
+    setLoading(true);
 
-      // 1. Restore session from localStorage
-      const at = localStorage.getItem("sb-access-token");
-      const rt = localStorage.getItem("sb-refresh-token");
-      if (at) {
-        const { data, error } = await supabase.auth.setSession({
-          access_token: at,
-          refresh_token: rt,
-        });
-        if (!error && data.user) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", data.user.id)
-            .single();
-          setUser(profile);
-          setLoading(false);
-          return;
-        }
+    // 1. Restore session from localStorage
+    const at = localStorage.getItem("sb-access-token");
+    const rt = localStorage.getItem("sb-refresh-token");
+    if (at) {
+      const { data: authData } = await supabase.auth.setSession({
+        access_token: at,
+        refresh_token: rt,
+      });
+      if (!authData.error && authData.user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", authData.user.id)
+          .single();
+        setUser(profile);
+        setLoading(false);
+        return;
       }
 
-if (!user) {
-  setMessage("⚠️ You must be logged in to post a task.");
-  return;
-}
+    // 2. No session → show Pi login button
+    setShowPiButton(true);
+    setLoading(false);
+  };
 
-      // 2. No session → show Pi login button
-      setShowPiButton(true);
-      setLoading(false);
-    };
-
-    initUser();
-  }, []);
+  initUser();
+}, []);
 
   // ✅ Fetch tasks
   useEffect(() => {
