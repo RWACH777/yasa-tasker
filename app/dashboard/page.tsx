@@ -67,7 +67,7 @@ export default function DashboardPage() {
     // 2. No session → show Pi login button
     setShowPiButton(true);
     setLoading(false);
-  };
+  }; //
 
   initUser();
 }, []);
