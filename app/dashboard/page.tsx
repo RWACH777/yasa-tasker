@@ -65,6 +65,11 @@ export default function DashboardPage() {
         }
       }
 
+if (!user) {
+  setMessage("⚠️ You must be logged in to post a task.");
+  return;
+}
+
       // 2. No session → show Pi login button
       setShowPiButton(true);
       setLoading(false);
