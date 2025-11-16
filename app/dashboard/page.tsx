@@ -96,8 +96,6 @@ export default function DashboardPage() {
     }
     if (!form.title || !form.description || !form.category || !form.budget || !form.deadline) {
 
-alert(`Form values:\ntitle: "${form.title}"\ndesc: "${form.description}"\ncat: "${form.category}"\nbudget: "${form.budget}"\ndeadline: "${form.deadline}"`);
-
       setMessage("⚠️ Please fill in all fields.");
       return;
     }
@@ -120,7 +118,6 @@ alert(`Form values:\ntitle: "${form.title}"\ndesc: "${form.description}"\ncat: "
     if (error) {
       console.error("Task save error:", error);
       setMessage("❌ Failed to save task.");
-alert(`Save error: ${error.message}\nCode: ${error.code}`);
     } else {
       setMessage("✅ Task posted successfully!");
       setForm({ id: "", title: "", description: "", category: "", budget: "", deadline: "" });
