@@ -230,7 +230,7 @@ alert(`Save error: ${error.message}\nCode: ${error.code}`);
       <div className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 mb-8">
         <h2 className="text-lg font-semibold mb-4">{form.id ? "Edit Task" : "Post a Task"}</h2>
         {message && <p className="text-sm text-gray-300 mb-3">{message}</p>}
-        <form className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-3 relative z-10 pointer-events-auto">
           <input type="text" placeholder="Task title" className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm" />
           <textarea placeholder="Task description" className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm" rows={3} />
           <input
@@ -242,9 +242,13 @@ alert(`Save error: ${error.message}\nCode: ${error.code}`);
           />
           <input type="number" placeholder="Budget (in π)" className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm" />
           <input type="date" className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm" />
-          <button type="button" className="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded-lg transition">
-            Post Task (test)
+          <button
+            type="submit"
+            className="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded-lg transition"
+          >
+            {form.id ? "Update Task" : "Post Task"}
           </button>
+        </form>
       </div>
 
       {/* FILTER + TASK FEED */}
