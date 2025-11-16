@@ -96,6 +96,9 @@ export default function DashboardPage() {
       return;
     }
     if (!form.title || !form.description || !form.category || !form.budget || !form.deadline) {
+
+alert(`Form values:\ntitle: "${form.title}"\ndesc: "${form.description}"\ncat: "${form.category}"\nbudget: "${form.budget}"\ndeadline: "${form.deadline}"`);
+
       setMessage("⚠️ Please fill in all fields.");
       return;
     }
