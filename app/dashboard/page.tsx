@@ -39,32 +39,11 @@ export default function DashboardPage() {
   const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
 
-  // ✅ Authenticate via Pi + Supabase (auto-login)
+  // Authenticate via Pi + Supabase (auto-login)
   useEffect(() => {
     const initUser = async () => {
       setLoading(true);
 
-      // 1. Restore session from localStorage
-      const at = localStorage.getItem("sb-access-token");
-      const rt = localStorage.getItem("sb-refresh-token");
-      if (at) {
-        const { data: authData } = await supabase.auth.setSession({
-          access_token: at,
-          refresh_token: rt,
-        });
-        if (!authData.error && authData.user) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", authData.user.id)
-            .single();
-          setUser(profile);
-          setLoading(false);
-          return;
-        }
-      }
-
-      // 2. No token → auto-run Pi flow (no button)
       try {
         const pi = (window as any).Pi;
         if (!pi) throw new Error("Pi SDK not available – open in Pi Browser");
@@ -103,7 +82,7 @@ export default function DashboardPage() {
     initUser();
   }, []);
 
-  // ✅ Fetch tasks
+  // Fetch tasks
   useEffect(() => {
     if (!user) return;
     fetchTasks();
@@ -117,7 +96,7 @@ export default function DashboardPage() {
     else setTasks(data || []);
   };
 
-  // ✅ Handle task creation
+  // Handle task creation
   const handleSubmit = async (e: any) => {
     e.preventDefault();
     if (!user?.id) {
@@ -154,7 +133,7 @@ export default function DashboardPage() {
     }
   };
 
-  // ✅ Handle edit / delete / filter unchanged
+  // Handle edit / delete / filter unchanged
   const handleEdit = (task: Task) => {
     setForm({
       id: task.id,
