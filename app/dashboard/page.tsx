@@ -38,49 +38,63 @@ export default function DashboardPage() {
   const [message, setMessage] = useState("");
   const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Authenticate via Pi + Supabase (auto-login)
   useEffect(() => {
     const initUser = async () => {
       setLoading(true);
 
-      try {
-        const pi = (window as any).Pi;
-        if (!pi) throw new Error("Pi SDK not available – open in Pi Browser");
-        const authResult = await pi.authenticate(["username"], (p) => p);
-        const piUser = authResult.user;
+      if (!isAuthenticated) {
+        try {
+          const pi = (window as any).Pi;
+          if (!pi) throw new Error("Pi SDK not available – open in Pi Browser");
+          const authResult = await pi.authenticate(["username"], (p) => p);
+          setIsAuthenticated(true); // Set isAuthenticated to true after successful authentication
 
-        const res = await fetch("/api/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: piUser.username, pi_uid: piUser.uid }),
-        });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error || "Login failed");
+          const piUser = authResult.user;
 
-        localStorage.setItem("sb-access-token", json.access_token);
-        localStorage.setItem("sb-refresh-token", json.refresh_token);
-        await supabase.auth.setSession({
-          access_token: json.access_token,
-          refresh_token: json.refresh_token,
-        });
+          const res = await fetch("/api/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: piUser.username, pi_uid: piUser.uid }),
+          });
+          const json = await res.json();
+          if (!json.success) throw new Error(json.error || "Login failed");
 
+          localStorage.setItem("sb-access-token", json.access_token);
+          localStorage.setItem("sb-refresh-token", json.refresh_token);
+          await supabase.auth.setSession({
+            access_token: json.access_token,
+            refresh_token: json.refresh_token,
+          });
+
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", json.user.id)
+            .single();
+          setUser(profile);
+        } catch (err: any) {
+          console.error(err);
+          setMessage("⚠️ " + err.message);
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        // If already authenticated, fetch user profile directly
         const { data: profile } = await supabase
           .from("profiles")
           .select("*")
-          .eq("id", json.user.id)
+          .eq("id", user?.id)
           .single();
         setUser(profile);
-      } catch (err: any) {
-        console.error(err);
-        setMessage("⚠️ " + err.message);
-      } finally {
         setLoading(false);
       }
     };
 
     initUser();
-  }, []);
+  }, [isAuthenticated]);
 
   // Fetch tasks
   useEffect(() => {
