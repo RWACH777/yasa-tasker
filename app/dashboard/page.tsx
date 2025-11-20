@@ -138,8 +138,9 @@ export default function DashboardPage() {
       : await supabase.from("tasks").insert([taskData]);
 
     if (error) {
-      console.error("Task save error:", error);
-      setMessage("❌ Failed to save task.");
+  setMessage("❌ Task save error: " + JSON.stringify(error, null, 2));
+  return;
+
     } else {
       setMessage("✅ Task posted successfully!");
       setForm({ id: "", title: "", description: "", category: "", budget: "", deadline: "" });
