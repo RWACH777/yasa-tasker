@@ -125,16 +125,7 @@ useEffect(() => {
   init();
 }, []);
 
-// ⛔️ Prevent UI from rendering too early
-if (loading) {
-  return (
-    <div className="flex justify-center items-center h-screen text-white">
-      <div>Loading...</div>
-    </div>
-  );
-}
-
-  // Fetch tasks
+// Fetch tasks
   useEffect(() => {
     if (!user) return;
     fetchTasks();
