@@ -39,6 +39,12 @@ export default function DashboardPage() {
   const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
 
+
+const [sessionDebug, setSessionDebug] = useState(null);
+const [piDebug, setPiDebug] = useState(null);
+const [apiDebug, setApiDebug] = useState(null);
+
+
   // -------------------------
   // helper: load profile by auth user id
   // -------------------------
@@ -64,102 +70,73 @@ export default function DashboardPage() {
   // Listen for Supabase auth changes so UI updates when session is set/cleared
   // -------------------------
   useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("Auth event:", event);
-      const userId = session?.user?.id ?? null;
-      if (userId) {
-        loadProfile(userId).then(() => {
-          fetchTasks(); // refresh tasks once we have profile
-        });
-      } else {
-        setUser(null);
-        setTasks([]);
-      }
+  const init = async () => {
+    setLoading(true);
+
+    // 1️⃣ Check Supabase existing session
+    const { data } = await supabase.auth.getSession();
+    setSessionDebug(data.session);
+
+    if (data.session?.user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", data.session.user.id)
+        .single();
+
+      setUser(profile);
+      setLoading(false);
+      return;
+    }
+
+    // 2️⃣ Call Pi authenticate
+    const pi = (window as any).Pi;
+    if (!pi) {
+      setMessage("Pi SDK missing");
+      return;
+    }
+
+    const authResult = await pi.authenticate(["username"], (p) => p);
+    setPiDebug(authResult);
+    const piUser = authResult.user;
+
+    // 3️⃣ Exchange for Supabase session
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: piUser.username,
+        pi_uid: piUser.uid,
+      }),
     });
 
-    // cleanup
-    return () => {
-      subscription?.unsubscribe();
-    };
-    // we only want to mount this once
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const json = await res.json();
+    setApiDebug(json);
 
-  // -------------------------
-  // First mount: check existing session -> otherwise call Pi once
-  // -------------------------
-  useEffect(() => {
-    const init = async () => {
-      setLoading(true);
-      try {
-        // 1) check if Supabase already restored a session
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+    if (!json.success) {
+      setMessage("Login error: " + json.error);
+      setLoading(false);
+      return;
+    }
 
-        if (session?.user) {
-          // session exists -> load profile from DB
-          await loadProfile(session.user.id);
-          setLoading(false);
-          return;
-        }
+    await supabase.auth.setSession({
+      access_token: json.access_token,
+      refresh_token: json.refresh_token,
+    });
 
-        // 2) no session -> call Pi.authenticate ONCE (only in Pi Browser)
-        const Pi = (window as any).Pi;
-        if (!Pi) {
-          // Not in Pi Browser — skip Pi auth silently (user can still login via Pi Browser)
-          console.warn("Pi SDK not present on window. Open in Pi Browser to login.");
-          setLoading(false);
-          return;
-        }
+    // 4️⃣ Load profile
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", json.user.id)
+      .single();
 
-        // Request only the username scope here
-        const authResult = await Pi.authenticate(["username"], (payment: any) => {
-          // ignore payment callback here
-          console.log("Pi payment callback (ignored):", payment);
-        });
+    setUser(profile);
+    setLoading(false);
+  };
 
-        const piUser = authResult?.user;
-        if (!piUser) throw new Error("Pi authentication returned no user");
-
-        // 3) Exchange Pi user for Supabase session via your API
-        const res = await fetch("/api/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: piUser.username, pi_uid: piUser.uid }),
-        });
-
-        const json = await res.json();
-        if (!res.ok || !json.success) {
-          const errMsg = json?.error || `Login route failed with status ${res.status}`;
-          throw new Error(errMsg);
-        }
-
-        // 4) Set the Supabase session on the client
-        await supabase.auth.setSession({
-          access_token: json.access_token,
-          refresh_token: json.refresh_token,
-        });
-
-        // 5) Load profile
-        await loadProfile(json.user.id);
-
-        // 6) fetch tasks
-        fetchTasks();
-      } catch (err: any) {
-        console.error("Init/dashboard error:", err);
-        setMessage("⚠️ " + (err?.message || "Initialization error"));
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    init();
-    // run once
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  init();
+}, []);
 
   // -------------------------
   // Fetch tasks (by category filter)
@@ -348,6 +325,24 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+{/* ================= DEBUG PANEL ================= */}
+<div className="mt-6 w-full max-w-3xl bg-black/60 text-green-300 p-4 rounded-xl text-xs break-all border border-green-600">
+  <h3 className="font-bold text-green-400 mb-2">DEBUG PANEL</h3>
+
+  <p><b>Supabase Session:</b></p>
+  <pre>{JSON.stringify(sessionDebug, null, 2)}</pre>
+
+  <p><b>Pi User:</b></p>
+  <pre>{JSON.stringify(piDebug, null, 2)}</pre>
+
+  <p><b>Login API Response:</b></p>
+  <pre>{JSON.stringify(apiDebug, null, 2)}</pre>
+
+  <p><b>Loaded Profile:</b></p>
+  <pre>{JSON.stringify(user, null, 2)}</pre>
+</div>
+
     </div>
   );
 }
