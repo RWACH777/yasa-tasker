@@ -209,9 +209,6 @@ useEffect(() => {
       {/* USER PROFILE SECTION - glass card */}
       <div className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 text-center mb-8">
         {loading ? (
-
-<p className="text-xs text-gray-400">Debug user id: {user?.id || "none"}</p>
-
           <p>Loading profile...</p>
         ) : user ? (
           <div className="flex flex-col items-center space-y-2">
@@ -229,6 +226,9 @@ useEffect(() => {
           <p>⚠️ Please log in with Pi to view your profile.</p>
         )}
       </div>
+
+<p className="text-xs text-gray-400">Debug user id: {user?.id || "none"}</p>
+
 
       {/* POST TASK FORM - glass card */}
       <div className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 mb-8">
