@@ -198,10 +198,16 @@ export default function DashboardPage() {
       setMessage("⚠️ You must be logged in to post a task.");
       return;
     }
-    if (!form.title  !form.description  !form.category  !form.budget  !form.deadline) {
-      setMessage("⚠️ Please fill in all fields.");
-      return;
-    }
+    if (
+  !form.title ||
+  !form.description ||
+  !form.category ||
+  !form.budget ||
+  !form.deadline
+) {
+  setMessage("⚠️ Please fill in all fields.");
+  return;
+}
 
     // Convert deadline (date input) to ISO timestamp so DB timestamptz is correct
     const deadlineIso = new Date(form.deadline).toISOString();
