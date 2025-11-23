@@ -56,40 +56,38 @@ useEffect(() => {
 
 
   // Authenticate via Pi + Supabase (auto-login)
- 
-// Load existing session OR require Pi login only once
 useEffect(() => {
   const init = async () => {
     setLoading(true);
 
-    // 1️⃣ Check existing Supabase session first
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (session?.user) {
-      // Session exists → load profile directly
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", session.user.id)
-        .single();
-
-      setUser(profile);
-      setIsAuthenticated(true);
-      setLoading(false);
-      return;
-    }
-
-    // 2️⃣ No session → Run Pi authentication ONCE
     try {
+      // 1️⃣ Wait for Supabase to restore any existing session
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session?.user) {
+        // Session already exists
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", session.user.id)
+          .single();
+
+        setUser(profile);
+        setIsAuthenticated(true);
+        setLoading(false);
+        return;
+      }
+
+      // 2️⃣ No session → use Pi authentication once
       const pi = (window as any).Pi;
       if (!pi) throw new Error("Pi SDK not found. Open in Pi Browser.");
 
       const authResult = await pi.authenticate(["username"], (p) => p);
       const piUser = authResult.user;
 
-      // Call API /login to mint Supabase tokens
+      // 3️⃣ Exchange Pi user for Supabase tokens
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -102,13 +100,12 @@ useEffect(() => {
       const json = await res.json();
       if (!json.success) throw new Error(json.error || "Login failed");
 
-      // Save Supabase session
       await supabase.auth.setSession({
         access_token: json.access_token,
         refresh_token: json.refresh_token,
       });
 
-      // Load profile
+      // 4️⃣ Load profile
       const { data: profile } = await supabase
         .from("profiles")
         .select("*")
@@ -126,7 +123,7 @@ useEffect(() => {
   };
 
   init();
-}, []); 
+}, []);
 
   // Fetch tasks
   useEffect(() => {
