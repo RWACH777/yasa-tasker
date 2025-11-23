@@ -40,61 +40,93 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+
+//DEBUG: Show Supabase session on load
+useEffect(() => {
+  supabase.auth.getSession().then(({ data }) => {
+    console.log("🔥 Current Supabase session:", data.session);
+  });
+}, []);
+
+//DEBUG: Show when profile loads
+useEffect(() => {
+  console.log("🔥 Loaded profile:", user);
+}, [user]);
+
+
+
   // Authenticate via Pi + Supabase (auto-login)
-  useEffect(() => {
-    const initUser = async () => {
-      setLoading(true);
+ 
+// Load existing session OR require Pi login only once
+useEffect(() => {
+  const init = async () => {
+    setLoading(true);
 
-      if (!isAuthenticated) {
-        try {
-          const pi = (window as any).Pi;
-          if (!pi) throw new Error("Pi SDK not available – open in Pi Browser");
-          const authResult = await pi.authenticate(["username"], (p) => p);
-          setIsAuthenticated(true); // Set isAuthenticated to true after successful authentication
+    // 1️⃣ Check existing Supabase session first
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-          const piUser = authResult.user;
+    if (session?.user) {
+      // Session exists → load profile directly
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", session.user.id)
+        .single();
 
-          const res = await fetch("/api/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username: piUser.username, pi_uid: piUser.uid }),
-          });
-          const json = await res.json();
-          if (!json.success) throw new Error(json.error || "Login failed");
+      setUser(profile);
+      setIsAuthenticated(true);
+      setLoading(false);
+      return;
+    }
 
-          localStorage.setItem("sb-access-token", json.access_token);
-          localStorage.setItem("sb-refresh-token", json.refresh_token);
-          await supabase.auth.setSession({
-            access_token: json.access_token,
-            refresh_token: json.refresh_token,
-          });
+    // 2️⃣ No session → Run Pi authentication ONCE
+    try {
+      const pi = (window as any).Pi;
+      if (!pi) throw new Error("Pi SDK not found. Open in Pi Browser.");
 
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", json.user.id)
-            .single();
-          setUser(profile);
-        } catch (err: any) {
-          console.error(err);
-          setMessage("⚠️ " + err.message);
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        // If already authenticated, fetch user profile directly
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user?.id)
-          .single();
-        setUser(profile);
-        setLoading(false);
-      }
-    };
+      const authResult = await pi.authenticate(["username"], (p) => p);
+      const piUser = authResult.user;
 
-    initUser();
-  }, [isAuthenticated]);
+      // Call API /login to mint Supabase tokens
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: piUser.username,
+          pi_uid: piUser.uid,
+        }),
+      });
+
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || "Login failed");
+
+      // Save Supabase session
+      await supabase.auth.setSession({
+        access_token: json.access_token,
+        refresh_token: json.refresh_token,
+      });
+
+      // Load profile
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", json.user.id)
+        .single();
+
+      setUser(profile);
+      setIsAuthenticated(true);
+    } catch (err: any) {
+      console.error(err);
+      setMessage("⚠️ " + err.message);
+    }
+
+    setLoading(false);
+  };
+
+  init();
+}, []); 
 
   // Fetch tasks
   useEffect(() => {
@@ -177,6 +209,9 @@ export default function DashboardPage() {
       {/* USER PROFILE SECTION - glass card */}
       <div className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 text-center mb-8">
         {loading ? (
+
+<p className="text-xs text-gray-400">Debug user id: {user?.id || "none"}</p>
+
           <p>Loading profile...</p>
         ) : user ? (
           <div className="flex flex-col items-center space-y-2">

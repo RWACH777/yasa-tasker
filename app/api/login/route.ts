@@ -1,70 +1,103 @@
+// app/api/login/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import jwt from "jsonwebtoken";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-// ✅ Server-side client – bypasses RLS
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+// server-side supabase client (bypasses RLS)
+const admin = createClient(supabaseUrl, serviceRoleKey, {
   auth: { persistSession: false },
 });
 
 export async function POST(req: Request) {
   try {
     const { username, pi_uid } = await req.json();
-    console.log("LOGIN HIT:", { username, pi_uid });
+    console.log("🔵 /api/login HIT:", { username, pi_uid });
 
-    const clean = pi_uid.replace(/[^a-zA-Z0-9]/g, "").slice(-7);
-    const email = `p${clean}@pi.mock`;
+    if (!pi_uid || !username) {
+      return NextResponse.json(
+        { error: "Missing Pi user data" },
+        { status: 400 }
+      );
+    }
 
-    // 1. Create / fetch user
-    const { data: existing } = await supabase.auth.admin.listUsers();
-    let user = existing.users.find((u) => u.email === email);
-    if (!user) {
-      const { data: created } = await supabase.auth.admin.createUser({
+    // ------------------------------------------------------------
+    // 1️⃣ Create deterministic email for Supabase Auth
+    // ------------------------------------------------------------
+    const safe = pi_uid.replace(/[^a-zA-Z0-9]/g, "").slice(-12);
+    const email = `${safe}@pi.mock`;
+
+    // ------------------------------------------------------------
+    // 2️⃣ Check if user already exists
+    // ------------------------------------------------------------
+    const { data: list } = await admin.auth.admin.listUsers();
+    let authUser = list.users.find((u) => u.email === email);
+
+    // ------------------------------------------------------------
+    // 3️⃣ If not exist → create auth user
+    // ------------------------------------------------------------
+    if (!authUser) {
+      const { data, error } = await admin.auth.admin.createUser({
         email,
         password: crypto.randomUUID(),
         email_confirmed: true,
         user_metadata: { username, pi_uid },
       });
-      user = created.user;
-      if (!user) throw new Error("User creation failed");
+
+      if (error) throw error;
+      authUser = data.user;
     }
 
-    // 2. Mint official Supabase JWT (service-role)
-    const token = await supabase.auth.admin.generateLink({
-      type: "magiclink",
-      email,
-    });
-    const access_token = token.data.properties.access_token;
-    const refresh_token = token.data.properties.refresh_token;
+    // ------------------------------------------------------------
+    // 4️⃣ Create a new auth session (the RIGHT way)
+    // ------------------------------------------------------------
+    const { data: tokenData, error: tokenErr } =
+      await admin.auth.admin.generateLink({
+        type: "magiclink",
+        email,
+      });
 
-    // 3. Force the session on the client side
-    await supabase.auth.setSession({ access_token, refresh_token });
+    if (tokenErr) throw tokenErr;
 
-    // 4. Upsert profile
-    await supabase
+    const access_token = tokenData.properties.access_token;
+    const refresh_token = tokenData.properties.refresh_token;
+
+    // ------------------------------------------------------------
+    // 5️⃣ Upsert profile row
+    // ------------------------------------------------------------
+    const { error: profileErr } = await admin
       .from("profiles")
-      .upsert({ id: user.id, username, pi_uid, email }, { onConflict: "id" });
+      .upsert(
+        {
+          id: authUser.id,
+          username,
+          pi_uid,
+          email,
+        },
+        { onConflict: "id" }
+      );
 
-    // 5. Ensure profile row exists
-    const { error: profileErr } = await supabase
-      .from("profiles")
-      .upsert({ id: user.id, username, pi_uid, email }, { onConflict: "id" });
     if (profileErr) throw profileErr;
 
-await supabase.from("profiles").upsert({ id: user.id, username, pi_uid, email }, { onConflict: "id" });
-
-    // 6. Return tokens
+    // ------------------------------------------------------------
+    // 6️⃣ Return valid auth session to the client
+    // ------------------------------------------------------------
     return NextResponse.json({
       success: true,
-      user: { id: user.id, username, email },
+      user: {
+        id: authUser.id,
+        username,
+        email,
+      },
       access_token,
       refresh_token,
     });
   } catch (err: any) {
-    console.error("Login API error:", err);
-    return NextResponse.json({ error: err.message || "Server error" }, { status: 500 });
+    console.error("❌ Login API error:", err);
+    return NextResponse.json(
+      { error: err.message || "Server error" },
+      { status: 500 }
+    );
   }
 }
