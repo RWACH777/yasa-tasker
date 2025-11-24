@@ -67,18 +67,18 @@ export async function POST(req: Request) {
     // 5️⃣ Upsert profile row
     // ------------------------------------------------------------
     const { error: profileErr } = await admin
-      .from("profiles")
-      .upsert(
-        {
-          id: authUser.id,
-          username,
-          pi_uid,
-          email,
-        },
-        { onConflict: "id,pi_uid" }
-      );
+  .from("profiles")
+  .upsert(
+    {
+      id: authUser.id,
+      username,
+      pi_uid,
+      email,
+    },
+    { onConflict: "pi_uid" }   // ✅ FIXED — this constraint actually exists
+  );
 
-    if (profileErr) throw profileErr;
+if (profileErr) throw profileErr;
 
     // ------------------------------------------------------------
     // 6️⃣ Return valid auth session to the client
