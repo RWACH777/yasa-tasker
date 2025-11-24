@@ -75,7 +75,7 @@ export async function POST(req: Request) {
           pi_uid,
           email,
         },
-        { onConflict: "id" }
+        { onConflict: "id,pi_uid" }
       );
 
     if (profileErr) throw profileErr;
