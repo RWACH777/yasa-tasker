@@ -70,7 +70,26 @@ export default function DashboardPage() {
         return;
       }
 
-      // 2️⃣ No Supabase session → call Pi once
+
+
+      // 2️⃣ Localhost → skip Pi login completely
+      const isLocal = window.location.hostname === "localhost";
+      if (isLocal) {
+        console.log("🔧 Local mode: Pi login DISABLED");
+
+        const fakeUser = {
+          uid: "local_user_123",
+          username: "LocalUser",
+        };
+
+        setPiDebug({ user: fakeUser });
+
+        // Skip Pi → go straight to session creation
+        setLoading(false);
+        return;
+      }
+
+      // 3️⃣ PRODUCTION → use real Pi SDK
       const pi = (window as any).Pi;
       if (!pi) {
         setMessage("Pi SDK not found");
@@ -80,8 +99,8 @@ export default function DashboardPage() {
 
       const authResult = await pi.authenticate(["username"], (p) => p);
       setPiDebug(authResult);
-
       const piUser = authResult.user;
+
 
       // 3️⃣ Exchange tokens
       const res = await fetch("/api/login", {

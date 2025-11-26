@@ -45,52 +45,39 @@ export async function POST(req: Request) {
     const user_id = authUser.id;
 
     // 4️⃣ Generate session tokens
-    const { data: tokenData, error: tokenErr } =
-      await admin.auth.admin.generateLink({
-        type: "magiclink",
-        email,
-      });
+   // ... earlier code where you call admin.auth.admin.generateLink(...)
+const { data: tokenData, error: tokenErr } = await admin.auth.admin.generateLink({
+  type: "magiclink",
+  email,
+});
+if (tokenErr) throw tokenErr;
 
-    if (tokenErr) throw tokenErr;
+// Grab the actual tokens from the returned object
+const access_token = tokenData.properties.access_token;
+const refresh_token = tokenData.properties.refresh_token;
 
-    const access_token = tokenData.properties.access_token;
-    const refresh_token = tokenData.properties.refresh_token;
+// Upsert profile (keep the onConflict fix you already applied)
+const { error: profileErr } = await admin
+  .from("profiles")
+  .upsert(
+    {
+      id: authUser.id,
+      username,
+      pi_uid,
+      email,
+    },
+    { onConflict: "pi_uid" } // ensure this matches your unique constraint
+  );
+if (profileErr) throw profileErr;
 
-    // 5️⃣ Upsert profile
-    const { error: profileErr } = await admin
-      .from("profiles")
-      .upsert(
-        {
-          id: user_id,
-          pi_uid,
-          username,
-          email,
-          avatar_url: avatar_url || null,
-        },
-        { onConflict: "pi_uid" }
-      );
-
-    if (profileErr) throw profileErr;
-
-    // 6️⃣ Return real session in correct format
-    return NextResponse.json({
-      success: true,
-      session: {
-        access_token,
-        refresh_token,
-        token_type: "bearer",
-      },
-      user: {
-        id: user_id,
-        username,
-        email,
-      },
-    });
-  } catch (err: any) {
-    console.error("❌ Login API error:", err);
-    return NextResponse.json(
-      { error: err.message || "Server error" },
-      { status: 500 }
-    );
-  }
-}
+// ✅ Return tokens in top-level fields the client expects
+return NextResponse.json({
+  success: true,
+  user: {
+    id: authUser.id,
+    username,
+    email,
+  },
+  access_token,
+  refresh_token,
+});
