@@ -519,15 +519,20 @@ export default function DashboardPage() {
             className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm"
             rows={3}
           />
-          <input
-            type="text"
-            placeholder="Category (e.g. design)"
+          <select
             value={form.category}
             onChange={(e) =>
               setForm({ ...form, category: e.target.value })
             }
             className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm"
-          />
+          >
+            <option value="">Select a category</option>
+            {categories.filter(cat => cat !== "all").map((cat) => (
+              <option key={cat} value={cat}>
+                {cat.charAt(0).toUpperCase() + cat.slice(1)}
+              </option>
+            ))}
+          </select>
           <input
             type="number"
             placeholder="Budget (in π)"
