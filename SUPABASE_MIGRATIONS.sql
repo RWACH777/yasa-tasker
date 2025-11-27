@@ -1,0 +1,125 @@
+-- SUPABASE MIGRATIONS
+-- Run these SQL commands in your Supabase SQL Editor
+
+-- 1. Fix tasks table - add UUID generation for id column
+ALTER TABLE tasks
+  ALTER COLUMN id SET DEFAULT gen_random_uuid();
+
+-- 2. Fix applications table - add UUID generation for id column
+ALTER TABLE applications
+  ALTER COLUMN id SET DEFAULT gen_random_uuid();
+
+-- 3. Fix messages table - add UUID generation for id column
+ALTER TABLE messages
+  ALTER COLUMN id SET DEFAULT gen_random_uuid();
+
+-- 4. Fix ratings table - add UUID generation for id column
+ALTER TABLE ratings
+  ALTER COLUMN id SET DEFAULT gen_random_uuid();
+
+-- 5. Add created_at default for tasks if not exists
+ALTER TABLE tasks
+  ALTER COLUMN created_at SET DEFAULT now();
+
+-- 6. Add created_at default for applications if not exists
+ALTER TABLE applications
+  ALTER COLUMN created_at SET DEFAULT now();
+
+-- 7. Add created_at default for messages if not exists
+ALTER TABLE messages
+  ALTER COLUMN created_at SET DEFAULT now();
+
+-- 8. Add created_at default for ratings if not exists
+ALTER TABLE ratings
+  ALTER COLUMN created_at SET DEFAULT now();
+
+-- 9. Enable RLS on all tables
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE applications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ratings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+
+-- 10. Create RLS policies for profiles
+DROP POLICY IF EXISTS "Users can read own profile" ON profiles;
+CREATE POLICY "Users can read own profile" ON profiles
+  FOR SELECT USING (auth.uid() = id);
+
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+CREATE POLICY "Users can update own profile" ON profiles
+  FOR UPDATE USING (auth.uid() = id);
+
+DROP POLICY IF EXISTS "Service role can insert profiles" ON profiles;
+CREATE POLICY "Service role can insert profiles" ON profiles
+  FOR INSERT WITH CHECK (true);
+
+-- 11. Create RLS policies for tasks
+DROP POLICY IF EXISTS "Logged in users can read tasks" ON tasks;
+CREATE POLICY "Logged in users can read tasks" ON tasks
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Users can insert tasks" ON tasks;
+CREATE POLICY "Users can insert tasks" ON tasks
+  FOR INSERT WITH CHECK (auth.uid() = poster_id);
+
+DROP POLICY IF EXISTS "Poster can update own tasks" ON tasks;
+CREATE POLICY "Poster can update own tasks" ON tasks
+  FOR UPDATE USING (auth.uid() = poster_id);
+
+DROP POLICY IF EXISTS "Poster can delete own tasks" ON tasks;
+CREATE POLICY "Poster can delete own tasks" ON tasks
+  FOR DELETE USING (auth.uid() = poster_id);
+
+-- 12. Create RLS policies for applications
+DROP POLICY IF EXISTS "Logged in users can apply" ON applications;
+CREATE POLICY "Logged in users can apply" ON applications
+  FOR INSERT WITH CHECK (auth.uid() = applicant_id);
+
+DROP POLICY IF EXISTS "Users can view own applications" ON applications;
+CREATE POLICY "Users can view own applications" ON applications
+  FOR SELECT USING (auth.uid() = applicant_id OR auth.uid() = (
+    SELECT poster_id FROM tasks WHERE id = applications.task_id
+  ));
+
+DROP POLICY IF EXISTS "Applicant can update own applications" ON applications;
+CREATE POLICY "Applicant can update own applications" ON applications
+  FOR UPDATE USING (auth.uid() = applicant_id);
+
+DROP POLICY IF EXISTS "Applicant can delete own applications" ON applications;
+CREATE POLICY "Applicant can delete own applications" ON applications
+  FOR DELETE USING (auth.uid() = applicant_id);
+
+-- 13. Create RLS policies for messages
+DROP POLICY IF EXISTS "Users can send messages" ON messages;
+CREATE POLICY "Users can send messages" ON messages
+  FOR INSERT WITH CHECK (auth.uid() = sender_id);
+
+DROP POLICY IF EXISTS "Users can read own messages" ON messages;
+CREATE POLICY "Users can read own messages" ON messages
+  FOR SELECT USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
+
+DROP POLICY IF EXISTS "Sender can update messages" ON messages;
+CREATE POLICY "Sender can update messages" ON messages
+  FOR UPDATE USING (auth.uid() = sender_id);
+
+DROP POLICY IF EXISTS "Sender can delete messages" ON messages;
+CREATE POLICY "Sender can delete messages" ON messages
+  FOR DELETE USING (auth.uid() = sender_id);
+
+-- 14. Create RLS policies for ratings
+DROP POLICY IF EXISTS "Users can rate others" ON ratings;
+CREATE POLICY "Users can rate others" ON ratings
+  FOR INSERT WITH CHECK (auth.uid() = rater_id);
+
+DROP POLICY IF EXISTS "Anyone can read ratings" ON ratings;
+CREATE POLICY "Anyone can read ratings" ON ratings
+  FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Rater can update own ratings" ON ratings;
+CREATE POLICY "Rater can update own ratings" ON ratings
+  FOR UPDATE USING (auth.uid() = rater_id);
+
+DROP POLICY IF EXISTS "Rater can delete own ratings" ON ratings;
+CREATE POLICY "Rater can delete own ratings" ON ratings
+  FOR DELETE USING (auth.uid() = rater_id);

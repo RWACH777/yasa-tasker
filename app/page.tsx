@@ -18,6 +18,14 @@ export default function Home() {
   useEffect(() => {
     const loadPi = () => {
       try {
+        const isLocal = typeof window !== "undefined" && window.location.hostname === "localhost";
+        
+        if (isLocal) {
+          console.log("🔧 Local mode: Pi SDK not required");
+          setPiReady(true);
+          return;
+        }
+
         if (typeof window !== "undefined" && (window as any).Pi) {
           console.log("✅ Pi SDK initialized (already present)");
           setPiReady(true);
@@ -30,9 +38,19 @@ export default function Home() {
               clearInterval(check);
             }
           }, 500);
+
+          // Timeout after 5 seconds
+          setTimeout(() => {
+            clearInterval(check);
+            if (!((window as any).Pi)) {
+              console.warn("⚠️ Pi SDK not loaded after 5s, allowing login anyway");
+              setPiReady(true);
+            }
+          }, 5000);
         }
       } catch (err) {
         console.error("❌ Pi SDK initialization failed:", err);
+        setPiReady(true); // Allow login anyway
       }
     };
 
@@ -43,32 +61,45 @@ export default function Home() {
   const handlePiLogin = async () => {
     if (typeof window === "undefined") return;
 
-    const Pi = (window as any).Pi;
-    if (!Pi) {
-      alert("⚠️ Pi SDK not loaded yet.");
-      return;
-    }
-
     try {
       setIsLoading(true);
 
-      Pi.init({
-        version: "2.0",
-        sandbox: false, // change to true if using testnet
-      });
+      // 🔧 LOCALHOST: Use fake Pi user
+      const isLocal = window.location.hostname === "localhost";
+      let username, pi_uid, avatar_url;
 
-      console.log("✅ Pi SDK initialized");
+      if (isLocal) {
+        console.log("🔧 Local mode: Using fake Pi user");
+        username = "LocalUser";
+        pi_uid = "local_user_123";
+        avatar_url = null;
+      } else {
+        // 🌐 PRODUCTION: Use real Pi SDK
+        const Pi = (window as any).Pi;
+        if (!Pi) {
+          alert("⚠️ Pi SDK not loaded yet.");
+          setIsLoading(false);
+          return;
+        }
 
-      const scopes = ["username", "payments"];
-      const authResult = await Pi.authenticate(scopes, (payment: any) => {
-        console.log("🪙 Incomplete payment:", payment);
-      });
+        Pi.init({
+          version: "2.0",
+          sandbox: false,
+        });
 
-      const username = authResult?.user?.username ?? "Unknown";
-      const pi_uid = authResult?.user?.uid ?? "";
-      const avatar_url = authResult?.user?.photo ?? null;
+        console.log("✅ Pi SDK initialized");
 
-      // ✅ Send user data to your API route for Supabase sync
+        const scopes = ["username", "payments"];
+        const authResult = await Pi.authenticate(scopes, (payment: any) => {
+          console.log("🪙 Incomplete payment:", payment);
+        });
+
+        username = authResult?.user?.username ?? "Unknown";
+        pi_uid = authResult?.user?.uid ?? "";
+        avatar_url = authResult?.user?.photo ?? null;
+      }
+
+      // ✅ Send user data to API route (works for both localhost and production)
       const response = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 // Server-side Supabase admin client
 const admin = createClient(supabaseUrl, serviceRoleKey, {
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
       const { data, error } = await admin.auth.admin.createUser({
         email,
         password: crypto.randomUUID(),
-        email_confirmed: true,
+        email_confirm: true,
       });
 
       if (error) throw error;
@@ -45,20 +46,56 @@ export async function POST(req: Request) {
     }
 
     const authUser = existingUser || newUser;
+    console.log("✅ Auth user:", authUser.id);
 
-    // 4️⃣ Generate session tokens
-    const { data: tokenData, error: tokenErr } =
-      await admin.auth.admin.generateLink({
+    // 4️⃣ Generate a magic link and immediately use it to create a session
+    const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
+      type: "magiclink",
+      email,
+    });
+
+    if (linkErr) throw linkErr;
+
+    console.log("📋 Magic link generated");
+
+    // Extract the hashed token directly from the response
+    const hashedToken = linkData?.properties?.hashed_token;
+    if (!hashedToken) throw new Error("No hashed token in magic link response");
+
+    console.log("🔐 Using hashed token to create session");
+
+    // 5️⃣ Use the hashed token to create a session via the REST API
+    const sessionResponse = await fetch(`${supabaseUrl}/auth/v1/verify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": anonKey,
+      },
+      body: JSON.stringify({
+        token_hash: hashedToken,
         type: "magiclink",
-        email,
-      });
+      }),
+    });
 
-    if (tokenErr) throw tokenErr;
+    const sessionData = await sessionResponse.json();
 
-    const access_token = tokenData.properties.access_token;
-    const refresh_token = tokenData.properties.refresh_token;
+    if (!sessionResponse.ok) {
+      console.error("❌ Session verification failed:", sessionData);
+      throw new Error(`Session verification failed: ${sessionData.error_description || sessionData.error}`);
+    }
 
-    // 5️⃣ Update or insert profile
+    // Tokens can be at top level or in session object
+    const access_token = sessionData.access_token || sessionData.session?.access_token;
+    const refresh_token = sessionData.refresh_token || sessionData.session?.refresh_token;
+
+    if (!access_token || !refresh_token) {
+      console.error("❌ No tokens in session response:", sessionData);
+      throw new Error("Failed to extract tokens from session");
+    }
+
+    console.log("✅ Session tokens obtained successfully");
+
+    // 6️⃣ Update or insert profile
     const { error: profileErr } = await admin.from("profiles").upsert(
       {
         id: authUser.id,
@@ -69,9 +106,14 @@ export async function POST(req: Request) {
       { onConflict: "pi_uid" }
     );
 
-    if (profileErr) throw profileErr;
+    if (profileErr) {
+      console.error("❌ Profile upsert error:", profileErr);
+      throw profileErr;
+    }
 
-    // 6️⃣ Success response
+    console.log("✅ Profile upserted successfully");
+
+    // 7️⃣ Success response
     return NextResponse.json({
       success: true,
       user: {
@@ -83,7 +125,7 @@ export async function POST(req: Request) {
       refresh_token,
     });
   } catch (error) {
-    console.error("Login error:", error);
+    console.error("❌ Login error:", error);
     return NextResponse.json(
       { error: "Login failed", details: String(error) },
       { status: 500 }

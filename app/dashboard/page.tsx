@@ -43,6 +43,12 @@ export default function DashboardPage() {
   const [piDebug, setPiDebug] = useState(null);
   const [apiDebug, setApiDebug] = useState(null);
 
+  // New state for features
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileTasks, setProfileTasks] = useState({ active: [], pending: [], completed: [] });
+  const [userApplications, setUserApplications] = useState<any[]>([]);
+  const [newAvatarUrl, setNewAvatarUrl] = useState("");
+
   // 🔥 FIXED: Load profile
   const loadProfile = async (authUserId: string | null) => {
     if (!authUserId) return;
@@ -70,39 +76,32 @@ export default function DashboardPage() {
         return;
       }
 
-
-
-      // 2️⃣ Localhost → skip Pi login completely
+      // 2️⃣ Localhost → use fake Pi user but still call API
       const isLocal = window.location.hostname === "localhost";
-      if (isLocal) {
-        console.log("🔧 Local mode: Pi login DISABLED");
+      let piUser;
 
-        const fakeUser = {
+      if (isLocal) {
+        console.log("🔧 Local mode: Using fake Pi user");
+        piUser = {
           uid: "local_user_123",
           username: "LocalUser",
         };
+        setPiDebug({ user: piUser });
+      } else {
+        // 3️⃣ PRODUCTION → use real Pi SDK
+        const pi = (window as any).Pi;
+        if (!pi) {
+          setMessage("Pi SDK not found");
+          setLoading(false);
+          return;
+        }
 
-        setPiDebug({ user: fakeUser });
-
-        // Skip Pi → go straight to session creation
-        setLoading(false);
-        return;
+        const authResult = await pi.authenticate(["username"], (p) => p);
+        setPiDebug(authResult);
+        piUser = authResult.user;
       }
 
-      // 3️⃣ PRODUCTION → use real Pi SDK
-      const pi = (window as any).Pi;
-      if (!pi) {
-        setMessage("Pi SDK not found");
-        setLoading(false);
-        return;
-      }
-
-      const authResult = await pi.authenticate(["username"], (p) => p);
-      setPiDebug(authResult);
-      const piUser = authResult.user;
-
-
-      // 3️⃣ Exchange tokens
+      // 4️⃣ Exchange tokens via API (works for both localhost and production)
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -121,19 +120,29 @@ export default function DashboardPage() {
         return;
       }
 
-      // 4️⃣ Save session
+      // 5️⃣ Save session with proper format
+      console.log("🔐 Setting session with tokens:", {
+        access_token: json.access_token?.substring(0, 20) + "...",
+        refresh_token: json.refresh_token?.substring(0, 20) + "...",
+      });
+
       const { error: setErr } = await supabase.auth.setSession({
         access_token: json.access_token,
         refresh_token: json.refresh_token,
       });
 
       if (setErr) {
-        console.error(setErr);
+        console.error("❌ Session error:", setErr);
+        console.error("Full error details:", JSON.stringify(setErr));
+        setMessage("Session error: " + setErr.message);
         setLoading(false);
         return;
       }
 
-      // 5️⃣ Load profile after session is READY
+      console.log("✅ Session set successfully");
+
+      // 6️⃣ Wait a moment for session to persist, then load profile
+      await new Promise((resolve) => setTimeout(resolve, 500));
       await loadProfile(json.user.id);
 
       setLoading(false);
@@ -181,7 +190,17 @@ export default function DashboardPage() {
 
     const deadlineIso = new Date(form.deadline).toISOString();
 
+    // Generate UUID for new tasks
+    const generateUUID = () => {
+      return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+        const r = (Math.random() * 16) | 0;
+        const v = c === "x" ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      });
+    };
+
     const taskData = {
+      id: form.id || generateUUID(), // Generate UUID if new task
       poster_id: user.id,
       title: form.title,
       description: form.description,
@@ -191,6 +210,9 @@ export default function DashboardPage() {
       status: "open",
       updated_at: new Date().toISOString(),
     };
+
+    console.log("📝 Submitting task with data:", taskData);
+    console.log("👤 Current user ID:", user.id);
 
     let result;
     if (form.id) {
@@ -204,10 +226,16 @@ export default function DashboardPage() {
     }
 
     if (result.error) {
-      setMessage("❌ Failed to save task");
+      console.error("❌ Task save error:", result.error);
+      console.error("Full error details:", JSON.stringify(result.error, null, 2));
+      setMessage(
+        "❌ Failed to save task: " +
+          (result.error.message || result.error.code || JSON.stringify(result.error))
+      );
       return;
     }
 
+    console.log("✅ Task saved successfully:", result.data);
     setMessage("✅ Task posted!");
     setForm({
       id: "",
@@ -237,6 +265,77 @@ export default function DashboardPage() {
     fetchTasks();
   };
 
+  // Load profile tasks and applications
+  const loadProfileTasks = async () => {
+    if (!user?.id) return;
+
+    // Load user's posted tasks grouped by status
+    const { data: tasks } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("poster_id", user.id);
+
+    if (tasks) {
+      const active = tasks.filter((t) => t.status === "active");
+      const pending = tasks.filter((t) => t.status === "open");
+      const completed = tasks.filter((t) => t.status === "completed");
+      setProfileTasks({ active, pending, completed });
+    }
+
+    // Load applications for user's tasks
+    const { data: apps } = await supabase
+      .from("applications")
+      .select("*")
+      .eq("applicant_id", user.id);
+
+    if (apps) setUserApplications(apps);
+  };
+
+  // Apply to a task
+  const handleApplyToTask = async (taskId: string) => {
+    if (!user?.id) {
+      setMessage("⚠️ You must be logged in to apply.");
+      return;
+    }
+
+    const { error } = await supabase.from("applications").insert([
+      {
+        task_id: taskId,
+        applicant_id: user.id,
+        status: "pending",
+        created_at: new Date().toISOString(),
+      },
+    ]);
+
+    if (error) {
+      setMessage("❌ Failed to apply: " + error.message);
+    } else {
+      setMessage("✅ Applied to task!");
+      loadProfileTasks();
+    }
+  };
+
+  // Update profile picture
+  const handleUpdateAvatar = async () => {
+    if (!user?.id || !newAvatarUrl) {
+      setMessage("⚠️ Please enter a valid image URL.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ avatar_url: newAvatarUrl })
+      .eq("id", user.id);
+
+    if (error) {
+      setMessage("❌ Failed to update avatar: " + error.message);
+    } else {
+      setUser({ ...user, avatar_url: newAvatarUrl });
+      setNewAvatarUrl("");
+      setMessage("✅ Avatar updated!");
+    }
+  };
+
   const categories = [
     "all",
     "design",
@@ -250,7 +349,24 @@ export default function DashboardPage() {
   // ⭐️ UI EXACTLY THE SAME — only avatar fixed below
   return (
     <div className="min-h-screen bg-[#000222] text-white flex flex-col items-center px-4 py-10">
-      <div className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 text-center mb-8">
+      {/* Navigation Bar */}
+      <div className="w-full max-w-3xl mb-6 flex justify-end gap-3">
+        <a
+          href="/messages"
+          className="px-4 py-2 bg-purple-600/80 hover:bg-purple-700 rounded-lg transition text-sm"
+        >
+          💬 Messages
+        </a>
+      </div>
+      <div 
+        onClick={() => {
+          if (user?.id) {
+            loadProfileTasks();
+            setShowProfileModal(true);
+          }
+        }}
+        className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 text-center mb-8 cursor-pointer hover:bg-white/20 transition"
+      >
         {loading ? (
           <p>Loading profile...</p>
         ) : user ? (
@@ -258,7 +374,6 @@ export default function DashboardPage() {
             <img
               src={
                 user.avatar_url ||
-
                 `https://api.dicebear.com/8.x/thumbs/svg?seed=${user.username}`
               }
               alt="Avatar"
@@ -266,14 +381,113 @@ export default function DashboardPage() {
             />
             <h2 className="text-xl font-semibold">{user.username}</h2>
             <p className="text-sm text-gray-300">
-              ⭐️ {user.rating || "New User"} •{" "}
-              {user.completed_tasks || 0} Tasks Completed
+              ⭐️ {user.rating || 0} • {user.completed_tasks || 0} Tasks Completed
             </p>
+            <p className="text-xs text-gray-400">Click to view profile details</p>
           </div>
         ) : (
           <p>⚠️ Please log in with Pi to view your profile.</p>
         )}
       </div>
+
+      {/* PROFILE MODAL */}
+      {showProfileModal && user && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-2xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">{user.username}'s Profile</h2>
+              <button
+                onClick={() => setShowProfileModal(false)}
+                className="text-gray-400 hover:text-white text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Avatar Section */}
+            <div className="flex flex-col items-center mb-6 pb-6 border-b border-white/10">
+              <img
+                src={
+                  user.avatar_url ||
+                  `https://api.dicebear.com/8.x/thumbs/svg?seed=${user.username}`
+                }
+                alt="Avatar"
+                className="w-24 h-24 rounded-full border border-white/30 mb-4"
+              />
+              <div className="flex gap-2 w-full">
+                <input
+                  type="text"
+                  placeholder="New avatar URL"
+                  value={newAvatarUrl}
+                  onChange={(e) => setNewAvatarUrl(e.target.value)}
+                  className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm"
+                />
+                <button
+                  onClick={handleUpdateAvatar}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm"
+                >
+                  Update
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mt-2">⭐️ Rating: {user.rating || 0} • Completed: {user.completed_tasks || 0}</p>
+            </div>
+
+            {/* Tasks Sections */}
+            <div className="space-y-6">
+              {/* Active Tasks */}
+              <div>
+                <h3 className="text-lg font-semibold mb-3 text-green-400">Active Tasks ({profileTasks.active.length})</h3>
+                {profileTasks.active.length === 0 ? (
+                  <p className="text-gray-400 text-sm">No active tasks</p>
+                ) : (
+                  <div className="space-y-2">
+                    {profileTasks.active.map((task) => (
+                      <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-3">
+                        <p className="font-semibold text-sm">{task.title}</p>
+                        <p className="text-xs text-gray-400">Budget: {task.budget} π</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Pending Tasks */}
+              <div>
+                <h3 className="text-lg font-semibold mb-3 text-yellow-400">Pending Tasks ({profileTasks.pending.length})</h3>
+                {profileTasks.pending.length === 0 ? (
+                  <p className="text-gray-400 text-sm">No pending tasks</p>
+                ) : (
+                  <div className="space-y-2">
+                    {profileTasks.pending.map((task) => (
+                      <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-3">
+                        <p className="font-semibold text-sm">{task.title}</p>
+                        <p className="text-xs text-gray-400">Budget: {task.budget} π</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Completed Tasks */}
+              <div>
+                <h3 className="text-lg font-semibold mb-3 text-blue-400">Completed Tasks ({profileTasks.completed.length})</h3>
+                {profileTasks.completed.length === 0 ? (
+                  <p className="text-gray-400 text-sm">No completed tasks</p>
+                ) : (
+                  <div className="space-y-2">
+                    {profileTasks.completed.map((task) => (
+                      <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-3">
+                        <p className="font-semibold text-sm">{task.title}</p>
+                        <p className="text-xs text-gray-400">Budget: {task.budget} π</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* EVERYTHING BELOW IS IDENTICAL — tasks, forms, filters, etc */}
       {/* (I DID NOT TOUCH YOUR UI) */}
@@ -368,7 +582,7 @@ export default function DashboardPage() {
                 key={task.id}
                 className="bg-white/5 border border-white/10 rounded-lg p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center"
               >
-                <div>
+                <div className="flex-1">
                   <h3 className="font-semibold">{task.title}</h3>
                   <p className="text-gray-300 text-sm mb-2">
                     {task.description}
@@ -380,22 +594,31 @@ export default function DashboardPage() {
                   </p>
                 </div>
 
-                {user?.id === task.poster_id && (
-                  <div className="flex gap-2 mt-3 sm:mt-0">
+                <div className="flex gap-2 mt-3 sm:mt-0 flex-wrap sm:flex-nowrap">
+                  {user?.id === task.poster_id ? (
+                    <>
+                      <button
+                        onClick={() => handleEdit(task)}
+                        className="px-3 py-1 bg-blue-500/80 rounded-md text-sm hover:bg-blue-600 transition"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(task.id)}
+                        className="px-3 py-1 bg-red-500/80 rounded-md text-sm hover:bg-red-600 transition"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  ) : (
                     <button
-                      onClick={() => handleEdit(task)}
-                      className="px-3 py-1 bg-blue-500/80 rounded-md text-sm hover:bg-blue-600 transition"
+                      onClick={() => handleApplyToTask(task.id)}
+                      className="px-3 py-1 bg-green-600/80 rounded-md text-sm hover:bg-green-700 transition"
                     >
-                      Edit
+                      Apply
                     </button>
-                    <button
-                      onClick={() => handleDelete(task.id)}
-                      className="px-3 py-1 bg-red-500/80 rounded-md text-sm hover:bg-red-600 transition"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -424,7 +647,9 @@ export default function DashboardPage() {
         <p>
           <b>Loaded Profile:</b>
         </p>
-        <pre>{JSON.stringify(user, null, 2)}</pre>
+        {user && (
+          <pre>{JSON.stringify(user, null, 2)}</pre>
+        )}
       </div>
     </div>
   );
