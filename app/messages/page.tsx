@@ -177,29 +177,26 @@ export default function MessagesPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex max-w-6xl mx-auto w-full gap-4 p-4">
-        {/* Conversations List */}
-        <div className="w-full sm:w-80 bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-4 h-[600px] overflow-y-auto">
-          <h2 className="text-lg font-semibold mb-4">Conversations</h2>
+      <div className="flex-1 flex flex-col max-w-6xl mx-auto w-full gap-4 p-4">
+        {/* Conversations List - Horizontal */}
+        <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-4">
+          <h2 className="text-lg font-semibold mb-3">Conversations</h2>
           {conversations.length === 0 ? (
             <p className="text-gray-400 text-sm">No conversations yet</p>
           ) : (
-            <div className="space-y-2">
+            <div className="flex gap-3 overflow-x-auto pb-2">
               {conversations.map((conv) => (
                 <button
                   key={conv.userId}
                   onClick={() => setSelectedUserId(conv.userId)}
-                  className={`w-full text-left p-3 rounded-lg transition ${
+                  className={`flex-shrink-0 px-4 py-3 rounded-lg transition whitespace-nowrap ${
                     selectedUserId === conv.userId
                       ? "bg-blue-600/50 border border-blue-400"
                       : "bg-white/5 border border-white/10 hover:bg-white/10"
                   }`}
                 >
                   <p className="font-semibold text-sm">{conv.username}</p>
-                  <p className="text-xs text-gray-400 truncate">{conv.lastMessage}</p>
-                  <p className="text-xs text-gray-500">
-                    {new Date(conv.lastMessageTime).toLocaleDateString()}
-                  </p>
+                  <p className="text-xs text-gray-400 truncate max-w-[150px]">{conv.lastMessage}</p>
                 </button>
               ))}
             </div>
@@ -207,7 +204,7 @@ export default function MessagesPage() {
         </div>
 
         {/* Chat Area */}
-        <div className="flex-1 bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-4 flex flex-col h-[600px]">
+        <div className="flex-1 bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-4 flex flex-col">
           {selectedUserId ? (
             <>
               {/* Messages */}
@@ -241,8 +238,25 @@ export default function MessagesPage() {
                 )}
               </div>
 
-              {/* Input */}
+              {/* Input with File Upload */}
               <div className="flex gap-2">
+                <label className="px-3 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition cursor-pointer text-sm flex items-center gap-2">
+                  📎
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                    className="hidden"
+                    onChange={(e) => {
+                      const files = e.target.files;
+                      if (files) {
+                        const fileNames = Array.from(files).map(f => f.name).join(", ");
+                        setNewMessage(prev => prev + (prev ? " " : "") + `[Files: ${fileNames}]`);
+                      }
+                    }}
+                  />
+                  Attach
+                </label>
                 <input
                   type="text"
                   placeholder="Type a message..."

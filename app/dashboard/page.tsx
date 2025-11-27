@@ -20,6 +20,7 @@ interface Profile {
   id: string;
   username: string;
   avatar_url?: string;
+  freelancer_username?: string;
   rating?: number;
   completed_tasks?: number;
 }
@@ -39,15 +40,13 @@ export default function DashboardPage() {
   const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
 
-  const [sessionDebug, setSessionDebug] = useState(null);
-  const [piDebug, setPiDebug] = useState(null);
-  const [apiDebug, setApiDebug] = useState(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [freelancerUsername, setFreelancerUsername] = useState("");
 
   // New state for features
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileTasks, setProfileTasks] = useState({ active: [], pending: [], completed: [] });
   const [userApplications, setUserApplications] = useState<any[]>([]);
-  const [newAvatarUrl, setNewAvatarUrl] = useState("");
 
   // 🔥 FIXED: Load profile
   const loadProfile = async (authUserId: string | null) => {
@@ -68,7 +67,6 @@ export default function DashboardPage() {
 
       // 1️⃣ Check Supabase session first
       const { data } = await supabase.auth.getSession();
-      setSessionDebug(data.session);
 
       if (data.session?.user) {
         await loadProfile(data.session.user.id);
@@ -86,7 +84,6 @@ export default function DashboardPage() {
           uid: "local_user_123",
           username: "LocalUser",
         };
-        setPiDebug({ user: piUser });
       } else {
         // 3️⃣ PRODUCTION → use real Pi SDK
         const pi = (window as any).Pi;
@@ -97,7 +94,6 @@ export default function DashboardPage() {
         }
 
         const authResult = await pi.authenticate(["username"], (p) => p);
-        setPiDebug(authResult);
         piUser = authResult.user;
       }
 
@@ -112,7 +108,6 @@ export default function DashboardPage() {
       });
 
       const json = await res.json();
-      setApiDebug(json);
 
       if (!json.success) {
         setMessage("Login error: " + json.error);
@@ -315,24 +310,24 @@ export default function DashboardPage() {
     }
   };
 
-  // Update profile picture
-  const handleUpdateAvatar = async () => {
-    if (!user?.id || !newAvatarUrl) {
-      setMessage("⚠️ Please enter a valid image URL.");
+  // Update freelancer username
+  const handleUpdateFreelancerUsername = async () => {
+    if (!user?.id || !freelancerUsername.trim()) {
+      setMessage("⚠️ Please enter a valid freelancer username.");
       return;
     }
 
     const { error } = await supabase
       .from("profiles")
-      .update({ avatar_url: newAvatarUrl })
+      .update({ freelancer_username: freelancerUsername })
       .eq("id", user.id);
 
     if (error) {
-      setMessage("❌ Failed to update avatar: " + error.message);
+      setMessage("❌ Failed to update username: " + error.message);
     } else {
-      setUser({ ...user, avatar_url: newAvatarUrl });
-      setNewAvatarUrl("");
-      setMessage("✅ Avatar updated!");
+      setUser({ ...user, freelancer_username: freelancerUsername });
+      setFreelancerUsername("");
+      setMessage("✅ Freelancer username updated!");
     }
   };
 
@@ -350,7 +345,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-[#000222] text-white flex flex-col items-center px-4 py-10">
       {/* Navigation Bar */}
-      <div className="w-full max-w-3xl mb-6 flex justify-end gap-3">
+      <div className="w-full max-w-3xl mb-4 flex justify-end gap-3">
         <a
           href="/messages"
           className="px-4 py-2 bg-purple-600/80 hover:bg-purple-700 rounded-lg transition text-sm"
@@ -365,7 +360,7 @@ export default function DashboardPage() {
             setShowProfileModal(true);
           }
         }}
-        className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 text-center mb-8 cursor-pointer hover:bg-white/20 transition"
+        className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 text-center mb-6 cursor-pointer hover:bg-white/20 transition"
       >
         {loading ? (
           <p>Loading profile...</p>
@@ -404,87 +399,107 @@ export default function DashboardPage() {
               </button>
             </div>
 
-            {/* Avatar Section */}
-            <div className="flex flex-col items-center mb-6 pb-6 border-b border-white/10">
-              <img
-                src={
-                  user.avatar_url ||
-                  `https://api.dicebear.com/8.x/thumbs/svg?seed=${user.username}`
-                }
-                alt="Avatar"
-                className="w-24 h-24 rounded-full border border-white/30 mb-4"
-              />
-              <div className="flex gap-2 w-full">
-                <input
-                  type="text"
-                  placeholder="New avatar URL"
-                  value={newAvatarUrl}
-                  onChange={(e) => setNewAvatarUrl(e.target.value)}
-                  className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm"
-                />
+            {/* Login with Pi Section */}
+            {!showLoginPrompt ? (
+              <div className="flex flex-col items-center mb-6 pb-6 border-b border-white/10">
+                <p className="text-sm text-gray-300 mb-3">Login with Pi to view profile</p>
                 <button
-                  onClick={handleUpdateAvatar}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm"
+                  onClick={() => setShowLoginPrompt(true)}
+                  className="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg transition text-sm font-semibold"
                 >
-                  Update
+                  Login with Pi
                 </button>
               </div>
-              <p className="text-xs text-gray-400 mt-2">⭐️ Rating: {user.rating || 0} • Completed: {user.completed_tasks || 0}</p>
-            </div>
-
-            {/* Tasks Sections */}
-            <div className="space-y-6">
-              {/* Active Tasks */}
-              <div>
-                <h3 className="text-lg font-semibold mb-3 text-green-400">Active Tasks ({profileTasks.active.length})</h3>
-                {profileTasks.active.length === 0 ? (
-                  <p className="text-gray-400 text-sm">No active tasks</p>
-                ) : (
-                  <div className="space-y-2">
-                    {profileTasks.active.map((task) => (
-                      <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-3">
-                        <p className="font-semibold text-sm">{task.title}</p>
-                        <p className="text-xs text-gray-400">Budget: {task.budget} π</p>
+            ) : (
+              <>
+                {/* Avatar Section */}
+                <div className="flex flex-col items-center mb-6 pb-6 border-b border-white/10">
+                  <img
+                    src={
+                      user.avatar_url ||
+                      `https://api.dicebear.com/8.x/thumbs/svg?seed=${user.username}`
+                    }
+                    alt="Avatar"
+                    className="w-24 h-24 rounded-full border border-white/30 mb-4"
+                  />
+                  <div className="flex flex-col gap-3 w-full">
+                    <div>
+                      <label className="text-xs text-gray-400 block mb-1">Freelancer Username (what others see)</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Your freelancer username"
+                          value={freelancerUsername}
+                          onChange={(e) => setFreelancerUsername(e.target.value)}
+                          className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm"
+                        />
+                        <button
+                          onClick={handleUpdateFreelancerUsername}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm"
+                        >
+                          Update
+                        </button>
                       </div>
-                    ))}
+                    </div>
                   </div>
-                )}
-              </div>
+                  <p className="text-xs text-gray-400 mt-3">⭐️ Rating: {user.rating || 0} • Completed: {user.completed_tasks || 0}</p>
+                </div>
 
-              {/* Pending Tasks */}
-              <div>
-                <h3 className="text-lg font-semibold mb-3 text-yellow-400">Pending Tasks ({profileTasks.pending.length})</h3>
-                {profileTasks.pending.length === 0 ? (
-                  <p className="text-gray-400 text-sm">No pending tasks</p>
-                ) : (
-                  <div className="space-y-2">
-                    {profileTasks.pending.map((task) => (
-                      <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-3">
-                        <p className="font-semibold text-sm">{task.title}</p>
-                        <p className="text-xs text-gray-400">Budget: {task.budget} π</p>
+                {/* Tasks Sections */}
+                <div className="space-y-6">
+                  {/* Active Tasks */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3 text-green-400">Active Tasks ({profileTasks.active.length})</h3>
+                    {profileTasks.active.length === 0 ? (
+                      <p className="text-gray-400 text-sm">No active tasks</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {profileTasks.active.map((task) => (
+                          <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-3">
+                            <p className="font-semibold text-sm">{task.title}</p>
+                            <p className="text-xs text-gray-400">Budget: {task.budget} π</p>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
-                )}
-              </div>
 
-              {/* Completed Tasks */}
-              <div>
-                <h3 className="text-lg font-semibold mb-3 text-blue-400">Completed Tasks ({profileTasks.completed.length})</h3>
-                {profileTasks.completed.length === 0 ? (
-                  <p className="text-gray-400 text-sm">No completed tasks</p>
-                ) : (
-                  <div className="space-y-2">
-                    {profileTasks.completed.map((task) => (
-                      <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-3">
-                        <p className="font-semibold text-sm">{task.title}</p>
-                        <p className="text-xs text-gray-400">Budget: {task.budget} π</p>
+                  {/* Pending Tasks */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3 text-yellow-400">Pending Tasks ({profileTasks.pending.length})</h3>
+                    {profileTasks.pending.length === 0 ? (
+                      <p className="text-gray-400 text-sm">No pending tasks</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {profileTasks.pending.map((task) => (
+                          <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-3">
+                            <p className="font-semibold text-sm">{task.title}</p>
+                            <p className="text-xs text-gray-400">Budget: {task.budget} π</p>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
+
+                  {/* Completed Tasks */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3 text-blue-400">Completed Tasks ({profileTasks.completed.length})</h3>
+                    {profileTasks.completed.length === 0 ? (
+                      <p className="text-gray-400 text-sm">No completed tasks</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {profileTasks.completed.map((task) => (
+                          <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-3">
+                            <p className="font-semibold text-sm">{task.title}</p>
+                            <p className="text-xs text-gray-400">Budget: {task.budget} π</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -625,32 +640,6 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* DEBUG PANEL — unchanged */}
-      <div className="mt-6 w-full max-w-3xl bg-black/60 text-green-300 p-4 rounded-xl text-xs break-all border border-green-600">
-        <h3 className="font-bold text-green-400 mb-2">DEBUG PANEL</h3>
-
-        <p>
-          <b>Supabase Session:</b>
-        </p>
-        <pre>{JSON.stringify(sessionDebug, null, 2)}</pre>
-
-        <p>
-          <b>Pi User:</b>
-        </p>
-        <pre>{JSON.stringify(piDebug, null, 2)}</pre>
-
-        <p>
-          <b>Login API Response:</b>
-        </p>
-        <pre>{JSON.stringify(apiDebug, null, 2)}</pre>
-
-        <p>
-          <b>Loaded Profile:</b>
-        </p>
-        {user && (
-          <pre>{JSON.stringify(user, null, 2)}</pre>
-        )}
-      </div>
     </div>
   );
 }
