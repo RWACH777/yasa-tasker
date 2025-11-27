@@ -1,6 +1,10 @@
 -- SUPABASE MIGRATIONS
 -- Run these SQL commands in your Supabase SQL Editor
 
+-- 0. Add freelancer_username column to profiles table
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS freelancer_username TEXT;
+
 -- 1. Fix tasks table - add UUID generation for id column
 ALTER TABLE tasks
   ALTER COLUMN id SET DEFAULT gen_random_uuid();

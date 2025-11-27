@@ -40,7 +40,6 @@ export default function DashboardPage() {
   const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
 
-  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [freelancerUsername, setFreelancerUsername] = useState("");
 
   // New state for features
@@ -57,10 +56,13 @@ export default function DashboardPage() {
       .eq("id", authUserId)
       .single();
 
-    if (!error) setUser(data);
+    if (!error) {
+      setUser(data);
+      setLoading(false);
+    }
   };
 
-  // 🔥 FIXED — prevents double login & ensures correct session flow
+  // 🔥 FIXED — prevents double login & ensures correct session flow + session persistence on refresh
   useEffect(() => {
     const init = async () => {
       setLoading(true);
@@ -70,7 +72,6 @@ export default function DashboardPage() {
 
       if (data.session?.user) {
         await loadProfile(data.session.user.id);
-        setLoading(false);
         return;
       }
 
@@ -139,8 +140,6 @@ export default function DashboardPage() {
       // 6️⃣ Wait a moment for session to persist, then load profile
       await new Promise((resolve) => setTimeout(resolve, 500));
       await loadProfile(json.user.id);
-
-      setLoading(false);
     };
 
     init();
@@ -353,7 +352,7 @@ export default function DashboardPage() {
           💬 Messages
         </a>
       </div>
-      <div 
+      <div
         onClick={() => {
           if (user?.id) {
             loadProfileTasks();
@@ -399,107 +398,92 @@ export default function DashboardPage() {
               </button>
             </div>
 
-            {/* Login with Pi Section */}
-            {!showLoginPrompt ? (
-              <div className="flex flex-col items-center mb-6 pb-6 border-b border-white/10">
-                <p className="text-sm text-gray-300 mb-3">Login with Pi to view profile</p>
-                <button
-                  onClick={() => setShowLoginPrompt(true)}
-                  className="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg transition text-sm font-semibold"
-                >
-                  Login with Pi
-                </button>
+            {/* Avatar Section */}
+            <div className="flex flex-col items-center mb-6 pb-6 border-b border-white/10">
+              <img
+                src={
+                  user.avatar_url ||
+                  `https://api.dicebear.com/8.x/thumbs/svg?seed=${user.username}`
+                }
+                alt="Avatar"
+                className="w-24 h-24 rounded-full border border-white/30 mb-4"
+              />
+              <div className="flex flex-col gap-3 w-full">
+                <div>
+                  <label className="text-xs text-gray-400 block mb-1">Freelancer Username (what others see)</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Your freelancer username"
+                      value={freelancerUsername}
+                      onChange={(e) => setFreelancerUsername(e.target.value)}
+                      className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm"
+                    />
+                    <button
+                      onClick={handleUpdateFreelancerUsername}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm"
+                    >
+                      Update
+                    </button>
+                  </div>
+                </div>
               </div>
-            ) : (
-              <>
-                {/* Avatar Section */}
-                <div className="flex flex-col items-center mb-6 pb-6 border-b border-white/10">
-                  <img
-                    src={
-                      user.avatar_url ||
-                      `https://api.dicebear.com/8.x/thumbs/svg?seed=${user.username}`
-                    }
-                    alt="Avatar"
-                    className="w-24 h-24 rounded-full border border-white/30 mb-4"
-                  />
-                  <div className="flex flex-col gap-3 w-full">
-                    <div>
-                      <label className="text-xs text-gray-400 block mb-1">Freelancer Username (what others see)</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="Your freelancer username"
-                          value={freelancerUsername}
-                          onChange={(e) => setFreelancerUsername(e.target.value)}
-                          className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm"
-                        />
-                        <button
-                          onClick={handleUpdateFreelancerUsername}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm"
-                        >
-                          Update
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-3">⭐️ Rating: {user.rating || 0} • Completed: {user.completed_tasks || 0}</p>
-                </div>
+              <p className="text-xs text-gray-400 mt-3">⭐️ Rating: {user.rating || 0} • Completed: {user.completed_tasks || 0}</p>
+            </div>
 
-                {/* Tasks Sections */}
-                <div className="space-y-6">
-                  {/* Active Tasks */}
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3 text-green-400">Active Tasks ({profileTasks.active.length})</h3>
-                    {profileTasks.active.length === 0 ? (
-                      <p className="text-gray-400 text-sm">No active tasks</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {profileTasks.active.map((task) => (
-                          <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-3">
-                            <p className="font-semibold text-sm">{task.title}</p>
-                            <p className="text-xs text-gray-400">Budget: {task.budget} π</p>
-                          </div>
-                        ))}
+            {/* Tasks Sections */}
+            <div className="space-y-6">
+              {/* Active Tasks */}
+              <div>
+                <h3 className="text-lg font-semibold mb-3 text-green-400">Active Tasks ({profileTasks.active.length})</h3>
+                {profileTasks.active.length === 0 ? (
+                  <p className="text-gray-400 text-sm">No active tasks</p>
+                ) : (
+                  <div className="space-y-2">
+                    {profileTasks.active.map((task) => (
+                      <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-3">
+                        <p className="font-semibold text-sm">{task.title}</p>
+                        <p className="text-xs text-gray-400">Budget: {task.budget} π</p>
                       </div>
-                    )}
+                    ))}
                   </div>
+                )}
+              </div>
 
-                  {/* Pending Tasks */}
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3 text-yellow-400">Pending Tasks ({profileTasks.pending.length})</h3>
-                    {profileTasks.pending.length === 0 ? (
-                      <p className="text-gray-400 text-sm">No pending tasks</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {profileTasks.pending.map((task) => (
-                          <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-3">
-                            <p className="font-semibold text-sm">{task.title}</p>
-                            <p className="text-xs text-gray-400">Budget: {task.budget} π</p>
-                          </div>
-                        ))}
+              {/* Pending Tasks */}
+              <div>
+                <h3 className="text-lg font-semibold mb-3 text-yellow-400">Pending Tasks ({profileTasks.pending.length})</h3>
+                {profileTasks.pending.length === 0 ? (
+                  <p className="text-gray-400 text-sm">No pending tasks</p>
+                ) : (
+                  <div className="space-y-2">
+                    {profileTasks.pending.map((task) => (
+                      <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-3">
+                        <p className="font-semibold text-sm">{task.title}</p>
+                        <p className="text-xs text-gray-400">Budget: {task.budget} π</p>
                       </div>
-                    )}
+                    ))}
                   </div>
+                )}
+              </div>
 
-                  {/* Completed Tasks */}
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3 text-blue-400">Completed Tasks ({profileTasks.completed.length})</h3>
-                    {profileTasks.completed.length === 0 ? (
-                      <p className="text-gray-400 text-sm">No completed tasks</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {profileTasks.completed.map((task) => (
-                          <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-3">
-                            <p className="font-semibold text-sm">{task.title}</p>
-                            <p className="text-xs text-gray-400">Budget: {task.budget} π</p>
-                          </div>
-                        ))}
+              {/* Completed Tasks */}
+              <div>
+                <h3 className="text-lg font-semibold mb-3 text-blue-400">Completed Tasks ({profileTasks.completed.length})</h3>
+                {profileTasks.completed.length === 0 ? (
+                  <p className="text-gray-400 text-sm">No completed tasks</p>
+                ) : (
+                  <div className="space-y-2">
+                    {profileTasks.completed.map((task) => (
+                      <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-3">
+                        <p className="font-semibold text-sm">{task.title}</p>
+                        <p className="text-xs text-gray-400">Budget: {task.budget} π</p>
                       </div>
-                    )}
+                    ))}
                   </div>
-                </div>
-              </>
-            )}
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
