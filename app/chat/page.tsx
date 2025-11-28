@@ -254,11 +254,11 @@ export default function ChatPage() {
         
         // Check if it's a permission denied error
         if (permErr.name === "NotAllowedError" || permErr.name === "PermissionDeniedError") {
-          setError("🎙️ Microphone permission denied.\n📱 Pi Browser: Settings → Permissions → Microphone → Allow\n💻 Desktop: Check browser settings and refresh");
+          setError("🎙️ Microphone permission denied.\n\n📱 Pi Browser:\n1. Try recording again - browser will ask for permission\n2. Click 'Allow' when prompted\n3. If no prompt appears, check if microphone is enabled on your device\n\n💻 Desktop: Check browser settings and refresh");
         } else if (permErr.name === "NotFoundError") {
-          setError("🎙️ No microphone found. Please connect a microphone.");
+          setError("🎙️ No microphone found. Please connect a microphone and refresh the page.");
         } else {
-          setError(`🎙️ Microphone error: ${permErr.message}`);
+          setError(`🎙️ Microphone error: ${permErr.message}\n\nTry refreshing the page and recording again.`);
         }
         return;
       }
