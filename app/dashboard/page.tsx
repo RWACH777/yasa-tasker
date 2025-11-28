@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import Sidebar from "./components/Sidebar";
+import Sidebar from "@/app/components/Sidebar";
 
 interface Task {
   id: string;
