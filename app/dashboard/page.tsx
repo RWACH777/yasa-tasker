@@ -292,8 +292,18 @@ export default function DashboardPage() {
       return;
     }
 
+    // Generate UUID for applications
+    const generateUUID = () => {
+      return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+        const r = (Math.random() * 16) | 0;
+        const v = c === "x" ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      });
+    };
+
     const { error } = await supabase.from("applications").insert([
       {
+        id: generateUUID(),
         task_id: taskId,
         applicant_id: user.id,
         status: "pending",
@@ -410,12 +420,35 @@ export default function DashboardPage() {
               />
               <div className="flex flex-col gap-3 w-full">
                 <div>
+                  <label className="text-xs text-gray-400 block mb-1">Profile Picture URL</label>
+                  <input
+                    type="text"
+                    placeholder="Enter image URL"
+                    className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm mb-2"
+                    onBlur={(e) => {
+                      const url = e.target.value.trim();
+                      if (url) {
+                        supabase
+                          .from("profiles")
+                          .update({ avatar_url: url })
+                          .eq("id", user.id)
+                          .then(({ error }) => {
+                            if (!error) {
+                              setUser({ ...user, avatar_url: url });
+                              setMessage("✅ Profile picture updated!");
+                            }
+                          });
+                      }
+                    }}
+                  />
+                </div>
+                <div>
                   <label className="text-xs text-gray-400 block mb-1">Freelancer Username (what others see)</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
                       placeholder="Your freelancer username"
-                      value={freelancerUsername}
+                      value={freelancerUsername || user.freelancer_username || ""}
                       onChange={(e) => setFreelancerUsername(e.target.value)}
                       className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm"
                     />
@@ -426,6 +459,9 @@ export default function DashboardPage() {
                       Update
                     </button>
                   </div>
+                  {user.freelancer_username && (
+                    <p className="text-xs text-green-400 mt-1">✓ Current: {user.freelancer_username}</p>
+                  )}
                 </div>
               </div>
               <p className="text-xs text-gray-400 mt-3">⭐️ Rating: {user.rating || 0} • Completed: {user.completed_tasks || 0}</p>
@@ -629,6 +665,15 @@ export default function DashboardPage() {
         )}
       </div>
 
+      {/* DEBUG PANEL - Only visible to user */}
+      {user?.id === "local_user_123" && (
+        <div className="fixed bottom-4 right-4 bg-black/90 border border-white/30 rounded-lg p-2 text-xs text-gray-400 max-w-[200px]">
+          <p className="font-semibold text-white mb-1 text-[10px]">Debug</p>
+          <p className="truncate">ID: {user.id.substring(0, 8)}...</p>
+          <p className="truncate">User: {user.username}</p>
+          <p className="truncate">FL: {user.freelancer_username ? "✓" : "✗"}</p>
+        </div>
+      )}
     </div>
   );
 }
