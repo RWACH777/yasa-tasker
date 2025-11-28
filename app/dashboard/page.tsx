@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Sidebar from "@/app/components/Sidebar";
+import ApplicationModal, { ApplicationFormData } from "@/app/components/ApplicationModal";
 
 interface Task {
   id: string;
@@ -65,6 +66,16 @@ export default function DashboardPage() {
 
   // Profile view state
   const [profileView, setProfileView] = useState<"tasker" | "freelancer">("tasker");
+
+  // Application modal state
+  const [showApplicationModal, setShowApplicationModal] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [applicationForm, setApplicationForm] = useState<ApplicationFormData>({
+    name: "",
+    skills: "",
+    experience: "",
+    description: "",
+  });
 
   const handleContactTasker = async (task: Task) => {
     if (!user?.id) {
@@ -318,10 +329,21 @@ export default function DashboardPage() {
     if (apps) setUserApplications(apps);
   };
 
-  // Apply to a task
-  const handleApplyToTask = async (taskId: string) => {
+  // Open application modal
+  const handleApplyToTask = (taskId: string) => {
     if (!user?.id) {
       setMessage("⚠️ You must be logged in to apply.");
+      return;
+    }
+    setSelectedTaskId(taskId);
+    setApplicationForm({ name: "", skills: "", experience: "", description: "" });
+    setShowApplicationModal(true);
+  };
+
+  // Submit application
+  const handleSubmitApplication = async (form: ApplicationFormData) => {
+    if (!user?.id || !selectedTaskId) {
+      setMessage("⚠️ Error: Missing user or task information.");
       return;
     }
 
@@ -337,8 +359,12 @@ export default function DashboardPage() {
     const { error } = await supabase.from("applications").insert([
       {
         id: generateUUID(),
-        task_id: taskId,
+        task_id: selectedTaskId,
         applicant_id: user.id,
+        applicant_name: form.name,
+        applicant_skills: form.skills,
+        applicant_experience: form.experience,
+        applicant_description: form.description,
         status: "pending",
         created_at: new Date().toISOString(),
       },
@@ -347,7 +373,10 @@ export default function DashboardPage() {
     if (error) {
       setMessage("❌ Failed to apply: " + error.message);
     } else {
-      setMessage("✅ Applied to task!");
+      setMessage("✅ Application submitted!");
+      setShowApplicationModal(false);
+      setApplicationForm({ name: "", skills: "", experience: "", description: "" });
+      setSelectedTaskId(null);
       loadProfileTasks();
     }
   };
@@ -567,6 +596,15 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* APPLICATION MODAL */}
+      <ApplicationModal
+        isOpen={showApplicationModal}
+        onClose={() => setShowApplicationModal(false)}
+        onSubmit={handleSubmitApplication}
+        formData={applicationForm}
+        onFormChange={setApplicationForm}
+      />
 
       {/* EVERYTHING BELOW IS IDENTICAL — tasks, forms, filters, etc */}
       {/* (I DID NOT TOUCH YOUR UI) */}
