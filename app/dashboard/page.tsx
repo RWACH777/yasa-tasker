@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import Sidebar from "@/app/components/Sidebar";
 import ApplicationModal, { ApplicationFormData } from "@/app/components/ApplicationModal";
 import ApplicationReviewModal from "@/app/components/ApplicationReviewModal";
+import NotificationsModal from "@/app/components/NotificationsModal";
 
 interface Task {
   id: string;
@@ -83,6 +84,9 @@ export default function DashboardPage() {
   const [reviewTaskId, setReviewTaskId] = useState<string | null>(null);
   const [taskApplications, setTaskApplications] = useState<any[]>([]);
   const [reviewLoading, setReviewLoading] = useState(false);
+
+  // Notifications state
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
 
   const handleContactTasker = async (task: Task) => {
     if (!user?.id) {
@@ -492,7 +496,11 @@ export default function DashboardPage() {
   // ⭐️ UI WITH SIDEBAR
   return (
     <div className="min-h-screen bg-[#000222] text-white flex flex-col items-center px-4 py-10">
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onNotificationsClick={() => setShowNotificationsModal(true)}
+      />
       
       {/* Navigation Bar */}
       <div className="w-full max-w-3xl mb-4 flex justify-between items-center">
@@ -703,6 +711,16 @@ export default function DashboardPage() {
         onApprove={handleApproveApplication}
         onDeny={handleDenyApplication}
         loading={reviewLoading}
+      />
+
+      {/* NOTIFICATIONS MODAL */}
+      <NotificationsModal
+        isOpen={showNotificationsModal}
+        onClose={() => setShowNotificationsModal(false)}
+        userId={user?.id || ""}
+        userRole={profileView}
+        onApprove={handleApproveApplication}
+        onOpenChat={(applicantId) => router.push(`/chat?user=${applicantId}`)}
       />
 
       {/* EVERYTHING BELOW IS IDENTICAL — tasks, forms, filters, etc */}
