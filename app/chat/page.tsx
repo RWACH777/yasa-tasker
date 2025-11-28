@@ -233,7 +233,33 @@ export default function ChatPage() {
 
     try {
       setIsRecording(true);
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setError(null);
+      
+      // Request microphone permission with better error handling
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          }
+        });
+      } catch (permErr: any) {
+        console.error("Permission error:", permErr);
+        setIsRecording(false);
+        
+        // Check if it's a permission denied error
+        if (permErr.name === "NotAllowedError" || permErr.name === "PermissionDeniedError") {
+          setError("🎙️ Microphone permission denied. Please enable microphone access in your browser settings.");
+        } else if (permErr.name === "NotFoundError") {
+          setError("🎙️ No microphone found. Please connect a microphone.");
+        } else {
+          setError(`🎙️ Microphone error: ${permErr.message}`);
+        }
+        return;
+      }
+
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       const chunks: Blob[] = [];
@@ -244,22 +270,25 @@ export default function ChatPage() {
           const blob = new Blob(chunks, { type: "audio/webm" });
           const fileName = `${user.id}/${otherUserId}/voice_${Date.now()}.webm`;
 
+          console.log("📤 Uploading voice message:", fileName);
           const { error: uploadError } = await supabase.storage
             .from("message-files")
             .upload(fileName, blob);
 
           if (uploadError) {
             console.error("Voice upload error:", uploadError);
-            setError(`Failed to upload voice message: ${uploadError.message}`);
+            setError(`❌ Failed to upload voice message: ${uploadError.message}`);
           } else {
             const { data } = supabase.storage
               .from("message-files")
               .getPublicUrl(fileName);
+            console.log("✅ Voice message uploaded:", data.publicUrl);
             await sendMessage(undefined, data.publicUrl);
+            setError(null);
           }
         } catch (err) {
           console.error("Voice processing error:", err);
-          setError(`Error processing voice message: ${(err as any).message}`);
+          setError(`❌ Error processing voice message: ${(err as any).message}`);
         } finally {
           stream.getTracks().forEach((track) => track.stop());
           setIsRecording(false);
@@ -267,15 +296,18 @@ export default function ChatPage() {
       };
 
       mediaRecorder.start();
+      setError("🎙️ Recording... Click again to stop");
+      
       // Auto-stop after 60 seconds
       setTimeout(() => {
         if (mediaRecorder.state === "recording") {
           mediaRecorder.stop();
+          setError("✅ Recording stopped (60 second limit reached)");
         }
       }, 60000);
     } catch (err) {
       console.error("Voice recording error:", err);
-      setError(`Microphone access denied: ${(err as any).message}`);
+      setError(`❌ Microphone error: ${(err as any).message}`);
       setIsRecording(false);
     }
   };
