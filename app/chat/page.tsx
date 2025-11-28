@@ -126,13 +126,20 @@ export default function ChatPage() {
     if (fileUrl) messageData.file_url = fileUrl;
     if (voiceUrl) messageData.voice_url = voiceUrl;
 
-    const { error } = await supabase.from("messages").insert([messageData]);
+    console.log("📤 Sending message:", messageData);
+    
+    const { error, data } = await supabase.from("messages").insert([messageData]).select();
 
-    if (!error) {
-      setNewMessage("");
-      // Subscription will handle adding message to state
+    if (error) {
+      console.error("❌ Error sending message:", error);
     } else {
-      console.error("Error sending message:", error);
+      console.log("✅ Message sent successfully:", data);
+      setNewMessage("");
+      // Manually add to state to ensure it appears
+      if (data && data[0]) {
+        setMessages((prev) => [...prev, data[0]]);
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+      }
     }
   };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -49,6 +49,15 @@ export default function DashboardPage() {
   const [showPictureModal, setShowPictureModal] = useState(false);
   const [profileTasks, setProfileTasks] = useState({ active: [], pending: [], completed: [] });
   const [userApplications, setUserApplications] = useState<any[]>([]);
+  
+  // Picture modal state
+  const [pictureToEdit, setPictureToEdit] = useState<string | null>(null);
+  const [cropMode, setCropMode] = useState(false);
+  const [cropScale, setCropScale] = useState(1);
+  const [cropX, setCropX] = useState(0);
+  const [cropY, setCropY] = useState(0);
+  const pictureInputRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const handleContactTasker = async (task: Task) => {
     if (!user?.id) {
@@ -680,71 +689,189 @@ export default function DashboardPage() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="w-full max-w-md bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 flex flex-col items-center">
             <button
-              onClick={() => setShowPictureModal(false)}
+              onClick={() => {
+                setShowPictureModal(false);
+                setPictureToEdit(null);
+                setCropMode(false);
+              }}
               className="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl"
             >
               ✕
             </button>
-            <img
-              src={
-                user.avatar_url ||
-                `https://api.dicebear.com/8.x/thumbs/svg?seed=${user.username}`
-              }
-              alt="Profile Picture"
-              className="w-48 h-48 rounded-full border-2 border-white/30 mb-6 object-cover"
-            />
-            <label className="w-full">
-              <button
-                type="button"
-                className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm font-semibold"
-              >
-                Change Profile Picture
-              </button>
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file || !user?.id) return;
 
-                  try {
-                    setMessage("⏳ Uploading profile picture...");
-                    const fileName = `${user.id}/avatar_${Date.now()}.${file.name.split('.').pop()}`;
-                    const { error: uploadError } = await supabase.storage
-                      .from("message-files")
-                      .upload(fileName, file);
-
-                    if (uploadError) {
-                      setMessage("❌ Upload failed: " + uploadError.message);
-                      return;
-                    }
-
-                    const { data } = supabase.storage
-                      .from("message-files")
-                      .getPublicUrl(fileName);
-
-                    const { error: updateError } = await supabase
-                      .from("profiles")
-                      .update({ avatar_url: data.publicUrl })
-                      .eq("id", user.id);
-
-                    if (updateError) {
-                      setMessage("❌ Failed to update profile: " + updateError.message);
-                    } else {
-                      setUser({ ...user, avatar_url: data.publicUrl });
-                      setMessage("✅ Profile picture updated!");
-                      setShowPictureModal(false);
-                    }
-                  } catch (err) {
-                    setMessage("❌ Error: " + (err as any).message);
+            {!cropMode ? (
+              <>
+                <img
+                  src={
+                    pictureToEdit ||
+                    user.avatar_url ||
+                    `https://api.dicebear.com/8.x/thumbs/svg?seed=${user.username}`
                   }
-                }}
-              />
-            </label>
+                  alt="Profile Picture"
+                  className="w-48 h-48 rounded-full border-2 border-white/30 mb-6 object-cover"
+                />
+                <button
+                  onClick={() => pictureInputRef.current?.click()}
+                  className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm font-semibold mb-3"
+                >
+                  Change Profile Picture
+                </button>
+                <input
+                  ref={pictureInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                      setPictureToEdit(event.target?.result as string);
+                      setCropMode(true);
+                    };
+                    reader.readAsDataURL(file);
+                  }}
+                />
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold mb-4">Crop Your Picture</h3>
+                <div className="relative w-48 h-48 bg-black/20 rounded-full overflow-hidden mb-4 border-2 border-white/30">
+                  <img
+                    src={pictureToEdit || ""}
+                    alt="Crop preview"
+                    className="w-full h-full object-cover"
+                    style={{
+                      transform: `scale(${cropScale}) translate(${cropX}px, ${cropY}px)`,
+                    }}
+                  />
+                </div>
+
+                <div className="w-full space-y-3 mb-4">
+                  <div>
+                    <label className="text-xs text-gray-400">Zoom</label>
+                    <input
+                      type="range"
+                      min="1"
+                      max="3"
+                      step="0.1"
+                      value={cropScale}
+                      onChange={(e) => setCropScale(parseFloat(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-400">X Position</label>
+                    <input
+                      type="range"
+                      min="-100"
+                      max="100"
+                      value={cropX}
+                      onChange={(e) => setCropX(parseInt(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-400">Y Position</label>
+                    <input
+                      type="range"
+                      min="-100"
+                      max="100"
+                      value={cropY}
+                      onChange={(e) => setCropY(parseInt(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 w-full">
+                  <button
+                    onClick={() => {
+                      setCropMode(false);
+                      setPictureToEdit(null);
+                      setCropScale(1);
+                      setCropX(0);
+                      setCropY(0);
+                    }}
+                    className="flex-1 px-3 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition text-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!pictureToEdit || !user?.id) return;
+                      try {
+                        setMessage("⏳ Processing image...");
+                        const canvas = canvasRef.current;
+                        if (!canvas) return;
+
+                        const img = new Image();
+                        img.onload = async () => {
+                          const ctx = canvas.getContext("2d");
+                          if (!ctx) return;
+
+                          canvas.width = 400;
+                          canvas.height = 400;
+
+                          ctx.translate(canvas.width / 2, canvas.height / 2);
+                          ctx.scale(cropScale, cropScale);
+                          ctx.translate(-canvas.width / 2 + cropX, -canvas.height / 2 + cropY);
+                          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                          canvas.toBlob(async (blob) => {
+                            if (!blob) return;
+                            try {
+                              const fileName = `${user.id}/avatar_${Date.now()}.png`;
+                              const { error: uploadError } = await supabase.storage
+                                .from("message-files")
+                                .upload(fileName, blob);
+
+                              if (uploadError) {
+                                setMessage("❌ Upload failed: " + uploadError.message);
+                                return;
+                              }
+
+                              const { data } = supabase.storage
+                                .from("message-files")
+                                .getPublicUrl(fileName);
+
+                              const { error: updateError } = await supabase
+                                .from("profiles")
+                                .update({ avatar_url: data.publicUrl })
+                                .eq("id", user.id);
+
+                              if (updateError) {
+                                setMessage("❌ Failed to update profile: " + updateError.message);
+                              } else {
+                                setUser({ ...user, avatar_url: data.publicUrl });
+                                setMessage("✅ Profile picture updated!");
+                                setShowPictureModal(false);
+                                setPictureToEdit(null);
+                                setCropMode(false);
+                              }
+                            } catch (err) {
+                              setMessage("❌ Error: " + (err as any).message);
+                            }
+                          });
+                        };
+                        img.src = pictureToEdit;
+                      } catch (err) {
+                        setMessage("❌ Error: " + (err as any).message);
+                      }
+                    }}
+                    className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm font-semibold"
+                  >
+                    Approve
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
+
+      {/* Hidden canvas for image cropping */}
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 }
