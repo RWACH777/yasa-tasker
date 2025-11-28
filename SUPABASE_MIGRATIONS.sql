@@ -172,17 +172,20 @@ CREATE POLICY "Users can read all profiles" ON profiles
 
 -- 17. Storage RLS policies for message-files bucket
 -- Run these in SQL Editor after creating the bucket:
+DROP POLICY IF EXISTS "Users can upload message files" ON storage.objects;
 CREATE POLICY "Users can upload message files" ON storage.objects
   FOR INSERT WITH CHECK (
     bucket_id = 'message-files' AND
     auth.uid()::text = (string_to_array(name, '/'))[1]
   );
 
+DROP POLICY IF EXISTS "Users can read message files" ON storage.objects;
 CREATE POLICY "Users can read message files" ON storage.objects
   FOR SELECT USING (
     bucket_id = 'message-files'
   );
 
+DROP POLICY IF EXISTS "Users can delete own message files" ON storage.objects;
 CREATE POLICY "Users can delete own message files" ON storage.objects
   FOR DELETE USING (
     bucket_id = 'message-files' AND
