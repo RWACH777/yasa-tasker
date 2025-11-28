@@ -5,6 +5,13 @@
 ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS freelancer_username TEXT;
 
+-- 0.5. Add file_url and voice_url columns to messages table
+ALTER TABLE messages
+  ADD COLUMN IF NOT EXISTS file_url TEXT;
+
+ALTER TABLE messages
+  ADD COLUMN IF NOT EXISTS voice_url TEXT;
+
 -- 1. Fix tasks table - add UUID generation for id column
 ALTER TABLE tasks
   ALTER COLUMN id SET DEFAULT gen_random_uuid();
@@ -127,3 +134,29 @@ CREATE POLICY "Rater can update own ratings" ON ratings
 DROP POLICY IF EXISTS "Rater can delete own ratings" ON ratings;
 CREATE POLICY "Rater can delete own ratings" ON ratings
   FOR DELETE USING (auth.uid() = rater_id);
+
+-- 15. Create storage bucket for message files (run in Supabase Dashboard)
+-- Note: This must be created via Supabase Dashboard:
+-- 1. Go to Storage > Buckets
+-- 2. Create a new bucket named "message-files"
+-- 3. Make it PUBLIC
+-- 4. Add the RLS policies below
+
+-- 16. Storage RLS policies for message-files bucket
+-- Run these in SQL Editor after creating the bucket:
+-- CREATE POLICY "Users can upload message files" ON storage.objects
+--   FOR INSERT WITH CHECK (
+--     bucket_id = 'message-files' AND
+--     auth.uid()::text = (string_to_array(name, '/'))[1]
+--   );
+
+-- CREATE POLICY "Users can read message files" ON storage.objects
+--   FOR SELECT USING (
+--     bucket_id = 'message-files'
+--   );
+
+-- CREATE POLICY "Users can delete own message files" ON storage.objects
+--   FOR DELETE USING (
+--     bucket_id = 'message-files' AND
+--     auth.uid()::text = (string_to_array(name, '/'))[1]
+--   );

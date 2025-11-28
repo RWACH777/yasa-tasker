@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 
@@ -9,6 +10,8 @@ interface Message {
   sender_id: string;
   receiver_id: string;
   content: string;
+  file_url?: string;
+  voice_url?: string;
   created_at: string;
 }
 
@@ -20,12 +23,16 @@ interface Conversation {
 }
 
 export default function MessagesPage() {
+  const searchParams = useSearchParams();
+  const userParam = searchParams.get("user");
+  
   const [user, setUser] = useState<any>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(userParam);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
 
   // Load current user
   useEffect(() => {
@@ -128,20 +135,79 @@ export default function MessagesPage() {
     };
   }, [user?.id, selectedUserId]);
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !user?.id || !selectedUserId) return;
+  const sendMessage = async (fileUrl?: string, voiceUrl?: string) => {
+    if ((!newMessage.trim() && !fileUrl && !voiceUrl) || !user?.id || !selectedUserId) return;
 
-    const { error } = await supabase.from("messages").insert([
-      {
-        sender_id: user.id,
-        receiver_id: selectedUserId,
-        content: newMessage,
-        created_at: new Date().toISOString(),
-      },
-    ]);
+    const messageData: any = {
+      sender_id: user.id,
+      receiver_id: selectedUserId,
+      content: newMessage || (fileUrl ? "[File shared]" : "[Voice message]"),
+      created_at: new Date().toISOString(),
+    };
+
+    if (fileUrl) messageData.file_url = fileUrl;
+    if (voiceUrl) messageData.voice_url = voiceUrl;
+
+    const { error } = await supabase.from("messages").insert([messageData]);
 
     if (!error) {
       setNewMessage("");
+    }
+  };
+
+  const handleFileUpload = async (files: FileList | null) => {
+    if (!files || !user?.id || !selectedUserId) return;
+
+    setUploading(true);
+    for (const file of Array.from(files)) {
+      try {
+        const fileName = `${user.id}/${selectedUserId}/${Date.now()}_${file.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from("message-files")
+          .upload(fileName, file);
+
+        if (!uploadError) {
+          const { data } = supabase.storage
+            .from("message-files")
+            .getPublicUrl(fileName);
+          await sendMessage(data.publicUrl);
+        }
+      } catch (err) {
+        console.error("File upload error:", err);
+      }
+    }
+    setUploading(false);
+  };
+
+  const handleVoiceRecord = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+
+      mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        const fileName = `${user.id}/${selectedUserId}/voice_${Date.now()}.webm`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("message-files")
+          .upload(fileName, blob);
+
+        if (!uploadError) {
+          const { data } = supabase.storage
+            .from("message-files")
+            .getPublicUrl(fileName);
+          await sendMessage(undefined, data.publicUrl);
+        }
+
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      mediaRecorder.start();
+      setTimeout(() => mediaRecorder.stop(), 5000); // 5 second recording limit
+    } catch (err) {
+      console.error("Voice recording error:", err);
     }
   };
 
@@ -229,6 +295,23 @@ export default function MessagesPage() {
                         }`}
                       >
                         <p className="text-sm">{msg.content}</p>
+                        {msg.file_url && (
+                          <a
+                            href={msg.file_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-300 hover:text-blue-200 text-xs mt-2 block break-all"
+                          >
+                            📎 Download File
+                          </a>
+                        )}
+                        {msg.voice_url && (
+                          <audio
+                            controls
+                            className="w-full mt-2 h-6"
+                            src={msg.voice_url}
+                          />
+                        )}
                         <p className="text-xs text-gray-400 mt-1">
                           {new Date(msg.created_at).toLocaleTimeString()}
                         </p>
@@ -238,25 +321,28 @@ export default function MessagesPage() {
                 )}
               </div>
 
-              {/* Input with File Upload */}
+              {/* Input with File Upload & Voice */}
               <div className="flex gap-2">
-                <label className="px-3 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition cursor-pointer text-sm flex items-center gap-2">
+                <label className="px-3 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition cursor-pointer text-sm flex items-center gap-2 disabled:opacity-50" title="Upload files">
                   📎
                   <input
                     type="file"
                     multiple
                     accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
                     className="hidden"
-                    onChange={(e) => {
-                      const files = e.target.files;
-                      if (files) {
-                        const fileNames = Array.from(files).map(f => f.name).join(", ");
-                        setNewMessage(prev => prev + (prev ? " " : "") + `[Files: ${fileNames}]`);
-                      }
-                    }}
+                    disabled={uploading}
+                    onChange={(e) => handleFileUpload(e.target.files)}
                   />
                   Attach
                 </label>
+                <button
+                  onClick={handleVoiceRecord}
+                  disabled={uploading}
+                  className="px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm disabled:opacity-50"
+                  title="Record voice message (5 sec max)"
+                >
+                  🎤
+                </button>
                 <input
                   type="text"
                   placeholder="Type a message..."
@@ -268,8 +354,9 @@ export default function MessagesPage() {
                   className="flex-1 bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm"
                 />
                 <button
-                  onClick={sendMessage}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition"
+                  onClick={() => sendMessage()}
+                  disabled={uploading}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-50"
                 >
                   Send
                 </button>

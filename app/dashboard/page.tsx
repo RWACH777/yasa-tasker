@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
 interface Task {
@@ -26,6 +27,7 @@ interface Profile {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [user, setUser] = useState<Profile | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [form, setForm] = useState({
@@ -46,6 +48,20 @@ export default function DashboardPage() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileTasks, setProfileTasks] = useState({ active: [], pending: [], completed: [] });
   const [userApplications, setUserApplications] = useState<any[]>([]);
+
+  const handleContactTasker = async (task: Task) => {
+    if (!user?.id) {
+      setMessage("⚠️ You must be logged in to contact a tasker.");
+      return;
+    }
+
+    if (!task.poster_id) {
+      setMessage("⚠️ Unable to contact tasker. Please try again.");
+      return;
+    }
+
+    router.push("/messages?user=" + task.poster_id);
+  };
 
   // 🔥 FIXED: Load profile
   const loadProfile = async (authUserId: string | null) => {
@@ -651,12 +667,20 @@ export default function DashboardPage() {
                       </button>
                     </>
                   ) : (
-                    <button
-                      onClick={() => handleApplyToTask(task.id)}
-                      className="px-3 py-1 bg-green-600/80 rounded-md text-sm hover:bg-green-700 transition"
-                    >
-                      Apply
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleApplyToTask(task.id)}
+                        className="px-3 py-1 bg-green-600/80 rounded-md text-sm hover:bg-green-700 transition"
+                      >
+                        Apply
+                      </button>
+                      <button
+                        onClick={() => handleContactTasker(task)}
+                        className="px-3 py-1 bg-purple-600/80 rounded-md text-sm hover:bg-purple-700 transition"
+                      >
+                        💬 Contact
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
