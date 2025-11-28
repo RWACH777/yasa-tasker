@@ -433,6 +433,8 @@ export default function DashboardPage() {
         setTaskApplications(data || []);
       }
       loadProfileTasks();
+      // Auto-open chatroom
+      router.push(`/chatroom/${applicantId}?freelancer=true`);
     }
     setReviewLoading(false);
   };
