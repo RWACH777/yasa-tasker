@@ -9,7 +9,7 @@ interface Message {
   id: string;
   sender_id: string;
   receiver_id: string;
-  content: string;
+  text: string;
   file_url?: string;
   voice_url?: string;
   created_at: string;
@@ -18,8 +18,10 @@ interface Message {
 interface Conversation {
   userId: string;
   username: string;
+  avatar_url?: string;
   lastMessage: string;
   lastMessageTime: string;
+  isOnline: boolean;
 }
 
 export default function MessagesPage() {
@@ -71,15 +73,17 @@ export default function MessagesPage() {
         if (!uniqueUsers.has(otherUserId)) {
           const { data: profile } = await supabase
             .from("profiles")
-            .select("username")
+            .select("username, avatar_url")
             .eq("id", otherUserId)
             .single();
 
           uniqueUsers.set(otherUserId, {
             userId: otherUserId,
             username: profile?.username || "Unknown",
-            lastMessage: msg.content,
+            avatar_url: profile?.avatar_url,
+            lastMessage: msg.text || (msg.file_url ? "[File shared]" : "[Voice message]"),
             lastMessageTime: msg.created_at,
+            isOnline: false, // TODO: Implement real-time online status
           });
         }
       }
@@ -148,14 +152,39 @@ export default function MessagesPage() {
               {conversations.map((conv) => (
                 <div
                   key={conv.userId}
-                  className="flex items-center justify-between bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition"
+                  className="flex items-center justify-between bg-white/5 border border-white/10 rounded-lg p-3 hover:bg-white/10 transition"
                 >
                   <button
                     onClick={() => router.push("/chat?user=" + conv.userId)}
-                    className="flex-1 text-left"
+                    className="flex-1 text-left flex items-center gap-3"
                   >
-                    <p className="font-semibold text-sm">{conv.username}</p>
-                    <p className="text-xs text-gray-400 truncate">{conv.lastMessage}</p>
+                    {/* Profile Picture with Online Status */}
+                    <div className="relative">
+                      <img
+                        src={
+                          conv.avatar_url ||
+                          `https://api.dicebear.com/8.x/thumbs/svg?seed=${conv.username}`
+                        }
+                        alt={conv.username}
+                        className="w-12 h-12 rounded-full border border-white/30 object-cover"
+                      />
+                      {/* Online Status Indicator */}
+                      <div
+                        className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#000222] ${
+                          conv.isOnline ? "bg-blue-500" : "bg-gray-500"
+                        }`}
+                        title={conv.isOnline ? "Online" : "Offline"}
+                      />
+                    </div>
+                    
+                    {/* Message Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm">{conv.username}</p>
+                      <p className="text-xs text-gray-400 truncate">{conv.lastMessage}</p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(conv.lastMessageTime).toLocaleDateString()}
+                      </p>
+                    </div>
                   </button>
                   <button
                     onClick={() => deleteConversation(conv.userId)}
