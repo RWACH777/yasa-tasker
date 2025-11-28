@@ -5,7 +5,10 @@
 ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS freelancer_username TEXT;
 
--- 0.5. Add file_url and voice_url columns to messages table
+-- 0.5. Add content, file_url and voice_url columns to messages table
+ALTER TABLE messages
+  ADD COLUMN IF NOT EXISTS content TEXT;
+
 ALTER TABLE messages
   ADD COLUMN IF NOT EXISTS file_url TEXT;
 
