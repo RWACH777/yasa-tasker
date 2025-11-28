@@ -126,16 +126,11 @@ export default function ChatPage() {
     if (fileUrl) messageData.file_url = fileUrl;
     if (voiceUrl) messageData.voice_url = voiceUrl;
 
-    const { error, data } = await supabase.from("messages").insert([messageData]).select();
+    const { error } = await supabase.from("messages").insert([messageData]);
 
     if (!error) {
       setNewMessage("");
-      // Add message to local state immediately
-      if (data && data[0]) {
-        setMessages([...messages, data[0]]);
-        // Scroll to bottom
-        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-      }
+      // Subscription will handle adding message to state
     } else {
       console.error("Error sending message:", error);
     }
@@ -422,9 +417,10 @@ export default function ChatPage() {
                 <path d="M16.6915026,12.4744748 L3.50612381,13.2599618 C3.19218622,13.2599618 3.03521743,13.4170592 3.03521743,13.5741566 L1.15159189,20.0151496 C0.8376543,20.8006365 0.99,21.89 1.77946707,22.52 C2.41,22.99 3.50612381,23.1 4.13399899,22.9429026 L21.714504,14.0454487 C22.6563168,13.5741566 23.1272231,12.6315722 22.9702544,11.6889879 L4.13399899,1.16346272 C3.34915502,0.9 2.40734225,1.00636533 1.77946707,1.4776575 C0.994623095,2.10604706 0.837654326,3.0486314 1.15159189,3.99701575 L3.03521743,10.4380088 C3.03521743,10.5951061 3.34915502,10.7522035 3.50612381,10.7522035 L16.6915026,11.5376905 C16.6915026,11.5376905 17.1624089,11.5376905 17.1624089,12.0089827 C17.1624089,12.4744748 16.6915026,12.4744748 16.6915026,12.4744748 Z"/>
               </svg>
             ) : (
-              // Microphone icon
+              // Telegram microphone icon
               <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 1C6.48 1 2 5.48 2 11v8c0 1.1.9 2 2 2h2v-9H4v-1c0-4.42 3.58-8 8-8s8 3.58 8 8v1h-2v9h2c1.1 0 2-.9 2-2v-8c0-5.52-4.48-10-10-10zm0 18c-2.21 0-4-1.79-4-4h8c0 2.21-1.79 4-4 4z"/>
+                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                <path d="M17 16.91c-1.48 1.46-3.51 2.36-5.77 2.36-2.26 0-4.29-.9-5.77-2.36l-1.1 1.1c1.86 1.86 4.41 3 7.07 3s5.21-1.14 7.07-3l-1.1-1.1zM12 19c2.21 0 4-1.79 4-4h-8c0 2.21 1.79 4 4 4z"/>
               </svg>
             )}
           </button>
