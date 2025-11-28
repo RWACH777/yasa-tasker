@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import Sidebar from "./components/Sidebar";
 
 interface Task {
   id: string;
@@ -58,6 +59,9 @@ export default function DashboardPage() {
   const [cropY, setCropY] = useState(0);
   const pictureInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleContactTasker = async (task: Task) => {
     if (!user?.id) {
@@ -376,17 +380,19 @@ export default function DashboardPage() {
     "other",
   ];
 
-  // ⭐️ UI EXACTLY THE SAME — only avatar fixed below
+  // ⭐️ UI WITH SIDEBAR
   return (
     <div className="min-h-screen bg-[#000222] text-white flex flex-col items-center px-4 py-10">
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      
       {/* Navigation Bar */}
-      <div className="w-full max-w-3xl mb-4 flex justify-end gap-3">
-        <a
-          href="/messages"
-          className="px-4 py-2 bg-purple-600/80 hover:bg-purple-700 rounded-lg transition text-sm"
+      <div className="w-full max-w-3xl mb-4 flex justify-between items-center">
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="px-4 py-2 bg-gray-600/80 hover:bg-gray-700 rounded-lg transition text-sm"
         >
-          💬 Messages
-        </a>
+          ☰ Menu
+        </button>
       </div>
       <div
         onClick={() => {
