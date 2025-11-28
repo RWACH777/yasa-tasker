@@ -32,6 +32,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
 
         <div className="mt-2">
+          <h3 className="text-lg font-semibold mb-3">🔔 Notifications</h3>
+          <a
+            href="/notifications"
+            onClick={onClose}
+            className="w-full px-4 py-2 bg-orange-600/80 hover:bg-orange-700 rounded-lg transition text-sm block text-center"
+          >
+            View All Notifications
+          </a>
+        </div>
+
+        <div className="mt-2">
           <h3 className="text-lg font-semibold mb-3">📞 Support</h3>
           <a
             href="mailto:YasaTasker@gmail.com"
