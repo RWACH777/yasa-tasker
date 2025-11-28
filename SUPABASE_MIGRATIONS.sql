@@ -5,7 +5,13 @@
 ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS freelancer_username TEXT;
 
--- 0.5. Add content, file_url and voice_url columns to messages table
+-- 0.5. Add all missing columns to messages table
+ALTER TABLE messages
+  ADD COLUMN IF NOT EXISTS sender_id UUID;
+
+ALTER TABLE messages
+  ADD COLUMN IF NOT EXISTS receiver_id UUID;
+
 ALTER TABLE messages
   ADD COLUMN IF NOT EXISTS content TEXT;
 
@@ -14,6 +20,9 @@ ALTER TABLE messages
 
 ALTER TABLE messages
   ADD COLUMN IF NOT EXISTS voice_url TEXT;
+
+ALTER TABLE messages
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE;
 
 -- 1. Fix tasks table - add UUID generation for id column
 ALTER TABLE tasks
