@@ -436,7 +436,7 @@ export default function ChatPage() {
                       Delete
                     </button>
                   )}
-                  <p className="text-sm">{msg.text}</p>
+                  <p className="text-sm break-words whitespace-pre-wrap">{msg.text}</p>
                   {msg.file_url && (
                     <button
                       onClick={() => setMediaView({ url: msg.file_url!, type: msg.file_url!.includes('.pdf') ? 'application/pdf' : 'file' })}
@@ -528,7 +528,7 @@ export default function ChatPage() {
 
           {/* Right: Send button (Telegram icon only) */}
           <button
-            onClick={sendMessage}
+            onClick={() => sendMessage()}
             disabled={uploading || !newMessage.trim()}
             className="px-3 py-2 rounded-lg transition flex items-center justify-center h-10 w-10 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             title="Send message"
