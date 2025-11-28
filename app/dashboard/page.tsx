@@ -60,7 +60,7 @@ export default function DashboardPage() {
       return;
     }
 
-    router.push("/messages?user=" + task.poster_id);
+    router.push("/chat?user=" + task.poster_id);
   };
 
   // 🔥 FIXED: Load profile
@@ -426,38 +426,60 @@ export default function DashboardPage() {
 
             {/* Avatar Section */}
             <div className="flex flex-col items-center mb-6 pb-6 border-b border-white/10">
-              <img
-                src={
-                  user.avatar_url ||
-                  `https://api.dicebear.com/8.x/thumbs/svg?seed=${user.username}`
-                }
-                alt="Avatar"
-                className="w-24 h-24 rounded-full border border-white/30 mb-4"
-              />
-              <div className="flex flex-col gap-3 w-full">
-                <div>
-                  <label className="text-xs text-gray-400 block mb-1">Profile Picture URL</label>
-                  <input
-                    type="text"
-                    placeholder="Enter image URL"
-                    className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm mb-2"
-                    onBlur={(e) => {
-                      const url = e.target.value.trim();
-                      if (url) {
-                        supabase
-                          .from("profiles")
-                          .update({ avatar_url: url })
-                          .eq("id", user.id)
-                          .then(({ error }) => {
-                            if (!error) {
-                              setUser({ ...user, avatar_url: url });
-                              setMessage("✅ Profile picture updated!");
-                            }
-                          });
-                      }
-                    }}
-                  />
+              <label className="cursor-pointer group relative">
+                <img
+                  src={
+                    user.avatar_url ||
+                    `https://api.dicebear.com/8.x/thumbs/svg?seed=${user.username}`
+                  }
+                  alt="Avatar"
+                  className="w-24 h-24 rounded-full border border-white/30 mb-4 group-hover:opacity-70 transition"
+                />
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition rounded-full bg-black/50">
+                  <span className="text-white text-xs font-semibold">Click to change</span>
                 </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file || !user?.id) return;
+
+                    try {
+                      setMessage("⏳ Uploading profile picture...");
+                      const fileName = `${user.id}/avatar_${Date.now()}.${file.name.split('.').pop()}`;
+                      const { error: uploadError } = await supabase.storage
+                        .from("message-files")
+                        .upload(fileName, file);
+
+                      if (uploadError) {
+                        setMessage("❌ Upload failed: " + uploadError.message);
+                        return;
+                      }
+
+                      const { data } = supabase.storage
+                        .from("message-files")
+                        .getPublicUrl(fileName);
+
+                      const { error: updateError } = await supabase
+                        .from("profiles")
+                        .update({ avatar_url: data.publicUrl })
+                        .eq("id", user.id);
+
+                      if (updateError) {
+                        setMessage("❌ Failed to update profile: " + updateError.message);
+                      } else {
+                        setUser({ ...user, avatar_url: data.publicUrl });
+                        setMessage("✅ Profile picture updated!");
+                      }
+                    } catch (err) {
+                      setMessage("❌ Error: " + (err as any).message);
+                    }
+                  }}
+                />
+              </label>
+              <div className="flex flex-col gap-3 w-full">
                 <div>
                   <label className="text-xs text-gray-400 block mb-1">Freelancer Username (what others see)</label>
                   <div className="flex gap-2">

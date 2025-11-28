@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 
@@ -23,16 +23,11 @@ interface Conversation {
 }
 
 export default function MessagesPage() {
-  const searchParams = useSearchParams();
-  const userParam = searchParams.get("user");
+  const router = useRouter();
   
   const [user, setUser] = useState<any>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(userParam);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
 
   // Load current user
   useEffect(() => {
@@ -95,121 +90,21 @@ export default function MessagesPage() {
     loadConversations();
   }, [user?.id]);
 
-  // Load messages for selected user
-  useEffect(() => {
-    if (!user?.id || !selectedUserId) return;
+  const deleteConversation = async (otherUserId: string) => {
+    if (!confirm("Delete this conversation? This cannot be undone.")) return;
 
-    const loadMessages = async () => {
-      const { data } = await supabase
-        .from("messages")
-        .select("*")
-        .or(
-          `and(sender_id.eq.${user.id},receiver_id.eq.${selectedUserId}),and(sender_id.eq.${selectedUserId},receiver_id.eq.${user.id})`
-        )
-        .order("created_at", { ascending: true });
-
-      setMessages(data || []);
-    };
-
-    loadMessages();
-
-    // Subscribe to new messages
-    const subscription = supabase
-      .channel(`messages:${user.id}:${selectedUserId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `or(and(sender_id=eq.${user.id},receiver_id=eq.${selectedUserId}),and(sender_id=eq.${selectedUserId},receiver_id=eq.${user.id}))`,
-        },
-        (payload) => {
-          setMessages((prev) => [...prev, payload.new as Message]);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [user?.id, selectedUserId]);
-
-  const sendMessage = async (fileUrl?: string, voiceUrl?: string) => {
-    if ((!newMessage.trim() && !fileUrl && !voiceUrl) || !user?.id || !selectedUserId) return;
-
-    const messageData: any = {
-      sender_id: user.id,
-      receiver_id: selectedUserId,
-      content: newMessage || (fileUrl ? "[File shared]" : "[Voice message]"),
-      created_at: new Date().toISOString(),
-    };
-
-    if (fileUrl) messageData.file_url = fileUrl;
-    if (voiceUrl) messageData.voice_url = voiceUrl;
-
-    const { error } = await supabase.from("messages").insert([messageData]);
+    const { error } = await supabase
+      .from("messages")
+      .delete()
+      .or(
+        `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
+      );
 
     if (!error) {
-      setNewMessage("");
+      setConversations(conversations.filter((c) => c.userId !== otherUserId));
     }
   };
 
-  const handleFileUpload = async (files: FileList | null) => {
-    if (!files || !user?.id || !selectedUserId) return;
-
-    setUploading(true);
-    for (const file of Array.from(files)) {
-      try {
-        const fileName = `${user.id}/${selectedUserId}/${Date.now()}_${file.name}`;
-        const { error: uploadError } = await supabase.storage
-          .from("message-files")
-          .upload(fileName, file);
-
-        if (!uploadError) {
-          const { data } = supabase.storage
-            .from("message-files")
-            .getPublicUrl(fileName);
-          await sendMessage(data.publicUrl);
-        }
-      } catch (err) {
-        console.error("File upload error:", err);
-      }
-    }
-    setUploading(false);
-  };
-
-  const handleVoiceRecord = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      const chunks: Blob[] = [];
-
-      mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
-      mediaRecorder.onstop = async () => {
-        const blob = new Blob(chunks, { type: "audio/webm" });
-        const fileName = `${user.id}/${selectedUserId}/voice_${Date.now()}.webm`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("message-files")
-          .upload(fileName, blob);
-
-        if (!uploadError) {
-          const { data } = supabase.storage
-            .from("message-files")
-            .getPublicUrl(fileName);
-          await sendMessage(undefined, data.publicUrl);
-        }
-
-        stream.getTracks().forEach((track) => track.stop());
-      };
-
-      mediaRecorder.start();
-      setTimeout(() => mediaRecorder.stop(), 5000); // 5 second recording limit
-    } catch (err) {
-      console.error("Voice recording error:", err);
-    }
-  };
 
   if (loading) {
     return (
@@ -231,7 +126,7 @@ export default function MessagesPage() {
     <div className="min-h-screen bg-[#000222] text-white flex flex-col">
       {/* Header */}
       <div className="bg-white/10 backdrop-blur-lg border-b border-white/20 p-4">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
+        <div className="max-w-4xl mx-auto flex justify-between items-center">
           <h1 className="text-2xl font-bold">Messages</h1>
           <Link
             href="/dashboard"
@@ -242,129 +137,35 @@ export default function MessagesPage() {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col max-w-6xl mx-auto w-full gap-4 p-4">
-        {/* Conversations List - Horizontal */}
-        <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-4">
-          <h2 className="text-lg font-semibold mb-3">Conversations</h2>
+      {/* Conversations List */}
+      <div className="flex-1 max-w-4xl mx-auto w-full p-4">
+        <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
+          <h2 className="text-lg font-semibold mb-4">Your Conversations</h2>
           {conversations.length === 0 ? (
-            <p className="text-gray-400 text-sm">No conversations yet</p>
+            <p className="text-gray-400 text-sm">No conversations yet. Click "Contact Tasker" on a task to start!</p>
           ) : (
-            <div className="flex gap-3 overflow-x-auto pb-2">
+            <div className="space-y-2">
               {conversations.map((conv) => (
-                <button
+                <div
                   key={conv.userId}
-                  onClick={() => setSelectedUserId(conv.userId)}
-                  className={`flex-shrink-0 px-4 py-3 rounded-lg transition whitespace-nowrap ${
-                    selectedUserId === conv.userId
-                      ? "bg-blue-600/50 border border-blue-400"
-                      : "bg-white/5 border border-white/10 hover:bg-white/10"
-                  }`}
+                  className="flex items-center justify-between bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition"
                 >
-                  <p className="font-semibold text-sm">{conv.username}</p>
-                  <p className="text-xs text-gray-400 truncate max-w-[150px]">{conv.lastMessage}</p>
-                </button>
+                  <button
+                    onClick={() => router.push("/chat?user=" + conv.userId)}
+                    className="flex-1 text-left"
+                  >
+                    <p className="font-semibold text-sm">{conv.username}</p>
+                    <p className="text-xs text-gray-400 truncate">{conv.lastMessage}</p>
+                  </button>
+                  <button
+                    onClick={() => deleteConversation(conv.userId)}
+                    className="px-3 py-2 bg-red-600/80 hover:bg-red-700 rounded-lg transition text-sm ml-2"
+                    title="Delete this conversation"
+                  >
+                    🗑️
+                  </button>
+                </div>
               ))}
-            </div>
-          )}
-        </div>
-
-        {/* Chat Area */}
-        <div className="flex-1 bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-4 flex flex-col">
-          {selectedUserId ? (
-            <>
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto mb-4 space-y-3">
-                {messages.length === 0 ? (
-                  <p className="text-gray-400 text-sm text-center mt-4">
-                    No messages yet. Start the conversation!
-                  </p>
-                ) : (
-                  messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`flex ${
-                        msg.sender_id === user.id ? "justify-end" : "justify-start"
-                      }`}
-                    >
-                      <div
-                        className={`max-w-xs px-4 py-2 rounded-lg ${
-                          msg.sender_id === user.id
-                            ? "bg-blue-600/50 border border-blue-400"
-                            : "bg-white/10 border border-white/20"
-                        }`}
-                      >
-                        <p className="text-sm">{msg.content}</p>
-                        {msg.file_url && (
-                          <a
-                            href={msg.file_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-300 hover:text-blue-200 text-xs mt-2 block break-all"
-                          >
-                            📎 Download File
-                          </a>
-                        )}
-                        {msg.voice_url && (
-                          <audio
-                            controls
-                            className="w-full mt-2 h-6"
-                            src={msg.voice_url}
-                          />
-                        )}
-                        <p className="text-xs text-gray-400 mt-1">
-                          {new Date(msg.created_at).toLocaleTimeString()}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* Input with File Upload & Voice */}
-              <div className="flex gap-2">
-                <label className="px-3 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition cursor-pointer text-sm flex items-center gap-2 disabled:opacity-50" title="Upload files">
-                  📎
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
-                    className="hidden"
-                    disabled={uploading}
-                    onChange={(e) => handleFileUpload(e.target.files)}
-                  />
-                  Attach
-                </label>
-                <button
-                  onClick={handleVoiceRecord}
-                  disabled={uploading}
-                  className="px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm disabled:opacity-50"
-                  title="Record voice message (5 sec max)"
-                >
-                  🎤
-                </button>
-                <input
-                  type="text"
-                  placeholder="Type a message..."
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === "Enter") sendMessage();
-                  }}
-                  className="flex-1 bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm"
-                />
-                <button
-                  onClick={() => sendMessage()}
-                  disabled={uploading}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-50"
-                >
-                  Send
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <p className="text-gray-400">Select a conversation to start messaging</p>
             </div>
           )}
         </div>
