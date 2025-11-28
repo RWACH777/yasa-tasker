@@ -526,40 +526,17 @@ export default function ChatPage() {
             </label>
           </div>
 
-          {/* Right: Send/Voice button */}
+          {/* Right: Send button (Telegram icon only) */}
           <button
-            onClick={() => {
-              if (newMessage.trim()) {
-                sendMessage();
-              } else {
-                handleVoiceRecord();
-              }
-            }}
-            disabled={uploading}
-            className={`px-3 py-2 rounded-lg transition flex items-center justify-center h-10 w-10 ${
-              isRecording
-                ? "bg-red-600 hover:bg-red-700 animate-pulse"
-                : "bg-blue-600 hover:bg-blue-700"
-            } disabled:opacity-50`}
-            title={newMessage.trim() ? "Send message" : isRecording ? "Stop recording" : "Record voice message"}
+            onClick={sendMessage}
+            disabled={uploading || !newMessage.trim()}
+            className="px-3 py-2 rounded-lg transition flex items-center justify-center h-10 w-10 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Send message"
           >
-            {newMessage.trim() ? (
-              // Telegram send icon
-              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M16.6915026,12.4744748 L3.50612381,13.2599618 C3.19218622,13.2599618 3.03521743,13.4170592 3.03521743,13.5741566 L1.15159189,20.0151496 C0.8376543,20.8006365 0.99,21.89 1.77946707,22.52 C2.41,22.99 3.50612381,23.1 4.13399899,22.9429026 L21.714504,14.0454487 C22.6563168,13.5741566 23.1272231,12.6315722 22.9702544,11.6889879 L4.13399899,1.16346272 C3.34915502,0.9 2.40734225,1.00636533 1.77946707,1.4776575 C0.994623095,2.10604706 0.837654326,3.0486314 1.15159189,3.99701575 L3.03521743,10.4380088 C3.03521743,10.5951061 3.34915502,10.7522035 3.50612381,10.7522035 L16.6915026,11.5376905 C16.6915026,11.5376905 17.1624089,11.5376905 17.1624089,12.0089827 C17.1624089,12.4744748 16.6915026,12.4744748 16.6915026,12.4744748 Z"/>
-              </svg>
-            ) : isRecording ? (
-              // Stop icon (square) when recording
-              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <rect x="6" y="6" width="12" height="12" />
-              </svg>
-            ) : (
-              // Microphone icon
-              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-2c0 .5-.4.9-.9.9s-.9-.4-.9-.9c0-1.97-1.37-3.29-3.5-3.58v2.58c0 .46.3.88.77 1.02C15.38 10.77 17.3 11.87 17.3 12z"/>
-                <path d="M17 16.95c-1.48 1.46-3.51 2.36-5.77 2.36s-4.29-.9-5.77-2.36l-1.1 1.1c1.86 1.86 4.41 3 7.07 3s5.21-1.14 7.07-3l-1.1-1.1zM12 20c2.21 0 4-1.79 4-4h-8c0 2.21 1.79 4 4 4z"/>
-              </svg>
-            )}
+            {/* Telegram send icon */}
+            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M16.6915026,12.4744748 L3.50612381,13.2599618 C3.19218622,13.2599618 3.03521743,13.4170592 3.03521743,13.5741566 L1.15159189,20.0151496 C0.8376543,20.8006365 0.99,21.89 1.77946707,22.52 C2.41,22.99 3.50612381,23.1 4.13399899,22.9429026 L21.714504,14.0454487 C22.6563168,13.5741566 23.1272231,12.6315722 22.9702544,11.6889879 L4.13399899,1.16346272 C3.34915502,0.9 2.40734225,1.00636533 1.77946707,1.4776575 C0.994623095,2.10604706 0.837654326,3.0486314 1.15159189,3.99701575 L3.03521743,10.4380088 C3.03521743,10.5951061 3.34915502,10.7522035 3.50612381,10.7522035 L16.6915026,11.5376905 C16.6915026,11.5376905 17.1624089,11.5376905 17.1624089,12.0089827 C17.1624089,12.4744748 16.6915026,12.4744748 16.6915026,12.4744748 Z"/>
+            </svg>
           </button>
         </div>
       </div>

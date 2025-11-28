@@ -695,20 +695,12 @@ export default function DashboardPage() {
                       </button>
                     </>
                   ) : (
-                    <>
-                      <button
-                        onClick={() => handleApplyToTask(task.id)}
-                        className="px-3 py-1 bg-green-600/80 rounded-md text-sm hover:bg-green-700 transition"
-                      >
-                        Apply
-                      </button>
-                      <button
-                        onClick={() => handleContactTasker(task)}
-                        className="px-3 py-1 bg-purple-600/80 rounded-md text-sm hover:bg-purple-700 transition"
-                      >
-                        💬 Contact
-                      </button>
-                    </>
+                    <button
+                      onClick={() => handleApplyToTask(task.id)}
+                      className="px-3 py-1 bg-green-600/80 rounded-md text-sm hover:bg-green-700 transition"
+                    >
+                      Apply
+                    </button>
                   )}
                 </div>
               </div>
