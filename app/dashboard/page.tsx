@@ -407,7 +407,7 @@ export default function DashboardPage() {
                 `https://api.dicebear.com/8.x/thumbs/svg?seed=${user.username}`
               }
               alt="Avatar"
-              className="w-20 h-20 rounded-full border border-white/30"
+              className="w-20 h-20 rounded-full border border-white/30 object-cover"
             />
             <h2 className="text-xl font-semibold">{user.username}</h2>
             <p className="text-sm text-gray-300">

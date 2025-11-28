@@ -114,7 +114,10 @@ export default function ChatPage() {
   }, [user?.id, otherUserId]);
 
   const sendMessage = async (fileUrl?: string, voiceUrl?: string) => {
-    if ((!newMessage.trim() && !fileUrl && !voiceUrl) || !user?.id || !otherUserId) return;
+    if ((!newMessage.trim() && !fileUrl && !voiceUrl) || !user?.id || !otherUserId) {
+      console.warn("⚠️ Cannot send: empty message and no file/voice, or missing user/otherUserId");
+      return;
+    }
 
     const messageData: any = {
       sender_id: user.id,
@@ -127,16 +130,23 @@ export default function ChatPage() {
     if (voiceUrl) messageData.voice_url = voiceUrl;
 
     console.log("📤 Sending message:", messageData);
+    console.log("👤 User ID:", user.id);
+    console.log("👥 Other User ID:", otherUserId);
     
     const { error, data } = await supabase.from("messages").insert([messageData]).select();
 
     if (error) {
       console.error("❌ Error sending message:", error);
+      console.error("Error code:", error.code);
+      console.error("Error message:", error.message);
+      console.error("Full error:", JSON.stringify(error));
+      alert("❌ Failed to send message: " + error.message);
     } else {
       console.log("✅ Message sent successfully:", data);
       setNewMessage("");
       // Manually add to state to ensure it appears
       if (data && data[0]) {
+        console.log("📥 Adding message to state:", data[0]);
         setMessages((prev) => [...prev, data[0]]);
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
       }
