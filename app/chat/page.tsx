@@ -27,6 +27,7 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [filePreview, setFilePreview] = useState<{ name: string; type: string; url: string } | null>(null);
+  const [mediaView, setMediaView] = useState<{ url: string; type: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [longPressedMessageId, setLongPressedMessageId] = useState<string | null>(null);
@@ -437,14 +438,12 @@ export default function ChatPage() {
                   )}
                   <p className="text-sm">{msg.text}</p>
                   {msg.file_url && (
-                    <a
-                      href={msg.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-300 hover:text-blue-200 text-xs mt-2 block break-all"
+                    <button
+                      onClick={() => setMediaView({ url: msg.file_url!, type: msg.file_url!.includes('.pdf') ? 'application/pdf' : 'file' })}
+                      className="text-blue-300 hover:text-blue-200 text-xs mt-2 block break-all text-left"
                     >
-                      📎 Download File
-                    </a>
+                      📎 View File
+                    </button>
                   )}
                   {msg.voice_url && (
                     <audio
@@ -564,6 +563,34 @@ export default function ChatPage() {
           </button>
         </div>
       </div>
+
+      {/* Fullscreen Media View */}
+      {mediaView && (
+        <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-4">
+          <div className="w-full h-full flex flex-col items-center justify-center">
+            <button
+              onClick={() => setMediaView(null)}
+              className="absolute top-4 left-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm"
+              title="Back to chat"
+            >
+              ← Back
+            </button>
+            {mediaView.type === 'application/pdf' ? (
+              <iframe
+                src={mediaView.url}
+                className="w-full h-full"
+                title="PDF Viewer"
+              />
+            ) : (
+              <img
+                src={mediaView.url}
+                alt="Media"
+                className="max-w-full max-h-full object-contain"
+              />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
