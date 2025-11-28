@@ -27,7 +27,14 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [filePreview, setFilePreview] = useState<{ name: string; type: string; url: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Debug logging
+  useEffect(() => {
+    console.log("🔍 Chat page loaded");
+    console.log("👥 otherUserId from URL:", otherUserId);
+  }, [otherUserId]);
 
   // Load current user
   useEffect(() => {
@@ -114,8 +121,18 @@ export default function ChatPage() {
   }, [user?.id, otherUserId]);
 
   const sendMessage = async (fileUrl?: string, voiceUrl?: string) => {
+    console.log("🚀 sendMessage called");
+    console.log("📝 newMessage:", newMessage);
+    console.log("📎 fileUrl:", fileUrl);
+    console.log("🎙️ voiceUrl:", voiceUrl);
+    console.log("👤 user?.id:", user?.id);
+    console.log("👥 otherUserId:", otherUserId);
+    
     if ((!newMessage.trim() && !fileUrl && !voiceUrl) || !user?.id || !otherUserId) {
       console.warn("⚠️ Cannot send: empty message and no file/voice, or missing user/otherUserId");
+      console.warn("  - newMessage.trim():", newMessage.trim());
+      console.warn("  - user?.id:", user?.id);
+      console.warn("  - otherUserId:", otherUserId);
       return;
     }
 
@@ -140,7 +157,9 @@ export default function ChatPage() {
       console.error("Error code:", error.code);
       console.error("Error message:", error.message);
       console.error("Full error:", JSON.stringify(error));
-      alert("❌ Failed to send message: " + error.message);
+      const errorMsg = `❌ Failed to send message: ${error.message} (Code: ${error.code})`;
+      setError(errorMsg);
+      alert(errorMsg);
     } else {
       console.log("✅ Message sent successfully:", data);
       setNewMessage("");
@@ -265,6 +284,21 @@ export default function ChatPage() {
 
   return (
     <div className="min-h-screen bg-[#000222] text-white flex flex-col">
+      {/* Error Banner */}
+      {error && (
+        <div className="bg-red-900/50 border-b border-red-600 p-3 text-sm text-red-200">
+          <div className="max-w-4xl mx-auto flex justify-between items-center">
+            <span>{error}</span>
+            <button
+              onClick={() => setError(null)}
+              className="text-red-300 hover:text-red-100 font-bold"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-white/10 backdrop-blur-lg border-b border-white/20 p-4">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
