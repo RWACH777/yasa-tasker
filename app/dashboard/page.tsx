@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Sidebar from "@/app/components/Sidebar";
 import ApplicationModal, { ApplicationFormData } from "@/app/components/ApplicationModal";
+import ApplicationReviewModal from "@/app/components/ApplicationReviewModal";
 
 interface Task {
   id: string;
@@ -76,6 +77,12 @@ export default function DashboardPage() {
     experience: "",
     description: "",
   });
+
+  // Application review state
+  const [showApplicationReview, setShowApplicationReview] = useState(false);
+  const [reviewTaskId, setReviewTaskId] = useState<string | null>(null);
+  const [taskApplications, setTaskApplications] = useState<any[]>([]);
+  const [reviewLoading, setReviewLoading] = useState(false);
 
   const handleContactTasker = async (task: Task) => {
     if (!user?.id) {
@@ -381,6 +388,76 @@ export default function DashboardPage() {
     }
   };
 
+  // Open application review modal
+  const handleReviewApplications = async (taskId: string) => {
+    setReviewTaskId(taskId);
+    setReviewLoading(true);
+    const { data } = await supabase
+      .from("applications")
+      .select("*")
+      .eq("task_id", taskId)
+      .order("created_at", { ascending: false });
+    setTaskApplications(data || []);
+    setReviewLoading(false);
+    setShowApplicationReview(true);
+  };
+
+  // Approve application
+  const handleApproveApplication = async (applicationId: string, applicantId: string) => {
+    setReviewLoading(true);
+    const { error } = await supabase
+      .from("applications")
+      .update({ status: "approved" })
+      .eq("id", applicationId);
+
+    if (error) {
+      setMessage("❌ Failed to approve: " + error.message);
+    } else {
+      setMessage("✅ Application approved!");
+      // Update task status to active
+      await supabase
+        .from("tasks")
+        .update({ status: "active" })
+        .eq("id", reviewTaskId);
+      // Refresh applications list
+      if (reviewTaskId) {
+        const { data } = await supabase
+          .from("applications")
+          .select("*")
+          .eq("task_id", reviewTaskId)
+          .order("created_at", { ascending: false });
+        setTaskApplications(data || []);
+      }
+      loadProfileTasks();
+    }
+    setReviewLoading(false);
+  };
+
+  // Deny application
+  const handleDenyApplication = async (applicationId: string) => {
+    setReviewLoading(true);
+    const { error } = await supabase
+      .from("applications")
+      .update({ status: "denied" })
+      .eq("id", applicationId);
+
+    if (error) {
+      setMessage("❌ Failed to deny: " + error.message);
+    } else {
+      setMessage("✅ Application denied!");
+      // Refresh applications list
+      if (reviewTaskId) {
+        const { data } = await supabase
+          .from("applications")
+          .select("*")
+          .eq("task_id", reviewTaskId)
+          .order("created_at", { ascending: false });
+        setTaskApplications(data || []);
+      }
+    }
+    setReviewLoading(false);
+  };
+
   // Update freelancer username
   const handleUpdateFreelancerUsername = async () => {
     if (!user?.id || !freelancerUsername.trim()) {
@@ -552,7 +629,9 @@ export default function DashboardPage() {
                     {profileTasks.active.map((task) => (
                       <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-3">
                         <p className="font-semibold text-sm">{task.title}</p>
-                        <p className="text-xs text-gray-400">Budget: {task.budget} π</p>
+                        <p className="text-xs text-gray-400">
+                          Budget: {task.budget} π
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -569,7 +648,15 @@ export default function DashboardPage() {
                     {profileTasks.pending.map((task) => (
                       <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-3">
                         <p className="font-semibold text-sm">{task.title}</p>
-                        <p className="text-xs text-gray-400">Budget: {task.budget} π</p>
+                        <p className="text-xs text-gray-400">
+                          Budget: {task.budget} π
+                        </p>
+                        <button
+                          onClick={() => handleReviewApplications(task.id)}
+                          className="px-3 py-1 bg-green-600/80 rounded-md text-sm hover:bg-green-700 transition"
+                        >
+                          Review Applications
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -586,7 +673,9 @@ export default function DashboardPage() {
                     {profileTasks.completed.map((task) => (
                       <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-3">
                         <p className="font-semibold text-sm">{task.title}</p>
-                        <p className="text-xs text-gray-400">Budget: {task.budget} π</p>
+                        <p className="text-xs text-gray-400">
+                          Budget: {task.budget} π
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -604,6 +693,16 @@ export default function DashboardPage() {
         onSubmit={handleSubmitApplication}
         formData={applicationForm}
         onFormChange={setApplicationForm}
+      />
+
+      {/* APPLICATION REVIEW MODAL */}
+      <ApplicationReviewModal
+        isOpen={showApplicationReview}
+        onClose={() => setShowApplicationReview(false)}
+        applications={taskApplications}
+        onApprove={handleApproveApplication}
+        onDeny={handleDenyApplication}
+        loading={reviewLoading}
       />
 
       {/* EVERYTHING BELOW IS IDENTICAL — tasks, forms, filters, etc */}
