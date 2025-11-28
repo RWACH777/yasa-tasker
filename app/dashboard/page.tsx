@@ -427,59 +427,22 @@ export default function DashboardPage() {
 
             {/* Avatar Section */}
             <div className="flex flex-col items-center mb-6 pb-6 border-b border-white/10">
-              <label className="cursor-pointer group relative">
+              <button
+                onClick={() => setShowPictureModal(true)}
+                className="cursor-pointer group relative mb-4"
+              >
                 <img
                   src={
                     user.avatar_url ||
                     `https://api.dicebear.com/8.x/thumbs/svg?seed=${user.username}`
                   }
                   alt="Avatar"
-                  className="w-24 h-24 rounded-full border border-white/30 mb-4 group-hover:opacity-70 transition"
+                  className="w-24 h-24 rounded-full border border-white/30 object-cover group-hover:opacity-70 transition"
                 />
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition rounded-full bg-black/50">
-                  <span className="text-white text-xs font-semibold">Click to change</span>
+                  <span className="text-white text-xs font-semibold">View</span>
                 </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file || !user?.id) return;
-
-                    try {
-                      setMessage("⏳ Uploading profile picture...");
-                      const fileName = `${user.id}/avatar_${Date.now()}.${file.name.split('.').pop()}`;
-                      const { error: uploadError } = await supabase.storage
-                        .from("message-files")
-                        .upload(fileName, file);
-
-                      if (uploadError) {
-                        setMessage("❌ Upload failed: " + uploadError.message);
-                        return;
-                      }
-
-                      const { data } = supabase.storage
-                        .from("message-files")
-                        .getPublicUrl(fileName);
-
-                      const { error: updateError } = await supabase
-                        .from("profiles")
-                        .update({ avatar_url: data.publicUrl })
-                        .eq("id", user.id);
-
-                      if (updateError) {
-                        setMessage("❌ Failed to update profile: " + updateError.message);
-                      } else {
-                        setUser({ ...user, avatar_url: data.publicUrl });
-                        setMessage("✅ Profile picture updated!");
-                      }
-                    } catch (err) {
-                      setMessage("❌ Error: " + (err as any).message);
-                    }
-                  }}
-                />
-              </label>
+              </button>
               <div className="flex flex-col gap-3 w-full">
                 <div>
                   <label className="text-xs text-gray-400 block mb-1">Freelancer Username (what others see)</label>
@@ -711,6 +674,77 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* PICTURE MODAL */}
+      {showPictureModal && user && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-md bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 flex flex-col items-center">
+            <button
+              onClick={() => setShowPictureModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl"
+            >
+              ✕
+            </button>
+            <img
+              src={
+                user.avatar_url ||
+                `https://api.dicebear.com/8.x/thumbs/svg?seed=${user.username}`
+              }
+              alt="Profile Picture"
+              className="w-48 h-48 rounded-full border-2 border-white/30 mb-6 object-cover"
+            />
+            <label className="w-full">
+              <button
+                type="button"
+                className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm font-semibold"
+              >
+                Change Profile Picture
+              </button>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file || !user?.id) return;
+
+                  try {
+                    setMessage("⏳ Uploading profile picture...");
+                    const fileName = `${user.id}/avatar_${Date.now()}.${file.name.split('.').pop()}`;
+                    const { error: uploadError } = await supabase.storage
+                      .from("message-files")
+                      .upload(fileName, file);
+
+                    if (uploadError) {
+                      setMessage("❌ Upload failed: " + uploadError.message);
+                      return;
+                    }
+
+                    const { data } = supabase.storage
+                      .from("message-files")
+                      .getPublicUrl(fileName);
+
+                    const { error: updateError } = await supabase
+                      .from("profiles")
+                      .update({ avatar_url: data.publicUrl })
+                      .eq("id", user.id);
+
+                    if (updateError) {
+                      setMessage("❌ Failed to update profile: " + updateError.message);
+                    } else {
+                      setUser({ ...user, avatar_url: data.publicUrl });
+                      setMessage("✅ Profile picture updated!");
+                      setShowPictureModal(false);
+                    }
+                  } catch (err) {
+                    setMessage("❌ Error: " + (err as any).message);
+                  }
+                }}
+              />
+            </label>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
