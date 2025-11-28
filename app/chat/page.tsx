@@ -26,6 +26,7 @@ export default function ChatPage() {
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [filePreview, setFilePreview] = useState<{ name: string; type: string; url: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load current user
@@ -135,23 +136,46 @@ export default function ChatPage() {
   const handleFileUpload = async (files: FileList | null) => {
     if (!files || !user?.id || !otherUserId) return;
 
-    setUploading(true);
-    for (const file of Array.from(files)) {
-      try {
-        const fileName = `${user.id}/${otherUserId}/${Date.now()}_${file.name}`;
-        const { error: uploadError } = await supabase.storage
-          .from("message-files")
-          .upload(fileName, file);
+    const file = files[0];
+    if (!file) return;
 
-        if (!uploadError) {
-          const { data } = supabase.storage
-            .from("message-files")
-            .getPublicUrl(fileName);
-          await sendMessage(data.publicUrl);
-        }
-      } catch (err) {
-        console.error("File upload error:", err);
+    // Show preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setFilePreview({
+        name: file.name,
+        type: file.type,
+        url: e.target?.result as string,
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const uploadAndSendFile = async () => {
+    if (!filePreview || !user?.id || !otherUserId) return;
+
+    setUploading(true);
+    try {
+      const file = new File([filePreview.url], filePreview.name, { type: filePreview.type });
+      const fileName = `${user.id}/${otherUserId}/${Date.now()}_${filePreview.name}`;
+      
+      // Convert data URL to blob
+      const response = await fetch(filePreview.url);
+      const blob = await response.blob();
+      
+      const { error: uploadError } = await supabase.storage
+        .from("message-files")
+        .upload(fileName, blob);
+
+      if (!uploadError) {
+        const { data } = supabase.storage
+          .from("message-files")
+          .getPublicUrl(fileName);
+        await sendMessage(data.publicUrl);
+        setFilePreview(null);
       }
+    } catch (err) {
+      console.error("File upload error:", err);
     }
     setUploading(false);
   };
@@ -309,49 +333,82 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Input Area */}
-      <div className="bg-white/10 backdrop-blur-lg border-t border-white/20 p-4">
-        <div className="max-w-4xl mx-auto flex gap-2">
-          <label className="px-3 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition cursor-pointer text-sm flex items-center gap-2" title="Upload files">
-            📎
-            <input
-              type="file"
-              multiple
-              accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
-              className="hidden"
+      {/* File Preview */}
+      {filePreview && (
+        <div className="bg-white/5 border-t border-white/20 p-4 w-full">
+          <div className="w-full px-4 flex items-center gap-3">
+            {filePreview.type.startsWith("image/") ? (
+              <img src={filePreview.url} alt="preview" className="w-16 h-16 object-cover rounded" />
+            ) : (
+              <div className="w-16 h-16 bg-white/10 rounded flex items-center justify-center">
+                <span className="text-2xl">📄</span>
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold truncate">{filePreview.name}</p>
+              <p className="text-xs text-gray-400">{filePreview.type}</p>
+            </div>
+            <button
+              onClick={() => setFilePreview(null)}
+              className="px-2 py-1 text-red-400 hover:text-red-300 text-sm"
+            >
+              ✕
+            </button>
+            <button
+              onClick={uploadAndSendFile}
               disabled={uploading}
-              onChange={(e) => handleFileUpload(e.target.files)}
+              className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-sm disabled:opacity-50"
+            >
+              Send
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Input Area */}
+      <div className="bg-white/10 backdrop-blur-lg border-t border-white/20 p-3 w-full">
+        <div className="w-full px-4 flex flex-col gap-2">
+          <div className="flex gap-2 items-center flex-wrap">
+            <label className="px-3 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition cursor-pointer text-sm flex items-center gap-2" title="Upload files">
+              📎
+              <input
+                type="file"
+                multiple
+                accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                className="hidden"
+                disabled={uploading}
+                onChange={(e) => handleFileUpload(e.target.files)}
+              />
+              Attach
+            </label>
+            <button
+              onClick={handleVoiceRecord}
+              disabled={uploading}
+              className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm disabled:opacity-50 flex items-center justify-center"
+              title="Record voice message (5 sec max)"
+            >
+              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 1C6.48 1 2 5.48 2 11v8c0 1.1.9 2 2 2h2v-9H4v-1c0-4.42 3.58-8 8-8s8 3.58 8 8v1h-2v9h2c1.1 0 2-.9 2-2v-8c0-5.52-4.48-10-10-10zm0 18c-2.21 0-4-1.79-4-4h8c0 2.21-1.79 4-4 4z"/>
+              </svg>
+            </button>
+            <input
+              type="text"
+              placeholder="Type a message..."
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === "Enter") sendMessage();
+              }}
+              className="flex-1 min-w-[120px] bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm"
             />
-            Attach
-          </label>
-          <button
-            onClick={handleVoiceRecord}
-            disabled={uploading}
-            className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm disabled:opacity-50 flex items-center justify-center"
-            title="Record voice message (5 sec max)"
-          >
-            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-              <path d="M17 16.91c-1.48 1.46-3.51 2.36-5.77 2.36-2.26 0-4.29-.9-5.77-2.36l-1.1 1.1c1.86 1.86 4.41 3 7.07 3s5.21-1.14 7.07-3l-1.1-1.1zM12 19c2.21 0 4-1.79 4-4h-8c0 2.21 1.79 4 4 4z"/>
-            </svg>
-          </button>
-          <input
-            type="text"
-            placeholder="Type a message..."
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === "Enter") sendMessage();
-            }}
-            className="flex-1 bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm"
-          />
-          <button
-            onClick={() => sendMessage()}
-            disabled={uploading}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-50 font-semibold"
-          >
-            Send
-          </button>
+            <button
+              onClick={() => sendMessage()}
+              disabled={uploading}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-50 font-semibold whitespace-nowrap"
+            >
+              Send
+            </button>
+          </div>
         </div>
       </div>
     </div>
