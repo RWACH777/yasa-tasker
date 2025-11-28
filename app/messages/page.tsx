@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
@@ -30,6 +30,7 @@ export default function MessagesPage() {
   const [user, setUser] = useState<any>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [longPressedConvId, setLongPressedConvId] = useState<string | null>(null);
 
   // Load current user
   useEffect(() => {
@@ -94,9 +95,21 @@ export default function MessagesPage() {
     loadConversations();
   }, [user?.id]);
 
-  const deleteConversation = async (otherUserId: string) => {
-    if (!confirm("Delete this conversation? This cannot be undone.")) return;
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const handleConvMouseDown = (convId: string) => {
+    longPressTimerRef.current = setTimeout(() => {
+      setLongPressedConvId(convId);
+    }, 500);
+  };
+
+  const handleConvMouseUp = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+    }
+  };
+
+  const deleteConversation = async (otherUserId: string) => {
     const { error } = await supabase
       .from("messages")
       .delete()
@@ -106,6 +119,7 @@ export default function MessagesPage() {
 
     if (!error) {
       setConversations(conversations.filter((c) => c.userId !== otherUserId));
+      setLongPressedConvId(null);
     }
   };
 
@@ -152,8 +166,21 @@ export default function MessagesPage() {
               {conversations.map((conv) => (
                 <div
                   key={conv.userId}
-                  className="flex items-center justify-between bg-white/5 border border-white/10 rounded-lg p-3 hover:bg-white/10 transition"
+                  className={`flex items-center justify-between bg-white/5 border border-white/10 rounded-lg p-3 hover:bg-white/10 transition relative ${
+                    longPressedConvId === conv.userId ? "ring-2 ring-red-500" : ""
+                  }`}
+                  onMouseDown={() => handleConvMouseDown(conv.userId)}
+                  onMouseUp={handleConvMouseUp}
+                  onMouseLeave={handleConvMouseUp}
                 >
+                  {longPressedConvId === conv.userId && (
+                    <button
+                      onClick={() => deleteConversation(conv.userId)}
+                      className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-semibold"
+                    >
+                      Delete
+                    </button>
+                  )}
                   <button
                     onClick={() => router.push("/chat?user=" + conv.userId)}
                     className="flex-1 text-left flex items-center gap-3"
@@ -185,13 +212,6 @@ export default function MessagesPage() {
                         {new Date(conv.lastMessageTime).toLocaleDateString()}
                       </p>
                     </div>
-                  </button>
-                  <button
-                    onClick={() => deleteConversation(conv.userId)}
-                    className="px-3 py-2 bg-red-600/80 hover:bg-red-700 rounded-lg transition text-sm ml-2"
-                    title="Delete this conversation"
-                  >
-                    🗑️
                   </button>
                 </div>
               ))}
