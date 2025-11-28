@@ -1,0 +1,36 @@
+// B: Mark task as completed
+const handleMarkTaskComplete = async (taskId: string) => {
+  if (!confirm("Mark this task as complete?")) return;
+  const { error } = await supabase
+    .from("tasks")
+    .update({ status: "completed" })
+    .eq("id", taskId);
+  if (error) {
+    setMessage("❌ Failed to mark complete: " + error.message);
+  } else {
+    setMessage("✅ Task marked as completed!");
+    loadProfileTasks();
+  }
+};
+
+// C: Auto-chat on approval (add to handleApproveApplication after loadProfileTasks())
+// const { data: taskData } = await supabase
+//   .from("tasks")
+//   .select("poster_id, title")
+//   .eq("id", reviewTaskId)
+//   .single();
+// if (taskData?.poster_id) {
+//   await supabase.from("messages").insert([{
+//     sender_id: applicantId,
+//     receiver_id: taskData.poster_id,
+//     message: `Great news! I've been approved for your task "${taskData.title}". Let's discuss the details!`,
+//   }]);
+// }
+
+// D: Mark Complete button (add to Active Tasks section in profile modal)
+// <button
+//   onClick={() => handleMarkTaskComplete(task.id)}
+//   className="px-3 py-1 bg-blue-600/80 rounded-md text-sm hover:bg-blue-700 transition mt-2"
+// >
+//   ✓ Mark Complete
+// </button>
