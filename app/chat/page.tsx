@@ -126,10 +126,18 @@ export default function ChatPage() {
     if (fileUrl) messageData.file_url = fileUrl;
     if (voiceUrl) messageData.voice_url = voiceUrl;
 
-    const { error } = await supabase.from("messages").insert([messageData]);
+    const { error, data } = await supabase.from("messages").insert([messageData]).select();
 
     if (!error) {
       setNewMessage("");
+      // Add message to local state immediately
+      if (data && data[0]) {
+        setMessages([...messages, data[0]]);
+        // Scroll to bottom
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+      }
+    } else {
+      console.error("Error sending message:", error);
     }
   };
 
@@ -367,9 +375,21 @@ export default function ChatPage() {
 
       {/* Input Area */}
       <div className="bg-white/10 backdrop-blur-lg border-t border-white/20 p-3 w-full">
-        <div className="w-full px-4 flex flex-col gap-2">
-          <div className="flex gap-2 items-center flex-wrap">
-            <label className="px-3 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition cursor-pointer text-sm flex items-center gap-2" title="Upload files">
+        <div className="w-full px-4 flex gap-2 items-flex-end">
+          {/* Left: Textbox */}
+          <div className="flex-1 flex flex-col gap-2">
+            <input
+              type="text"
+              placeholder="Type a message..."
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === "Enter") sendMessage();
+              }}
+              className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm"
+            />
+            {/* Attach button below textbox */}
+            <label className="px-3 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition cursor-pointer text-sm flex items-center gap-2 w-fit" title="Upload files">
               📎
               <input
                 type="file"
@@ -381,34 +401,33 @@ export default function ChatPage() {
               />
               Attach
             </label>
-            <button
-              onClick={handleVoiceRecord}
-              disabled={uploading}
-              className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm disabled:opacity-50 flex items-center justify-center"
-              title="Record voice message (5 sec max)"
-            >
+          </div>
+
+          {/* Right: Send/Voice button */}
+          <button
+            onClick={() => {
+              if (newMessage.trim()) {
+                sendMessage();
+              } else {
+                handleVoiceRecord();
+              }
+            }}
+            disabled={uploading}
+            className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-50 flex items-center justify-center h-10 w-10"
+            title={newMessage.trim() ? "Send message" : "Record voice message"}
+          >
+            {newMessage.trim() ? (
+              // Telegram send icon
+              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M16.6915026,12.4744748 L3.50612381,13.2599618 C3.19218622,13.2599618 3.03521743,13.4170592 3.03521743,13.5741566 L1.15159189,20.0151496 C0.8376543,20.8006365 0.99,21.89 1.77946707,22.52 C2.41,22.99 3.50612381,23.1 4.13399899,22.9429026 L21.714504,14.0454487 C22.6563168,13.5741566 23.1272231,12.6315722 22.9702544,11.6889879 L4.13399899,1.16346272 C3.34915502,0.9 2.40734225,1.00636533 1.77946707,1.4776575 C0.994623095,2.10604706 0.837654326,3.0486314 1.15159189,3.99701575 L3.03521743,10.4380088 C3.03521743,10.5951061 3.34915502,10.7522035 3.50612381,10.7522035 L16.6915026,11.5376905 C16.6915026,11.5376905 17.1624089,11.5376905 17.1624089,12.0089827 C17.1624089,12.4744748 16.6915026,12.4744748 16.6915026,12.4744748 Z"/>
+              </svg>
+            ) : (
+              // Microphone icon
               <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 1C6.48 1 2 5.48 2 11v8c0 1.1.9 2 2 2h2v-9H4v-1c0-4.42 3.58-8 8-8s8 3.58 8 8v1h-2v9h2c1.1 0 2-.9 2-2v-8c0-5.52-4.48-10-10-10zm0 18c-2.21 0-4-1.79-4-4h8c0 2.21-1.79 4-4 4z"/>
               </svg>
-            </button>
-            <input
-              type="text"
-              placeholder="Type a message..."
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === "Enter") sendMessage();
-              }}
-              className="flex-1 min-w-[120px] bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm"
-            />
-            <button
-              onClick={() => sendMessage()}
-              disabled={uploading}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-50 font-semibold whitespace-nowrap"
-            >
-              Send
-            </button>
-          </div>
+            )}
+          </button>
         </div>
       </div>
     </div>
