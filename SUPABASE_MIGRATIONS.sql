@@ -24,6 +24,22 @@ ALTER TABLE messages
 ALTER TABLE messages
   ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT now();
 
+-- 0.6. Add all missing columns to ratings table
+ALTER TABLE ratings
+  ADD COLUMN IF NOT EXISTS rater_id UUID;
+
+ALTER TABLE ratings
+  ADD COLUMN IF NOT EXISTS rated_user_id UUID;
+
+ALTER TABLE ratings
+  ADD COLUMN IF NOT EXISTS rating INTEGER;
+
+ALTER TABLE ratings
+  ADD COLUMN IF NOT EXISTS comment TEXT;
+
+ALTER TABLE ratings
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT now();
+
 -- 1. Fix tasks table - add UUID generation for id column
 ALTER TABLE tasks
   ALTER COLUMN id SET DEFAULT gen_random_uuid();
@@ -50,9 +66,7 @@ ALTER TABLE applications
 
 -- 7. Messages created_at default already set in section 0.5
 
--- 8. Add created_at default for ratings if not exists
-ALTER TABLE ratings
-  ALTER COLUMN created_at SET DEFAULT now();
+-- 8. Ratings created_at default already set in section 0.6
 
 -- 9. Enable RLS on all tables
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
