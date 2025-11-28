@@ -22,7 +22,7 @@ ALTER TABLE messages
   ADD COLUMN IF NOT EXISTS voice_url TEXT;
 
 ALTER TABLE messages
-  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE;
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT now();
 
 -- 1. Fix tasks table - add UUID generation for id column
 ALTER TABLE tasks
@@ -48,9 +48,7 @@ ALTER TABLE tasks
 ALTER TABLE applications
   ALTER COLUMN created_at SET DEFAULT now();
 
--- 7. Add created_at default for messages if not exists
-ALTER TABLE messages
-  ALTER COLUMN created_at SET DEFAULT now();
+-- 7. Messages created_at default already set in section 0.5
 
 -- 8. Add created_at default for ratings if not exists
 ALTER TABLE ratings
