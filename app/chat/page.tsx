@@ -29,8 +29,10 @@ export default function ChatPage() {
   const [filePreview, setFilePreview] = useState<{ name: string; type: string; url: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [longPressedMessageId, setLongPressedMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Debug logging
   useEffect(() => {
@@ -251,7 +253,7 @@ export default function ChatPage() {
         
         // Check if it's a permission denied error
         if (permErr.name === "NotAllowedError" || permErr.name === "PermissionDeniedError") {
-          setError("🎙️ Microphone permission denied. Please enable microphone access in your browser settings.");
+          setError("🎙️ Microphone permission denied.\n📱 Pi Browser: Settings → Permissions → Microphone → Allow\n💻 Desktop: Check browser settings and refresh");
         } else if (permErr.name === "NotFoundError") {
           setError("🎙️ No microphone found. Please connect a microphone.");
         } else {
@@ -312,18 +314,27 @@ export default function ChatPage() {
     }
   };
 
-  const deleteChat = async () => {
-    if (!confirm("Delete this conversation? This cannot be undone.")) return;
+  const handleMessageMouseDown = (messageId: string) => {
+    longPressTimerRef.current = setTimeout(() => {
+      setLongPressedMessageId(messageId);
+    }, 500);
+  };
 
+  const handleMessageMouseUp = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+    }
+  };
+
+  const deleteMessage = async (messageId: string) => {
     const { error } = await supabase
       .from("messages")
       .delete()
-      .or(
-        `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
-      );
+      .eq("id", messageId);
 
     if (!error) {
-      router.push("/messages");
+      setMessages(messages.filter((m) => m.id !== messageId));
+      setLongPressedMessageId(null);
     }
   };
 
@@ -380,18 +391,12 @@ export default function ChatPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={deleteChat}
-              className="px-3 py-2 bg-red-600/80 hover:bg-red-700 rounded-lg transition text-sm"
-              title="Delete this conversation"
-            >
-              🗑️ Delete Chat
-            </button>
             <Link
               href="/messages"
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm"
+              title="Back to messages list"
             >
-              Back
+              ← Back
             </Link>
           </div>
         </div>
@@ -411,14 +416,25 @@ export default function ChatPage() {
                 className={`flex ${
                   msg.sender_id === user.id ? "justify-end" : "justify-start"
                 }`}
+                onMouseDown={() => handleMessageMouseDown(msg.id)}
+                onMouseUp={handleMessageMouseUp}
+                onMouseLeave={handleMessageMouseUp}
               >
                 <div
-                  className={`max-w-xs px-4 py-2 rounded-lg ${
+                  className={`max-w-xs px-4 py-2 rounded-lg relative ${
                     msg.sender_id === user.id
                       ? "bg-blue-600/50 border border-blue-400"
                       : "bg-white/10 border border-white/20"
-                  }`}
+                  } ${longPressedMessageId === msg.id ? "ring-2 ring-red-500" : ""}`}
                 >
+                  {longPressedMessageId === msg.id && (
+                    <button
+                      onClick={() => deleteMessage(msg.id)}
+                      className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-semibold"
+                    >
+                      Delete
+                    </button>
+                  )}
                   <p className="text-sm">{msg.text}</p>
                   {msg.file_url && (
                     <a
@@ -465,16 +481,17 @@ export default function ChatPage() {
             </div>
             <button
               onClick={() => setFilePreview(null)}
-              className="px-2 py-1 text-red-400 hover:text-red-300 text-sm"
+              className="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded text-sm"
+              title="Back to chat"
             >
-              ✕
+              ← Back
             </button>
             <button
               onClick={uploadAndSendFile}
               disabled={uploading}
               className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-sm disabled:opacity-50"
             >
-              Send
+              ✓ Send
             </button>
           </div>
         </div>
