@@ -664,16 +664,6 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
-
-      {/* DEBUG PANEL - Only visible to user */}
-      {user?.id === "local_user_123" && (
-        <div className="fixed bottom-4 right-4 bg-black/90 border border-white/30 rounded-lg p-2 text-xs text-gray-400 max-w-[200px]">
-          <p className="font-semibold text-white mb-1 text-[10px]">Debug</p>
-          <p className="truncate">ID: {user.id.substring(0, 8)}...</p>
-          <p className="truncate">User: {user.username}</p>
-          <p className="truncate">FL: {user.freelancer_username ? "✓" : "✗"}</p>
-        </div>
-      )}
     </div>
   );
 }
