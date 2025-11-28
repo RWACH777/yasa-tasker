@@ -9,7 +9,7 @@ interface Message {
   id: string;
   sender_id: string;
   receiver_id: string;
-  content: string;
+  text: string;
   file_url?: string;
   voice_url?: string;
   created_at: string;
@@ -139,7 +139,7 @@ export default function ChatPage() {
     const messageData: any = {
       sender_id: user.id,
       receiver_id: otherUserId,
-      content: newMessage || (fileUrl ? "[File shared]" : "[Voice message]"),
+      text: newMessage || (fileUrl ? "[File shared]" : "[Voice message]"),
       created_at: new Date().toISOString(),
     };
 
@@ -358,7 +358,7 @@ export default function ChatPage() {
                       : "bg-white/10 border border-white/20"
                   }`}
                 >
-                  <p className="text-sm">{msg.content}</p>
+                  <p className="text-sm">{msg.text}</p>
                   {msg.file_url && (
                     <a
                       href={msg.file_url}
