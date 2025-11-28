@@ -63,6 +63,9 @@ export default function DashboardPage() {
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Profile view state
+  const [profileView, setProfileView] = useState<"tasker" | "freelancer">("tasker");
+
   const handleContactTasker = async (task: Task) => {
     if (!user?.id) {
       setMessage("⚠️ You must be logged in to contact a tasker.");
@@ -482,6 +485,30 @@ export default function DashboardPage() {
                 </div>
               </div>
               <p className="text-xs text-gray-400 mt-3">⭐️ Rating: {user.rating || 0} • Completed: {user.completed_tasks || 0}</p>
+            </div>
+
+            {/* Profile View Tabs */}
+            <div className="flex gap-2 mb-6 border-b border-white/10">
+              <button
+                onClick={() => setProfileView("tasker")}
+                className={`px-4 py-2 font-semibold transition ${
+                  profileView === "tasker"
+                    ? "text-blue-400 border-b-2 border-blue-400"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                👤 Tasker View
+              </button>
+              <button
+                onClick={() => setProfileView("freelancer")}
+                className={`px-4 py-2 font-semibold transition ${
+                  profileView === "freelancer"
+                    ? "text-green-400 border-b-2 border-green-400"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                💼 Freelancer View
+              </button>
             </div>
 
             {/* Tasks Sections */}

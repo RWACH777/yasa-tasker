@@ -12,26 +12,26 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         isOpen ? "w-80" : "w-0"
       } overflow-hidden`}
     >
-      <div className="p-4 space-y-4 h-full flex flex-col">
+      <div className="p-4 space-y-2 h-full flex flex-col">
         <button
           onClick={onClose}
-          className="text-right text-gray-400 hover:text-white text-2xl"
+          className="text-right text-gray-400 hover:text-white text-2xl mb-2"
         >
           ✕
         </button>
 
-        <div className="flex-1 overflow-y-auto">
+        <div>
           <h3 className="text-lg font-semibold mb-3">💬 Messages</h3>
           <a
             href="/messages"
             onClick={onClose}
-            className="w-full px-4 py-2 bg-purple-600/80 hover:bg-purple-700 rounded-lg transition text-sm block text-center mb-4"
+            className="w-full px-4 py-2 bg-purple-600/80 hover:bg-purple-700 rounded-lg transition text-sm block text-center"
           >
             View All Messages
           </a>
         </div>
 
-        <div className="border-t border-white/10 pt-4">
+        <div className="mt-2">
           <h3 className="text-lg font-semibold mb-3">📞 Support</h3>
           <a
             href="mailto:YasaTasker@gmail.com"

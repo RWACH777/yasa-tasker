@@ -205,10 +205,10 @@ export default function MessagesPage() {
                     </div>
                     
                     {/* Message Info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm">{conv.username}</p>
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <p className="font-semibold text-sm truncate">{conv.username}</p>
                       <p className="text-xs text-gray-400 truncate">{conv.lastMessage}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 truncate">
                         {new Date(conv.lastMessageTime).toLocaleDateString()}
                       </p>
                     </div>
