@@ -48,6 +48,19 @@ ALTER TABLE tasks
 ALTER TABLE applications
   ALTER COLUMN id SET DEFAULT gen_random_uuid();
 
+-- 2.5. Add missing columns to applications table
+ALTER TABLE applications
+  ADD COLUMN IF NOT EXISTS applicant_name TEXT;
+
+ALTER TABLE applications
+  ADD COLUMN IF NOT EXISTS applicant_skills TEXT;
+
+ALTER TABLE applications
+  ADD COLUMN IF NOT EXISTS applicant_experience TEXT;
+
+ALTER TABLE applications
+  ADD COLUMN IF NOT EXISTS applicant_description TEXT;
+
 -- 3. Fix messages table - add UUID generation for id column
 ALTER TABLE messages
   ALTER COLUMN id SET DEFAULT gen_random_uuid();
