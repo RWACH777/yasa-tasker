@@ -46,6 +46,7 @@ export default function DashboardPage() {
 
   // New state for features
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showPictureModal, setShowPictureModal] = useState(false);
   const [profileTasks, setProfileTasks] = useState({ active: [], pending: [], completed: [] });
   const [userApplications, setUserApplications] = useState<any[]>([]);
 
