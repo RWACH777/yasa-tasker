@@ -312,7 +312,7 @@ export default function ChatPage() {
       {/* Input Area */}
       <div className="bg-white/10 backdrop-blur-lg border-t border-white/20 p-4">
         <div className="max-w-4xl mx-auto flex gap-2">
-          <label className="px-3 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition cursor-pointer text-sm flex items-center gap-2 disabled:opacity-50" title="Upload files">
+          <label className="px-3 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition cursor-pointer text-sm flex items-center gap-2" title="Upload files">
             📎
             <input
               type="file"
@@ -327,10 +327,13 @@ export default function ChatPage() {
           <button
             onClick={handleVoiceRecord}
             disabled={uploading}
-            className="px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm disabled:opacity-50"
+            className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm disabled:opacity-50 flex items-center justify-center"
             title="Record voice message (5 sec max)"
           >
-            🎤
+            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+              <path d="M17 16.91c-1.48 1.46-3.51 2.36-5.77 2.36-2.26 0-4.29-.9-5.77-2.36l-1.1 1.1c1.86 1.86 4.41 3 7.07 3s5.21-1.14 7.07-3l-1.1-1.1zM12 19c2.21 0 4-1.79 4-4h-8c0 2.21 1.79 4 4 4z"/>
+            </svg>
           </button>
           <input
             type="text"
@@ -344,8 +347,8 @@ export default function ChatPage() {
           />
           <button
             onClick={() => sendMessage()}
-            disabled={uploading}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-50"
+            disabled={uploading || (!newMessage.trim())}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-50 font-semibold"
           >
             Send
           </button>
