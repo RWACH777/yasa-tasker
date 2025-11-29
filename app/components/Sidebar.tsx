@@ -3,9 +3,10 @@
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  onNotificationsClick: () => void;
 }
 
-export default function Sidebar({ isOpen, onClose }: SidebarProps) {
+export default function Sidebar({ isOpen, onClose, onNotificationsClick }: SidebarProps) {
   return (
     <div
       className={`fixed left-0 top-0 h-screen bg-white/10 backdrop-blur-lg border-r border-white/20 transition-all duration-300 z-40 ${
