@@ -408,7 +408,7 @@ export default function ChatPage() {
         <div className="max-w-2xl mx-auto space-y-3">
           {messages.length === 0 ? (
             <div className="flex items-center justify-center h-full text-gray-400">
-              <p>No messages yet. Start the conversation!</p>
+              <p style={{ wordBreak: 'break-word' }}>No messages yet. Start the conversation!</p>
             </div>
           ) : (
             messages.map((msg) => (
@@ -421,37 +421,33 @@ export default function ChatPage() {
                 onMouseUp={handleMessageMouseUp}
                 onMouseLeave={handleMessageMouseUp}
               >
-                <div
-                  className={`max-w-xs px-4 py-2 rounded-lg relative ${
-                    msg.sender_id === user.id
-                      ? "bg-blue-600/50 border border-blue-400"
-                      : "bg-white/10 border border-white/20"
-                  } ${longPressedMessageId === msg.id ? "ring-2 ring-red-500" : ""}`}
-                >
-                  {longPressedMessageId === msg.id && (
-                    <button
-                      onClick={() => deleteMessage(msg.id)}
-                      className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-semibold"
-                    >
-                      Delete
-                    </button>
-                  )}
-                  <p className="text-sm break-words">{msg.text}</p>
-                  {msg.file_url && (
-                    <button
-                      onClick={() => setMediaView({ url: msg.file_url!, type: msg.file_url!.includes('.pdf') ? 'application/pdf' : 'file' })}
-                      className="text-blue-300 hover:text-blue-200 text-xs mt-2 block break-all text-left"
-                    >
-                      📎 View File
-                    </button>
-                  )}
-                  {msg.voice_url && (
-                    <audio
-                      controls
-                      className="w-full mt-2 h-6"
-                      src={msg.voice_url}
-                    />
-                  )}
+                {longPressedMessageId === msg.id && (
+                  <button
+                    onClick={() => deleteMessage(msg.id)}
+                    className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-semibold"
+                  >
+                    Delete
+                  </button>
+                )}
+                <p className="text-sm break-all">{msg.text}</p>
+                {msg.file_url && (
+                  <button
+                    onClick={() => setMediaView({ url: msg.file_url!, type: msg.file_url!.includes('.pdf') ? 'application/pdf' : 'file' })}
+                    className="text-blue-300 hover:text-blue-200 text-xs mt-2 block break-all text-left"
+                  >
+                    📎 View File
+                  </button>
+                )}
+                {msg.voice_url && (
+                  <audio
+                    controls
+                    className="w-full mt-2 h-6"
+                    src={msg.voice_url}
+                  />
+                )}
+                <p className="text-xs text-gray-400 mt-1">
+                  {new Date(msg.created_at).toLocaleTimeString()}
+                </p>
                   <p className="text-xs text-gray-400 mt-1">
                     {new Date(msg.created_at).toLocaleTimeString()}
                   </p>
