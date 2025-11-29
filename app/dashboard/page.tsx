@@ -313,7 +313,6 @@ export default function DashboardPage() {
     await supabase.from("tasks").delete().eq("id", id);
     fetchTasks();
   };
-
   // Load profile tasks and applications
   const loadProfileTasks = async () => {
     if (!user?.id) return;
@@ -326,29 +325,42 @@ export default function DashboardPage() {
         .eq("poster_id", user.id);
 
       if (tasks) {
-        const groupedTasks = tasks.reduce((acc, task) => {
-          acc[task.status] = acc[task.status] || [];
-          acc[task.status].push(task);
-          return acc;
-        }, {});
-
-        setProfileTasks(groupedTasks);
+        const active = tasks.filter((t) => t.status === "active");
+        const pending = tasks.filter((t) => t.status === "open");
+        const completed = tasks.filter((t) => t.status === "completed");
+        setProfileTasks({ active, pending, completed });
       }
-    } else if (profileView === "freelancer") {
-      // Load user's applications
+    } else {
+      // FREELANCER VIEW: Load tasks I applied to, grouped by application status
       const { data: apps } = await supabase
         .from("applications")
-        .select("*")
+        .select("task_id, status")
         .eq("applicant_id", user.id);
 
-      if (apps) {
-        const groupedApps = apps.reduce((acc, app) => {
-          acc[app.status] = acc[app.status] || [];
-          acc[app.status].push(app);
-          return acc;
-        }, {});
+      if (apps && apps.length > 0) {
+        const taskIds = apps.map((app) => app.task_id);
+        const { data: tasks } = await supabase
+          .from("tasks")
+          .select("*")
+          .in("id", taskIds);
 
-        setUserApplications(groupedApps);
+        if (tasks) {
+          const active = tasks.filter((t) => {
+            const app = apps.find((a) => a.task_id === t.id);
+            return app?.status === "approved";
+          });
+          const pending = tasks.filter((t) => {
+            const app = apps.find((a) => a.task_id === t.id);
+            return app?.status === "pending";
+          });
+          const completed = tasks.filter((t) => {
+            const app = apps.find((a) => a.task_id === t.id);
+            return app?.status === "approved" && t.status === "completed";
+          });
+          setProfileTasks({ active, pending, completed });
+        }
+      } else {
+        setProfileTasks({ active: [], pending: [], completed: [] });
       }
     }
   };
