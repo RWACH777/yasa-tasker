@@ -422,7 +422,7 @@ export default function ChatPage() {
                 onMouseLeave={handleMessageMouseUp}
               >
                 <div
-                  className={`max-w-md px-4 py-2 rounded-lg relative ${
+                  className={`max-w-xs px-4 py-2 rounded-lg relative ${
                     msg.sender_id === user.id
                       ? "bg-blue-600/50 border border-blue-400"
                       : "bg-white/10 border border-white/20"
@@ -436,7 +436,7 @@ export default function ChatPage() {
                       Delete
                     </button>
                   )}
-                  <p className="text-sm break-words whitespace-pre-wrap overflow-hidden">{msg.text}</p>
+                  <p className="text-sm break-words whitespace-pre-wrap overflow-x-auto">{msg.text}</p>
                   {msg.file_url && (
                     <button
                       onClick={() => setMediaView({ url: msg.file_url!, type: msg.file_url!.includes('.pdf') ? 'application/pdf' : 'file' })}
