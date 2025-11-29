@@ -124,8 +124,9 @@ export default function ApplicationModal({
             </button>
             <button
               onClick={handleSubmit}
-              className={`flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition text-sm font-semibold ${
-                !isFormValid ? "opacity-50 cursor-not-allowed" : ""
+              disabled={!isFormValid}
+              className={`flex-1 px-4 py-2 rounded-lg transition text-sm font-semibold ${
+                isFormValid ? "bg-green-600 hover:bg-green-700 cursor-pointer" : "bg-gray-500 opacity-50 cursor-not-allowed"
               }`}
             >
               Submit

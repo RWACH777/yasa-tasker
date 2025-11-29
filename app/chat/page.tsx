@@ -421,33 +421,45 @@ export default function ChatPage() {
                 onMouseUp={handleMessageMouseUp}
                 onMouseLeave={handleMessageMouseUp}
               >
-                {longPressedMessageId === msg.id && (
-                  <button
-                    onClick={() => deleteMessage(msg.id)}
-                    className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-semibold"
-                  >
-                    Delete
-                  </button>
-                )}
-                <p className="text-sm break-all">{msg.text}</p>
-                {msg.file_url && (
-                  <button
-                    onClick={() => setMediaView({ url: msg.file_url!, type: msg.file_url!.includes('.pdf') ? 'application/pdf' : 'file' })}
-                    className="text-blue-300 hover:text-blue-200 text-xs mt-2 block break-all text-left"
-                  >
-                    📎 View File
-                  </button>
-                )}
-                {msg.voice_url && (
-                  <audio
-                    controls
-                    className="w-full mt-2 h-6"
-                    src={msg.voice_url}
-                  />
-                )}
-                <p className="text-xs text-gray-400 mt-1">
-                  {new Date(msg.created_at).toLocaleTimeString()}
-                </p>
+                <div
+                  className={`relative max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                    msg.sender_id === user.id
+                      ? "bg-blue-600 text-white"
+                      : "bg-white/10 border border-white/20 text-gray-100"
+                  }`}
+                >
+                  {longPressedMessageId === msg.id && (
+                    <button
+                      onClick={() => deleteMessage(msg.id)}
+                      className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-semibold"
+                    >
+                      Delete
+                    </button>
+                  )}
+                  <p className="text-sm break-words">{msg.text}</p>
+                  {msg.file_url && (
+                    <button
+                      onClick={() => setMediaView({ url: msg.file_url!, type: msg.file_url!.includes('.pdf') ? 'application/pdf' : 'file' })}
+                      className={`text-xs mt-2 block break-all text-left ${
+                        msg.sender_id === user.id ? "text-blue-100 hover:text-white" : "text-blue-300 hover:text-blue-200"
+                      }`}
+                    >
+                      📎 View File
+                    </button>
+                  )}
+                  {msg.voice_url && (
+                    <audio
+                      controls
+                      className="w-full mt-2 h-6"
+                      src={msg.voice_url}
+                    />
+                  )}
+                  <p className={`text-xs mt-1 ${
+                    msg.sender_id === user.id ? "text-blue-100" : "text-gray-400"
+                  }`}>
+                    {new Date(msg.created_at).toLocaleTimeString()}
+                  </p>
+                </div>
               </div>
             ))
           )}
