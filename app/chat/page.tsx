@@ -448,10 +448,6 @@ export default function ChatPage() {
                 <p className="text-xs text-gray-400 mt-1">
                   {new Date(msg.created_at).toLocaleTimeString()}
                 </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {new Date(msg.created_at).toLocaleTimeString()}
-                  </p>
-                </div>
               </div>
             ))
           )}
