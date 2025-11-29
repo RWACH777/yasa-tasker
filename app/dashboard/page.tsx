@@ -318,26 +318,39 @@ export default function DashboardPage() {
   const loadProfileTasks = async () => {
     if (!user?.id) return;
 
-    // Load user's posted tasks grouped by status
-    const { data: tasks } = await supabase
-      .from("tasks")
-      .select("*")
-      .eq("poster_id", user.id);
+    if (profileView === "tasker") {
+      // Load user's posted tasks grouped by status
+      const { data: tasks } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("poster_id", user.id);
 
-    if (tasks) {
-      const active = tasks.filter((t) => t.status === "active");
-      const pending = tasks.filter((t) => t.status === "open");
-      const completed = tasks.filter((t) => t.status === "completed");
-      setProfileTasks({ active, pending, completed });
+      if (tasks) {
+        const groupedTasks = tasks.reduce((acc, task) => {
+          acc[task.status] = acc[task.status] || [];
+          acc[task.status].push(task);
+          return acc;
+        }, {});
+
+        setProfileTasks(groupedTasks);
+      }
+    } else if (profileView === "freelancer") {
+      // Load user's applications
+      const { data: apps } = await supabase
+        .from("applications")
+        .select("*")
+        .eq("applicant_id", user.id);
+
+      if (apps) {
+        const groupedApps = apps.reduce((acc, app) => {
+          acc[app.status] = acc[app.status] || [];
+          acc[app.status].push(app);
+          return acc;
+        }, {});
+
+        setUserApplications(groupedApps);
+      }
     }
-
-    // Load applications for user's tasks
-    const { data: apps } = await supabase
-      .from("applications")
-      .select("*")
-      .eq("applicant_id", user.id);
-
-    if (apps) setUserApplications(apps);
   };
 
   // Open application modal
@@ -355,6 +368,16 @@ export default function DashboardPage() {
   const handleSubmitApplication = async (form: ApplicationFormData) => {
     if (!user?.id || !selectedTaskId) {
       setMessage("⚠️ Error: Missing user or task information.");
+      return;
+    }
+
+    if (
+      !form.name ||
+      !form.skills ||
+      !form.experience ||
+      !form.description
+    ) {
+      setMessage("⚠️ Please fill in all application form fields.");
       return;
     }
 
