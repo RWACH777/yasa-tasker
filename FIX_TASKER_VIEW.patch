@@ -1,0 +1,31 @@
+--- a/app/dashboard/page.tsx
++++ b/app/dashboard/page.tsx
+@@ -327,22 +327,8 @@ export default function DashboardPage() {
+         .eq("poster_id", user.id);
+ 
+       if (tasks) {
+-  const active = tasks.filter((t) => t.status === "active");
+-  const completed = tasks.filter((t) => t.status === "completed");
+-  const pending = [];
+-
+-  // For tasker: pending = tasks with pending applications
+-  for (const task of tasks) {
+-    if (task.status === "open") {
+-      const { data: apps } = await supabase
+-        .from("applications")
+-        .select("id")
+-        .eq("task_id", task.id)
+-        .eq("status", "pending")
+-        .limit(1);
+-      if (apps && apps.length > 0) {
+-        pending.push(task);
+-      }
++        const active = tasks.filter((t) => t.status === "active");
++        const pending = tasks.filter((t) => t.status === "open");
++        const completed = tasks.filter((t) => t.status === "completed");
++        setProfileTasks({ active, pending, completed });
+       }
+-    }
+-
+-  setProfileTasks({ active, pending, completed });
+-}
