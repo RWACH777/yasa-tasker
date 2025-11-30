@@ -7,6 +7,8 @@ import Sidebar from "@/app/components/Sidebar";
 import ApplicationModal, { ApplicationFormData } from "@/app/components/ApplicationModal";
 import ApplicationReviewModal from "@/app/components/ApplicationReviewModal";
 import NotificationsModal from "@/app/components/NotificationsModal";
+import { sendApprovalNotification } from "@/app/utils/notificationHelpers";
+import { sendDenialNotification } from "@/app/utils/notificationHelpers";
 
 interface Task {
   id: string;
@@ -325,11 +327,27 @@ export default function DashboardPage() {
         .eq("poster_id", user.id);
 
       if (tasks) {
-        const active = tasks.filter((t) => t.status === "active");
-        const pending = tasks.filter((t) => t.status === "open");
-        const completed = tasks.filter((t) => t.status === "completed");
-        setProfileTasks({ active, pending, completed });
+  const active = tasks.filter((t) => t.status === "active");
+  const completed = tasks.filter((t) => t.status === "completed");
+  const pending = [];
+
+  // For tasker: pending = tasks with pending applications
+  for (const task of tasks) {
+    if (task.status === "open") {
+      const { data: apps } = await supabase
+        .from("applications")
+        .select("id")
+        .eq("task_id", task.id)
+        .eq("status", "pending")
+        .limit(1);
+      if (apps && apps.length > 0) {
+        pending.push(task);
       }
+    }
+  }
+
+  setProfileTasks({ active, pending, completed });
+}
     } else {
       // FREELANCER VIEW: Load tasks I applied to, grouped by application status
       const { data: apps } = await supabase
@@ -443,61 +461,109 @@ export default function DashboardPage() {
 
   // Approve application
   const handleApproveApplication = async (applicationId: string, applicantId: string) => {
-    setReviewLoading(true);
-    const { error } = await supabase
-      .from("applications")
-      .update({ status: "approved" })
-      .eq("id", applicationId);
+  setReviewLoading(true);
+  const { error } = await supabase
+    .from("applications")
+    .update({ status: "approved" })
+    .eq("id", applicationId);
 
-    if (error) {
-      setMessage("❌ Failed to approve: " + error.message);
-    } else {
-      setMessage("✅ Application approved!");
+  if (error) {
+    setMessage("❌ Failed to approve: " + error.message);
+  } else {
+    setMessage("✅ Application approved!");
+    
+    // Update task status to active
+    const { data: taskData } = await supabase
+      .from("tasks")
+      .select("title")
+      .eq("id", reviewTaskId)
+      .single();
+
+    // Send notification to freelancer
+    if (taskData) {
+      await sendApprovalNotification(
+        applicantId,
+        reviewTaskId,
+        applicationId,
+        taskData.title
+      );
+    }
+
+    // Refresh applications list
+    if (reviewTaskId) {
+      const { data } = await supabase
+        .from("applications")
+        .select("*")
+        .eq("task_id", reviewTaskId)
+        .order("created_at", { ascending: false });
+      setTaskApplications(data || []);
+      
       // Update task status to active
       await supabase
         .from("tasks")
         .update({ status: "active" })
         .eq("id", reviewTaskId);
-      // Refresh applications list
-      if (reviewTaskId) {
-        const { data } = await supabase
-          .from("applications")
-          .select("*")
-          .eq("task_id", reviewTaskId)
-          .order("created_at", { ascending: false });
-        setTaskApplications(data || []);
-      }
-      loadProfileTasks();
-      // Auto-open chatroom
-      router.push(`/chatroom/${applicantId}?freelancer=true`);
     }
-    setReviewLoading(false);
-  };
+    
+    loadProfileTasks();
+    // Auto-open chatroom
+    router.push(`/chatroom/${applicantId}?freelancer=true`);
+  }
+  setReviewLoading(false);
+};
+
 
   // Deny application
   const handleDenyApplication = async (applicationId: string) => {
-    setReviewLoading(true);
-    const { error } = await supabase
-      .from("applications")
-      .update({ status: "denied" })
-      .eq("id", applicationId);
+  setReviewLoading(true);
+  
+  // Get application details for notification
+  const { data: appData } = await supabase
+    .from("applications")
+    .select("applicant_id")
+    .eq("id", applicationId)
+    .single();
 
-    if (error) {
-      setMessage("❌ Failed to deny: " + error.message);
-    } else {
-      setMessage("✅ Application denied!");
-      // Refresh applications list
-      if (reviewTaskId) {
-        const { data } = await supabase
-          .from("applications")
-          .select("*")
-          .eq("task_id", reviewTaskId)
-          .order("created_at", { ascending: false });
-        setTaskApplications(data || []);
-      }
+  const { error } = await supabase
+    .from("applications")
+    .update({ status: "denied" })
+    .eq("id", applicationId);
+
+  if (error) {
+    setMessage("❌ Failed to deny: " + error.message);
+  } else {
+    setMessage("✅ Application denied!");
+    
+    // Get task title for notification
+    const { data: taskData } = await supabase
+      .from("tasks")
+      .select("title")
+      .eq("id", reviewTaskId)
+      .single();
+
+    // Send notification to freelancer
+    if (appData && taskData) {
+      await sendDenialNotification(
+        appData.applicant_id,
+        reviewTaskId,
+        applicationId,
+        taskData.title
+      );
     }
-    setReviewLoading(false);
-  };
+
+    // Refresh applications list
+    if (reviewTaskId) {
+      const { data } = await supabase
+        .from("applications")
+        .select("*")
+        .eq("task_id", reviewTaskId)
+        .order("created_at", { ascending: false });
+      setTaskApplications(data || []);
+    }
+  }
+  setReviewLoading(false);
+};
+
 
   // Update freelancer username
   const handleUpdateFreelancerUsername = async () => {
