@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
+import { sendCompletionNotification } from "@/app/utils/notificationHelpers";
 
 interface Message {
   id: string;
@@ -19,6 +20,7 @@ export default function ChatPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const otherUserId = searchParams.get("user");
+  const taskId = searchParams.get("task");
 
   const [user, setUser] = useState<any>(null);
   const [otherUser, setOtherUser] = useState<any>(null);
@@ -403,12 +405,19 @@ export default function ChatPage() {
         </div>
       </div>
 
-{/* Task Completion Button - Only show for tasker */}
-{user?.id === otherUserId && (
+{/* Task Completion Button - Only show for tasker when task is provided */}
+{taskId && user?.id && otherUserId && (
   <div className="mb-4 p-3 bg-green-600/20 border border-green-600/50 rounded-lg">
     <p className="text-sm text-green-300 mb-2">Task Completion</p>
     <button
       onClick={async () => {
+        // Get task title first
+        const { data: taskData } = await supabase
+          .from("tasks")
+          .select("title")
+          .eq("id", taskId)
+          .single();
+
         // Update task status to completed
         const { error } = await supabase
           .from("tasks")
@@ -416,10 +425,15 @@ export default function ChatPage() {
           .eq("id", taskId);
 
         if (!error) {
-          setMessage("✅ Task marked as completed!");
-          // Send completion notification
-          const { sendCompletionNotification } = await import("@/app/utils/notificationHelpers");
-          await sendCompletionNotification(user.id, otherUserId, taskId, "Task");
+          setError(null);
+          // Send completion notification to both parties
+          await sendCompletionNotification(user.id, otherUserId, taskId, taskData?.title || "Task");
+          // Show success message
+          const messageDiv = document.createElement("div");
+          messageDiv.className = "fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg";
+          messageDiv.textContent = "✅ Task marked as completed!";
+          document.body.appendChild(messageDiv);
+          setTimeout(() => messageDiv.remove(), 3000);
         }
       }}
       className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition text-sm font-semibold"

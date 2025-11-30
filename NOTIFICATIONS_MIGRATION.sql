@@ -19,22 +19,22 @@ CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(read);
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policy: Users can only see their own notifications
-CREATE POLICY "Users can view their own notifications"
+CREATE POLICY IF NOT EXISTS "Users can view their own notifications"
   ON notifications FOR SELECT
   USING (auth.uid() = user_id);
 
 -- RLS Policy: Only the system (via API) can insert notifications
-CREATE POLICY "System can insert notifications"
+CREATE POLICY IF NOT EXISTS "System can insert notifications"
   ON notifications FOR INSERT
   WITH CHECK (true);
 
 -- RLS Policy: Users can update their own notifications (mark as read)
-CREATE POLICY "Users can update their own notifications"
+CREATE POLICY IF NOT EXISTS "Users can update their own notifications"
   ON notifications FOR UPDATE
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
 -- RLS Policy: Users can delete their own notifications
-CREATE POLICY "Users can delete their own notifications"
+CREATE POLICY IF NOT EXISTS "Users can delete their own notifications"
   ON notifications FOR DELETE
   USING (auth.uid() = user_id);

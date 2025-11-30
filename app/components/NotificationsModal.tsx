@@ -74,8 +74,13 @@ export default function NotificationsModal({
           }
         }
       } else {
-        // Load notifications for this freelancer
-        const notifs = await loadNotifications(userId);
+        // Load notifications for this freelancer from notifications table
+        const { data: notifs } = await supabase
+          .from("notifications")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false });
+        
         setNotifications(notifs as any);
       }
     } catch (error) {
