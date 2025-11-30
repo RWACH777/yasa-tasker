@@ -297,6 +297,7 @@ export default function DashboardPage() {
       deadline: "",
     });
     fetchTasks();
+    loadProfileTasks();
   };
 
   const handleEdit = (task: Task) => {
@@ -314,6 +315,7 @@ export default function DashboardPage() {
     if (!confirm("Delete this task?")) return;
     await supabase.from("tasks").delete().eq("id", id);
     fetchTasks();
+    loadProfileTasks();
   };
   // Load profile tasks and applications
   const loadProfileTasks = async () => {
@@ -327,27 +329,11 @@ export default function DashboardPage() {
         .eq("poster_id", user.id);
 
       if (tasks) {
-  const active = tasks.filter((t) => t.status === "active");
-  const completed = tasks.filter((t) => t.status === "completed");
-  const pending = [];
-
-  // For tasker: pending = tasks with pending applications
-  for (const task of tasks) {
-    if (task.status === "open") {
-      const { data: apps } = await supabase
-        .from("applications")
-        .select("id")
-        .eq("task_id", task.id)
-        .eq("status", "pending")
-        .limit(1);
-      if (apps && apps.length > 0) {
-        pending.push(task);
+        const active = tasks.filter((t) => t.status === "active");
+        const pending = tasks.filter((t) => t.status === "open");
+        const completed = tasks.filter((t) => t.status === "completed");
+        setProfileTasks({ active, pending, completed });
       }
-    }
-  }
-
-  setProfileTasks({ active, pending, completed });
-}
     } else {
       // FREELANCER VIEW: Load tasks I applied to, grouped by application status
       const { data: apps } = await supabase
@@ -560,6 +546,7 @@ export default function DashboardPage() {
         .order("created_at", { ascending: false });
       setTaskApplications(data || []);
     }
+    loadProfileTasks();
   }
   setReviewLoading(false);
 };
