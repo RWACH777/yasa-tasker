@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { loadNotifications } from "@/app/utils/notificationHelpers";
 
 interface Application {
   id: string;
@@ -73,27 +74,9 @@ export default function NotificationsModal({
           }
         }
       } else {
-        // Load approved applications for this freelancer
-        const { data: apps } = await supabase
-          .from("applications")
-          .select("*")
-          .eq("applicant_id", userId)
-          .eq("status", "approved")
-          .order("created_at", { ascending: false });
-
-        if (apps) {
-          const enriched = await Promise.all(
-            apps.map(async (app) => {
-              const { data: task } = await supabase
-                .from("tasks")
-                .select("title")
-                .eq("id", app.task_id)
-                .single();
-              return { ...app, task_title: task?.title };
-            })
-          );
-          setNotifications(enriched);
-        }
+        // Load notifications for this freelancer
+        const notifs = await loadNotifications(userId);
+        setNotifications(notifs as any);
       }
     } catch (error) {
       console.error("Error loading notifications:", error);
@@ -124,7 +107,7 @@ export default function NotificationsModal({
           <p className="text-gray-400 text-center py-8">
             {userRole === "tasker"
               ? "No pending applications"
-              : "No approved tasks yet"}
+              : "No notifications yet"}
           </p>
         ) : selectedNotification ? (
           // Detail view
@@ -136,65 +119,75 @@ export default function NotificationsModal({
               ← Back
             </button>
             <div className="bg-white/5 border border-white/10 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-blue-400 mb-3">
-                {selectedNotification.applicant_name}
-              </h3>
-              <p className="text-sm text-gray-300 mb-2">
-                <span className="font-semibold">Task:</span> {selectedNotification.task_title}
-              </p>
-              <p className="text-sm text-gray-300 mb-2">
-                <span className="font-semibold">Skills:</span> {selectedNotification.applicant_skills}
-              </p>
-              <p className="text-sm text-gray-300 mb-2">
-                <span className="font-semibold">Experience:</span>{" "}
-                {selectedNotification.applicant_experience}
-              </p>
-              <p className="text-sm text-gray-300 mb-4">
-                <span className="font-semibold">About:</span>
-              </p>
-              <p className="text-sm text-gray-400 bg-white/5 p-3 rounded border border-white/10 mb-4">
-                {selectedNotification.applicant_description}
-              </p>
+              {userRole === "tasker" ? (
+                <>
+                  <h3 className="text-lg font-semibold text-blue-400 mb-3">
+                    {selectedNotification.applicant_name}
+                  </h3>
+                  <p className="text-sm text-gray-300 mb-2">
+                    <span className="font-semibold">Task:</span> {selectedNotification.task_title}
+                  </p>
+                  <p className="text-sm text-gray-300 mb-2">
+                    <span className="font-semibold">Skills:</span> {selectedNotification.applicant_skills}
+                  </p>
+                  <p className="text-sm text-gray-300 mb-2">
+                    <span className="font-semibold">Experience:</span>{" "}
+                    {selectedNotification.applicant_experience}
+                  </p>
+                  <p className="text-sm text-gray-300 mb-4">
+                    <span className="font-semibold">About:</span>
+                  </p>
+                  <p className="text-sm text-gray-400 bg-white/5 p-3 rounded border border-white/10 mb-4">
+                    {selectedNotification.applicant_description}
+                  </p>
 
-              {userRole === "tasker" && selectedNotification.status === "pending" && (
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      if (onApprove) {
-                        onApprove(selectedNotification.id, selectedNotification.applicant_id);
-                        setSelectedNotification(null);
-                      }
-                    }}
-                    className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition text-sm font-semibold"
-                  >
-                    ✓ Approve
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (onDeny) {
-                        onDeny(selectedNotification.id);
-                        setSelectedNotification(null);
-                      }
-                    }}
-                    className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm font-semibold"
-                  >
-                    ✗ Deny
-                  </button>
-                </div>
-              )}
-
-              {userRole === "freelancer" && selectedNotification.status === "approved" && (
-                <button
-                  onClick={() => {
-                    if (onOpenChat) {
-                      onOpenChat(selectedNotification.applicant_id);
-                      setSelectedNotification(null);
-                    }
-                  }}
-                  className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm font-semibold"
-                >
-                  💬 Open Chatroom
-                </button>
+                  {selectedNotification.status === "pending" && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          if (onApprove) {
+                            onApprove(selectedNotification.id, selectedNotification.applicant_id);
+                            setSelectedNotification(null);
+                          }
+                        }}
+                        className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition text-sm font-semibold"
+                      >
+                        ✓ Approve
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (onDeny) {
+                            onDeny(selectedNotification.id);
+                            setSelectedNotification(null);
+                          }
+                        }}
+                        className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm font-semibold"
+                      >
+                        ✗ Deny
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <h3 className="text-lg font-semibold text-green-400 mb-3">Notification</h3>
+                  <p className="text-sm text-gray-300 mb-4">
+                    {selectedNotification.message}
+                  </p>
+                  {selectedNotification.type === "application_approved" && (
+                    <button
+                      onClick={() => {
+                        if (onOpenChat) {
+                          onOpenChat(selectedNotification.related_application_id);
+                          setSelectedNotification(null);
+                        }
+                      }}
+                      className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm font-semibold"
+                    >
+                      💬 Open Chat
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -207,11 +200,25 @@ export default function NotificationsModal({
                 onClick={() => setSelectedNotification(notif)}
                 className="w-full text-left bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition"
               >
-                <p className="font-semibold text-blue-400">{notif.applicant_name}</p>
-                <p className="text-sm text-gray-300 mt-1">Task: {notif.task_title}</p>
-                <p className="text-xs text-gray-500 mt-2">
-                  {new Date(notif.created_at).toLocaleDateString()}
-                </p>
+                {userRole === "tasker" ? (
+                  <>
+                    <p className="font-semibold text-blue-400">{notif.applicant_name}</p>
+                    <p className="text-sm text-gray-300 mt-1">Task: {notif.task_title}</p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {new Date(notif.created_at).toLocaleDateString()}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-semibold text-green-400">
+                      {notif.type === "application_approved" ? "✅ Approved" : "❌ Denied"}
+                    </p>
+                    <p className="text-sm text-gray-300 mt-1 line-clamp-2">{notif.message}</p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {new Date(notif.created_at).toLocaleDateString()}
+                    </p>
+                  </>
+                )}
               </button>
             ))}
           </div>
