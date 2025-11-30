@@ -22,6 +22,7 @@ interface NotificationsModalProps {
   userId: string;
   userRole: "tasker" | "freelancer";
   onApprove?: (applicationId: string, applicantId: string) => void;
+  onDeny?: (applicationId: string) => void;
   onOpenChat?: (applicantId: string) => void;
 }
 
@@ -31,6 +32,7 @@ export default function NotificationsModal({
   userId,
   userRole,
   onApprove,
+  onDeny,
   onOpenChat,
 }: NotificationsModalProps) {
   const [notifications, setNotifications] = useState<Application[]>([]);
@@ -169,14 +171,14 @@ export default function NotificationsModal({
                   </button>
                   <button
                     onClick={() => {
-                      if (onOpenChat) {
-                        onOpenChat(selectedNotification.applicant_id);
+                      if (onDeny) {
+                        onDeny(selectedNotification.id);
                         setSelectedNotification(null);
                       }
                     }}
-                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm font-semibold"
+                    className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm font-semibold"
                   >
-                    💬 Open Chat
+                    ✗ Deny
                   </button>
                 </div>
               )}

@@ -757,6 +757,7 @@ export default function DashboardPage() {
         userId={user?.id || ""}
         userRole={profileView}
         onApprove={handleApproveApplication}
+        onDeny={handleDenyApplication}
         onOpenChat={(applicantId) => router.push(`/chat?user=${applicantId}`)}
       />
 
