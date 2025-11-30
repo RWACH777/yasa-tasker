@@ -17,6 +17,17 @@ interface Application {
   task_title?: string;
 }
 
+interface Notification {
+  id: string;
+  user_id: string;
+  type: string;
+  related_task_id: string;
+  related_application_id?: string;
+  message: string;
+  read: boolean;
+  created_at: string;
+}
+
 interface NotificationsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -36,9 +47,9 @@ export default function NotificationsModal({
   onDeny,
   onOpenChat,
 }: NotificationsModalProps) {
-  const [notifications, setNotifications] = useState<Application[]>([]);
+  const [notifications, setNotifications] = useState<(Application | Notification)[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedNotification, setSelectedNotification] = useState<Application | null>(null);
+  const [selectedNotification, setSelectedNotification] = useState<(Application | Notification) | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -175,16 +186,25 @@ export default function NotificationsModal({
                 </>
               ) : (
                 <>
-                  <h3 className="text-lg font-semibold text-green-400 mb-3">Notification</h3>
+                  <h3 className="text-lg font-semibold text-green-400 mb-3">
+                    {(selectedNotification as Notification).type === "application_approved" ? "✅ Approved" : "❌ Denied"}
+                  </h3>
                   <p className="text-sm text-gray-300 mb-4">
-                    {selectedNotification.message}
+                    {(selectedNotification as Notification).message}
                   </p>
-                  {selectedNotification.type === "application_approved" && (
+                  {(selectedNotification as Notification).type === "application_approved" && (
                     <button
                       onClick={() => {
                         if (onOpenChat) {
-                          onOpenChat(selectedNotification.related_application_id);
-                          setSelectedNotification(null);
+                          // Get tasker ID from the related task
+                          const taskId = (selectedNotification as Notification).related_task_id;
+                          // We need to fetch the tasker ID from the task
+                          supabase.from("tasks").select("poster_id").eq("id", taskId).single().then(({ data }) => {
+                            if (data?.poster_id) {
+                              onOpenChat(data.poster_id);
+                              setSelectedNotification(null);
+                            }
+                          });
                         }
                       }}
                       className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm font-semibold"
@@ -207,8 +227,8 @@ export default function NotificationsModal({
               >
                 {userRole === "tasker" ? (
                   <>
-                    <p className="font-semibold text-blue-400">{notif.applicant_name}</p>
-                    <p className="text-sm text-gray-300 mt-1">Task: {notif.task_title}</p>
+                    <p className="font-semibold text-blue-400">{(notif as Application).applicant_name}</p>
+                    <p className="text-sm text-gray-300 mt-1">Task: {(notif as Application).task_title}</p>
                     <p className="text-xs text-gray-500 mt-2">
                       {new Date(notif.created_at).toLocaleDateString()}
                     </p>
@@ -216,9 +236,9 @@ export default function NotificationsModal({
                 ) : (
                   <>
                     <p className="font-semibold text-green-400">
-                      {notif.type === "application_approved" ? "✅ Approved" : "❌ Denied"}
+                      {(notif as Notification).type === "application_approved" ? "✅ Approved" : "❌ Denied"}
                     </p>
-                    <p className="text-sm text-gray-300 mt-1 line-clamp-2">{notif.message}</p>
+                    <p className="text-sm text-gray-300 mt-1 line-clamp-2">{(notif as Notification).message}</p>
                     <p className="text-xs text-gray-500 mt-2">
                       {new Date(notif.created_at).toLocaleDateString()}
                     </p>
