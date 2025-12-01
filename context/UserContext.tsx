@@ -41,39 +41,39 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User>(null);
 
   useEffect(() => {
-  if (typeof window === "undefined") return;
+    if (typeof window === "undefined") return;
 
-  // 1️⃣ Restore user from localStorage on mount
-  const saved = localStorage.getItem("piUser");
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved);
-      if (parsed?.uid) {
-        setUser(parsed);
-        ensureUserExists(parsed.uid, parsed.username);
+    // 1️⃣ Restore user from localStorage on mount
+    const saved = localStorage.getItem("piUser");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed?.uid) {
+          setUser(parsed);
+          ensureUserExists(parsed.uid, parsed.username);
+        }
+      } catch (e) {
+        console.warn("Failed to parse piUser from localStorage:", e);
       }
-    } catch (e) {
-      console.warn("Failed to parse piUser from localStorage:", e);
     }
-  }
 
-  // 2️⃣ Listen to Supabase auth changes
-  const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-    if (session?.user) {
-      const uid = session.user.id;
-      const username = session.user.user_metadata?.name || uid;
-      const userObj = { uid, username };
-      setUser(userObj);
-      localStorage.setItem("piUser", JSON.stringify(userObj));
-      ensureUserExists(uid, username);
-    } else {
-      setUser(null);
-      localStorage.removeItem("piUser");
-    }
-  });
+    // 2️⃣ Listen to Supabase auth changes
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const uid = session.user.id;
+        const username = session.user.user_metadata?.name || uid;
+        const userObj = { uid, username };
+        setUser(userObj);
+        localStorage.setItem("piUser", JSON.stringify(userObj));
+        ensureUserExists(uid, username);
+      } else {
+        setUser(null);
+        localStorage.removeItem("piUser");
+      }
+    });
 
-  return () => listener.subscription.unsubscribe();
-}, []);
+    return () => listener?.subscription?.unsubscribe();
+  }, []);
 
   const handleSetUser = (u: User) => {
     setUser(u);
