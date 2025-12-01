@@ -238,6 +238,18 @@ export default function DashboardPage() {
     if (user) fetchTasks();
   }, [filter, user]);
 
+  // Refresh notification count periodically
+  useEffect(() => {
+    if (!user?.id) return;
+
+    // Refresh notification count every 3 seconds
+    const interval = setInterval(() => {
+      loadNotificationCount(user.id);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [user?.id]);
+
   useEffect(() => {
     if (user && showProfileModal) {
       loadProfileTasks();
