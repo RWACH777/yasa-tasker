@@ -166,23 +166,15 @@ export default function MessagesPage() {
               {conversations.map((conv) => (
                 <div
                   key={conv.userId}
-                  className={`flex items-center justify-between bg-white/5 border border-white/10 rounded-lg p-3 hover:bg-white/10 transition relative ${
+                  className={`flex items-center justify-between bg-white/5 border border-white/10 rounded-lg p-3 hover:bg-white/10 transition relative group ${
                     longPressedConvId === conv.userId ? "ring-2 ring-red-500" : ""
                   }`}
                   onMouseDown={() => handleConvMouseDown(conv.userId)}
                   onMouseUp={handleConvMouseUp}
                   onMouseLeave={handleConvMouseUp}
                 >
-                  {longPressedConvId === conv.userId && (
-                    <button
-                      onClick={() => deleteConversation(conv.userId)}
-                      className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-semibold"
-                    >
-                      Delete
-                    </button>
-                  )}
                   <button
-                    onClick={() => router.push("/chat?user=" + conv.userId)}
+                    onClick={() => router.push(`/chat?user=${conv.userId}`)}
                     className="flex-1 text-left flex items-center gap-3"
                   >
                     {/* Profile Picture with Online Status */}
@@ -212,6 +204,13 @@ export default function MessagesPage() {
                         {new Date(conv.lastMessageTime).toLocaleDateString()}
                       </p>
                     </div>
+                  </button>
+                  <button
+                    onClick={() => deleteConversation(conv.userId)}
+                    className="ml-2 px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-semibold opacity-0 group-hover:opacity-100 transition"
+                    title="Delete conversation"
+                  >
+                    🗑️ Delete
                   </button>
                 </div>
               ))}
