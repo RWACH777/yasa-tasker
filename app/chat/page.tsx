@@ -487,18 +487,19 @@ export default function ChatPage() {
                 onMouseLeave={handleMessageMouseUp}
               >
                 <div
-                  className={`relative max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                  className={`relative max-w-xs lg:max-w-md px-4 py-2 rounded-lg group ${
                     msg.sender_id === user.id
                       ? "bg-blue-600 text-white"
                       : "bg-white/10 border border-white/20 text-gray-100"
                   }`}
                 >
-                  {longPressedMessageId === msg.id && (
+                  {msg.sender_id === user.id && (
                     <button
                       onClick={() => deleteMessage(msg.id)}
-                      className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-semibold"
+                      className="absolute -right-8 top-1/2 -translate-y-1/2 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-semibold opacity-0 group-hover:opacity-100 transition"
+                      title="Delete message"
                     >
-                      Delete
+                      ✕
                     </button>
                   )}
                   <p className="text-sm break-words">{msg.text}</p>

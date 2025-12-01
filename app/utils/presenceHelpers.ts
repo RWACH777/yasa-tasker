@@ -9,16 +9,11 @@ const supabase = createClient(
  * Set user as online
  */
 export const setUserOnline = async (userId: string) => {
-  const { error } = await supabase.from("presence").upsert(
-    [
-      {
-        user_id: userId,
-        is_online: true,
-        last_seen: new Date().toISOString(),
-      },
-    ],
-    { onConflict: "user_id" }
-  );
+  const { error } = await supabase.from("presence").upsert({
+    user_id: userId,
+    is_online: true,
+    last_seen: new Date().toISOString(),
+  });
 
   if (error) {
     console.error("❌ Failed to set user online:", error);
@@ -33,16 +28,11 @@ export const setUserOnline = async (userId: string) => {
  * Set user as offline
  */
 export const setUserOffline = async (userId: string) => {
-  const { error } = await supabase.from("presence").upsert(
-    [
-      {
-        user_id: userId,
-        is_online: false,
-        last_seen: new Date().toISOString(),
-      },
-    ],
-    { onConflict: "user_id" }
-  );
+  const { error } = await supabase.from("presence").upsert({
+    user_id: userId,
+    is_online: false,
+    last_seen: new Date().toISOString(),
+  });
 
   if (error) {
     console.error("❌ Failed to set user offline:", error);
