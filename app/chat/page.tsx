@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import { sendCompletionNotification } from "@/app/utils/notificationHelpers";
 import { setUserOnline, setUserOffline, getUserOnlineStatus } from "@/app/utils/presenceHelpers";
+import RatingModal from "@/app/components/RatingModal";
 
 interface Message {
   id: string;
@@ -37,6 +38,9 @@ export default function ChatPage() {
   const [otherUserOnline, setOtherUserOnline] = useState(false);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [ratingLoading, setRatingLoading] = useState(false);
+  const [hasRated, setHasRated] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -361,6 +365,37 @@ export default function ChatPage() {
     }
   };
 
+  const submitRating = async (stars: number, comment: string) => {
+    if (!user?.id || !otherUser?.id || !taskId) return;
+
+    setRatingLoading(true);
+    try {
+      const { error } = await supabase.from("ratings").insert([
+        {
+          rater_id: user.id,
+          ratee_id: otherUser.id,
+          task_id: taskId,
+          stars,
+          comment: comment || null,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+
+      if (error) {
+        console.error("Rating error:", error);
+        setError("Failed to submit rating");
+      } else {
+        setHasRated(true);
+        setShowRatingModal(false);
+      }
+    } catch (err) {
+      console.error("Rating submission error:", err);
+      setError("Error submitting rating");
+    } finally {
+      setRatingLoading(false);
+    }
+  };
+
   const handleMessageTouchStart = (e: React.TouchEvent, messageId: string, senderIsCurrentUser: boolean) => {
     messageStartXRef.current = e.touches[0].clientX;
   };
@@ -443,6 +478,16 @@ export default function ChatPage() {
             </div>
           </div>
           <div className="flex gap-2">
+            {taskId && (
+              <button
+                onClick={() => setShowRatingModal(true)}
+                disabled={hasRated}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                title={hasRated ? "You've already rated this task" : "Rate this task"}
+              >
+                {hasRated ? "✓ Rated" : "⭐ Rate"}
+              </button>
+            )}
             <button
               onClick={() => {
                 if (confirm("Clear all messages in this chat?")) {
@@ -669,6 +714,15 @@ export default function ChatPage() {
           </div>
         </div>
       )}
+
+      {/* Rating Modal */}
+      <RatingModal
+        isOpen={showRatingModal}
+        onClose={() => setShowRatingModal(false)}
+        onSubmit={submitRating}
+        otherUserName={otherUser?.username || "User"}
+        loading={ratingLoading}
+      />
     </div>
   );
 }
