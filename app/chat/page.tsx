@@ -176,7 +176,8 @@ export default function ChatPage() {
 
     if (fileUrl) messageData.file_url = fileUrl;
     if (voiceUrl) messageData.voice_url = voiceUrl;
-    if (replyingTo) messageData.reply_to_id = replyingTo.id;
+    // TODO: Add reply_to_id column to messages table in Supabase
+    // if (replyingTo) messageData.reply_to_id = replyingTo.id;
 
     console.log("📤 Sending message:", messageData);
     console.log("👤 User ID:", user.id);
