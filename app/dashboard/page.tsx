@@ -704,17 +704,17 @@ export default function DashboardPage() {
               <div className="flex flex-col gap-3 w-full">
                 <div>
                   <label className="text-xs text-gray-400 block mb-1">Freelancer Username (what others see)</label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <input
                       type="text"
                       placeholder="Your freelancer username"
                       value={freelancerUsername || user.freelancer_username || ""}
                       onChange={(e) => setFreelancerUsername(e.target.value)}
-                      className="flex-1 bg-white/10 border-2 border-white/30 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 caret-white pointer-events-auto"
+                      className="flex-1 min-w-0 bg-white/10 border-2 border-white/30 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 caret-white pointer-events-auto"
                     />
                     <button
                       onClick={handleUpdateFreelancerUsername}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm"
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm flex-shrink-0 whitespace-nowrap"
                     >
                       Update
                     </button>
