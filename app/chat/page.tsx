@@ -361,17 +361,24 @@ export default function ChatPage() {
     }
   };
 
-  const handleMessageTouchStart = (e: React.TouchEvent, messageId: string) => {
+  const handleMessageTouchStart = (e: React.TouchEvent, messageId: string, senderIsCurrentUser: boolean) => {
     messageStartXRef.current = e.touches[0].clientX;
   };
 
-  const handleMessageTouchEnd = (e: React.TouchEvent, messageId: string) => {
+  const handleMessageTouchEnd = (e: React.TouchEvent, messageId: string, senderIsCurrentUser: boolean) => {
     const endX = e.changedTouches[0].clientX;
     const diff = messageStartXRef.current - endX;
 
-    // Swipe left (diff > 50px) to show reply option
-    if (diff > 50) {
-      setSelectedMessageId(messageId);
+    // Swipe left (diff > 50px) for own messages = reply
+    // Swipe right (diff < -50px) for other messages = reply
+    if (senderIsCurrentUser && diff > 50) {
+      // Own message: swipe left to reply
+      const msg = messages.find(m => m.id === messageId);
+      if (msg) setReplyingTo(msg);
+    } else if (!senderIsCurrentUser && diff < -50) {
+      // Other's message: swipe right to reply
+      const msg = messages.find(m => m.id === messageId);
+      if (msg) setReplyingTo(msg);
     }
   };
 
@@ -472,30 +479,22 @@ export default function ChatPage() {
                 className={`flex ${
                   msg.sender_id === user.id ? "justify-end" : "justify-start"
                 }`}
-                onTouchStart={(e) => handleMessageTouchStart(e, msg.id)}
-                onTouchEnd={(e) => handleMessageTouchEnd(e, msg.id)}
+                onTouchStart={(e) => handleMessageTouchStart(e, msg.id, msg.sender_id === user.id)}
+                onTouchEnd={(e) => handleMessageTouchEnd(e, msg.id, msg.sender_id === user.id)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setSelectedMessageId(msg.id);
+                }}
               >
                 <div
-                  className={`relative max-w-xs lg:max-w-md px-4 py-2 rounded-lg cursor-pointer transition ${
+                  className={`relative max-w-xs lg:max-w-md px-4 py-2 rounded-lg transition ${
                     msg.sender_id === user.id
                       ? "bg-blue-600 text-white"
                       : "bg-white/10 border border-white/20 text-gray-100"
                   } ${selectedMessageId === msg.id ? "ring-2 ring-yellow-400" : ""}`}
-                  onClick={() => setSelectedMessageId(selectedMessageId === msg.id ? null : msg.id)}
                 >
                   {selectedMessageId === msg.id && (
-                    <div className="absolute -left-24 top-0 flex gap-2 bg-black/80 rounded-lg p-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setReplyingTo(msg);
-                          setSelectedMessageId(null);
-                        }}
-                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs font-semibold whitespace-nowrap"
-                        title="Reply to this message"
-                      >
-                        💬 Reply
-                      </button>
+                    <div className="absolute -left-20 top-0 flex gap-2 bg-black/80 rounded-lg p-2 z-50">
                       {msg.sender_id === user.id && (
                         <button
                           onClick={(e) => {
@@ -582,6 +581,22 @@ export default function ChatPage() {
 
       {/* Input Area - FIXED */}
       <div className="sticky bottom-0 z-10 bg-white/10 backdrop-blur-lg border-t border-white/20 p-3 w-full">
+        {/* Reply Context */}
+        {replyingTo && (
+          <div className="mb-2 bg-blue-600/30 border-l-4 border-blue-500 rounded p-2 flex justify-between items-center">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-blue-300">Replying to:</p>
+              <p className="text-sm text-gray-200 truncate">{replyingTo.text}</p>
+            </div>
+            <button
+              onClick={() => setReplyingTo(null)}
+              className="ml-2 px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs font-semibold"
+              title="Cancel reply"
+            >
+              ✕
+            </button>
+          </div>
+        )}
         <div className="w-full px-4 flex gap-2 items-flex-end">
           {/* Left: Textbox */}
           <div className="flex-1 flex flex-col gap-2">
@@ -593,7 +608,7 @@ export default function ChatPage() {
               onKeyPress={(e) => {
                 if (e.key === "Enter") sendMessage();
               }}
-              className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm"
+              className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             {/* Attach button below textbox */}
             <label className="px-3 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition cursor-pointer text-sm flex items-center gap-2 w-fit" title="Upload files">
