@@ -35,9 +35,12 @@ export default function ChatPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [longPressedMessageId, setLongPressedMessageId] = useState<string | null>(null);
   const [otherUserOnline, setOtherUserOnline] = useState(false);
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const messageStartXRef = useRef<number>(0);
 
   // Debug logging
   useEffect(() => {
@@ -354,7 +357,21 @@ export default function ChatPage() {
 
     if (!error) {
       setMessages(messages.filter((m) => m.id !== messageId));
-      setLongPressedMessageId(null);
+      setSelectedMessageId(null);
+    }
+  };
+
+  const handleMessageTouchStart = (e: React.TouchEvent, messageId: string) => {
+    messageStartXRef.current = e.touches[0].clientX;
+  };
+
+  const handleMessageTouchEnd = (e: React.TouchEvent, messageId: string) => {
+    const endX = e.changedTouches[0].clientX;
+    const diff = messageStartXRef.current - endX;
+
+    // Swipe left (diff > 50px) to show reply option
+    if (diff > 50) {
+      setSelectedMessageId(messageId);
     }
   };
 
@@ -455,25 +472,49 @@ export default function ChatPage() {
                 className={`flex ${
                   msg.sender_id === user.id ? "justify-end" : "justify-start"
                 }`}
-                onMouseDown={() => handleMessageMouseDown(msg.id)}
-                onMouseUp={handleMessageMouseUp}
-                onMouseLeave={handleMessageMouseUp}
+                onTouchStart={(e) => handleMessageTouchStart(e, msg.id)}
+                onTouchEnd={(e) => handleMessageTouchEnd(e, msg.id)}
               >
                 <div
-                  className={`relative max-w-xs lg:max-w-md px-4 py-2 rounded-lg group ${
+                  className={`relative max-w-xs lg:max-w-md px-4 py-2 rounded-lg cursor-pointer transition ${
                     msg.sender_id === user.id
                       ? "bg-blue-600 text-white"
                       : "bg-white/10 border border-white/20 text-gray-100"
-                  }`}
+                  } ${selectedMessageId === msg.id ? "ring-2 ring-yellow-400" : ""}`}
+                  onClick={() => setSelectedMessageId(selectedMessageId === msg.id ? null : msg.id)}
                 >
-                  {msg.sender_id === user.id && (
-                    <button
-                      onClick={() => deleteMessage(msg.id)}
-                      className="absolute -right-8 top-1/2 -translate-y-1/2 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-semibold opacity-0 group-hover:opacity-100 transition"
-                      title="Delete message"
-                    >
-                      ✕
-                    </button>
+                  {selectedMessageId === msg.id && (
+                    <div className="absolute -left-24 top-0 flex gap-2 bg-black/80 rounded-lg p-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setReplyingTo(msg);
+                          setSelectedMessageId(null);
+                        }}
+                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs font-semibold whitespace-nowrap"
+                        title="Reply to this message"
+                      >
+                        💬 Reply
+                      </button>
+                      {msg.sender_id === user.id && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteMessage(msg.id);
+                          }}
+                          className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-xs font-semibold whitespace-nowrap"
+                          title="Delete message"
+                        >
+                          🗑️ Delete
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {replyingTo?.id === msg.id && (
+                    <div className="text-xs bg-white/10 rounded p-1 mb-2 border-l-2 border-yellow-400">
+                      <p className="font-semibold text-yellow-300">Replying to:</p>
+                      <p className="text-gray-300 truncate">{replyingTo.text}</p>
+                    </div>
                   )}
                   <p className="text-sm break-words">{msg.text}</p>
                   {msg.file_url && (
