@@ -375,7 +375,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#000222] text-white flex flex-col">
+    <div className="h-screen bg-[#000222] text-white flex flex-col">
       {/* Error Banner */}
       {error && (
         <div className="bg-red-900/50 border-b border-red-600 p-3 text-sm text-red-200">
@@ -391,8 +391,8 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* Header */}
-      <div className="bg-white/10 backdrop-blur-lg border-b border-white/20 p-4">
+      {/* Header - FIXED */}
+      <div className="sticky top-0 z-10 bg-white/10 backdrop-blur-lg border-b border-white/20 p-4">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
             <img
@@ -419,6 +419,17 @@ export default function ChatPage() {
             </div>
           </div>
           <div className="flex gap-2">
+            <button
+              onClick={() => {
+                if (confirm("Clear all messages in this chat?")) {
+                  setMessages([]);
+                }
+              }}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm"
+              title="Clear chat history"
+            >
+              🗑️ Clear
+            </button>
             <Link
               href="/messages"
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm"
@@ -430,45 +441,7 @@ export default function ChatPage() {
         </div>
       </div>
 
-{/* Task Completion Button - Only show for tasker when task is provided */}
-{taskId && user?.id && otherUserId && (
-  <div className="mb-4 p-3 bg-green-600/20 border border-green-600/50 rounded-lg">
-    <p className="text-sm text-green-300 mb-2">Task Completion</p>
-    <button
-      onClick={async () => {
-        // Get task title first
-        const { data: taskData } = await supabase
-          .from("tasks")
-          .select("title")
-          .eq("id", taskId)
-          .single();
-
-        // Update task status to completed
-        const { error } = await supabase
-          .from("tasks")
-          .update({ status: "completed" })
-          .eq("id", taskId);
-
-        if (!error) {
-          setError(null);
-          // Send completion notification to both parties
-          await sendCompletionNotification(user.id, otherUserId, taskId, taskData?.title || "Task");
-          // Show success message
-          const messageDiv = document.createElement("div");
-          messageDiv.className = "fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg";
-          messageDiv.textContent = "✅ Task marked as completed!";
-          document.body.appendChild(messageDiv);
-          setTimeout(() => messageDiv.remove(), 3000);
-        }
-      }}
-      className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition text-sm font-semibold"
-    >
-      ✅ Mark Task as Completed
-    </button>
-  </div>
-)}
-
-      {/* Messages Area */}
+      {/* Messages Area - SCROLLABLE */}
       <div className="flex-1 overflow-y-auto p-4">
         <div className="max-w-2xl mx-auto space-y-3">
           {messages.length === 0 ? (
@@ -566,8 +539,8 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* Input Area */}
-      <div className="bg-white/10 backdrop-blur-lg border-t border-white/20 p-3 w-full">
+      {/* Input Area - FIXED */}
+      <div className="sticky bottom-0 z-10 bg-white/10 backdrop-blur-lg border-t border-white/20 p-3 w-full">
         <div className="w-full px-4 flex gap-2 items-flex-end">
           {/* Left: Textbox */}
           <div className="flex-1 flex flex-col gap-2">
