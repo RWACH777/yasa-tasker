@@ -408,13 +408,13 @@ export default function ChatPage() {
                 <h1 className="text-xl font-bold">{otherUser.username}</h1>
                 <span
                   className={`w-3 h-3 rounded-full ${
-                    otherUserOnline ? "bg-green-500" : "bg-gray-500"
+                    otherUserOnline ? "bg-blue-500" : "bg-gray-400"
                   }`}
                   title={otherUserOnline ? "Online" : "Offline"}
                 />
               </div>
               <p className="text-xs text-gray-400">
-                {otherUserOnline ? "🟢 Online" : "🔴 Offline"}
+                {otherUserOnline ? "Online" : "Offline"}
               </p>
             </div>
           </div>
