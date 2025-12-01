@@ -204,6 +204,8 @@ export default function DashboardPage() {
 
   // Fetch tasks
   const fetchTasks = async () => {
+    if (!user?.id) return;
+
     let q = supabase
       .from("tasks")
       .select("*")
@@ -212,12 +214,25 @@ export default function DashboardPage() {
     if (filter !== "all") q = q.eq("category", filter);
 
     const { data, error } = await q;
-    if (!error) setTasks(data || []);
+    
+    if (!error && data) {
+      // Filter tasks based on user role
+      // Tasker sees: tasks they posted
+      // Freelancer sees: tasks they haven't posted (available to apply to)
+      const filtered = data.filter(task => task.poster_id !== user.id);
+      setTasks(filtered);
+    }
   };
 
   useEffect(() => {
     if (user) fetchTasks();
   }, [filter, user]);
+
+  useEffect(() => {
+    if (user && showProfileModal) {
+      loadProfileTasks();
+    }
+  }, [profileView, showProfileModal, user]);
 
   // Post / update task
   const handleSubmit = async (e: any) => {
@@ -475,6 +490,17 @@ export default function DashboardPage() {
       );
     }
 
+    // Send system message to chat
+    if (user?.id && reviewTaskId) {
+      const systemMessage = {
+        sender_id: user.id,
+        receiver_id: applicantId,
+        text: "✅ Application approved - chat started",
+        created_at: new Date().toISOString(),
+      };
+      await supabase.from("messages").insert([systemMessage]);
+    }
+
     // Refresh applications list
     if (reviewTaskId) {
       const { data } = await supabase
@@ -492,12 +518,10 @@ export default function DashboardPage() {
     }
     
     loadProfileTasks();
-    // Auto-open chatroom
-    router.push(`/chatroom/${applicantId}?freelancer=true`);
+    router.push(`/chat?user=${applicantId}`);
   }
   setReviewLoading(false);
 };
-
 
   // Deny application
   const handleDenyApplication = async (applicationId: string) => {
@@ -749,12 +773,6 @@ export default function DashboardPage() {
                         <p className="text-xs text-gray-400">
                           Budget: {task.budget} π
                         </p>
-                        <button
-                          onClick={() => handleReviewApplications(task.id)}
-                          className="px-3 py-1 bg-green-600/80 rounded-md text-sm hover:bg-green-700 transition"
-                        >
-                          Review Applications
-                        </button>
                       </div>
                     ))}
                   </div>

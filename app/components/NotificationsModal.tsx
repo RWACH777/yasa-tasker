@@ -158,29 +158,31 @@ export default function NotificationsModal({
                   </p>
 
                   {selectedNotification.status === "pending" && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          if (onApprove) {
-                            onApprove(selectedNotification.id, selectedNotification.applicant_id);
-                            setSelectedNotification(null);
-                          }
-                        }}
-                        className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition text-sm font-semibold"
-                      >
-                        ✓ Approve
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (onDeny) {
-                            onDeny(selectedNotification.id);
-                            setSelectedNotification(null);
-                          }
-                        }}
-                        className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm font-semibold"
-                      >
-                        ✗ Deny
-                      </button>
+                    <div className="space-y-3">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            if (onApprove) {
+                              onApprove(selectedNotification.id, selectedNotification.applicant_id);
+                              setSelectedNotification(null);
+                            }
+                          }}
+                          className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition text-sm font-semibold"
+                        >
+                          ✓ Approve
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (onDeny) {
+                              onDeny(selectedNotification.id);
+                              setSelectedNotification(null);
+                            }
+                          }}
+                          className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm font-semibold"
+                        >
+                          ✗ Deny
+                        </button>
+                      </div>
                     </div>
                   )}
                 </>
