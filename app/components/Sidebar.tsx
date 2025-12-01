@@ -4,9 +4,10 @@ interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
   onNotificationsClick: () => void;
+  notificationCount?: number;
 }
 
-export default function Sidebar({ isOpen, onClose, onNotificationsClick }: SidebarProps) {
+export default function Sidebar({ isOpen, onClose, onNotificationsClick, notificationCount = 0 }: SidebarProps) {
   return (
     <div
       className={`fixed left-0 top-0 h-screen bg-white/10 backdrop-blur-lg border-r border-white/20 transition-all duration-300 z-40 ${
@@ -33,7 +34,14 @@ export default function Sidebar({ isOpen, onClose, onNotificationsClick }: Sideb
         </div>
 
         <div className="mt-2">
-          <h3 className="text-lg font-semibold mb-3">🔔 Notifications</h3>
+          <div className="flex items-center gap-2 mb-3">
+            <h3 className="text-lg font-semibold">🔔 Notifications</h3>
+            {notificationCount > 0 && (
+              <span className="bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                {notificationCount}
+              </span>
+            )}
+          </div>
           <a
             href="/notifications"
             onClick={onClose}

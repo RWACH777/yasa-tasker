@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import { sendCompletionNotification } from "@/app/utils/notificationHelpers";
+import { setUserOnline, setUserOffline, getUserOnlineStatus } from "@/app/utils/presenceHelpers";
 
 interface Message {
   id: string;
@@ -33,6 +34,7 @@ export default function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [longPressedMessageId, setLongPressedMessageId] = useState<string | null>(null);
+  const [otherUserOnline, setOtherUserOnline] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -54,6 +56,8 @@ export default function ChatPage() {
           .eq("id", data.session.user.id)
           .single();
         setUser(profile);
+        // Set user as online
+        await setUserOnline(data.session.user.id);
       } else {
         router.push("/dashboard");
       }
@@ -62,7 +66,16 @@ export default function ChatPage() {
     loadUser();
   }, [router]);
 
-  // Load other user info
+  // Set user offline on unmount
+  useEffect(() => {
+    return () => {
+      if (user?.id) {
+        setUserOffline(user.id);
+      }
+    };
+  }, [user?.id]);
+
+  // Load other user info and check online status
   useEffect(() => {
     if (!otherUserId) {
       router.push("/messages");
@@ -76,6 +89,10 @@ export default function ChatPage() {
         .eq("id", otherUserId)
         .single();
       setOtherUser(data);
+      
+      // Load other user's online status
+      const status = await getUserOnlineStatus(otherUserId);
+      setOtherUserOnline(status.is_online || false);
     };
 
     loadOtherUser();
@@ -387,9 +404,17 @@ export default function ChatPage() {
               className="w-10 h-10 rounded-full border border-white/30"
             />
             <div>
-              <h1 className="text-xl font-bold">{otherUser.username}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold">{otherUser.username}</h1>
+                <span
+                  className={`w-3 h-3 rounded-full ${
+                    otherUserOnline ? "bg-green-500" : "bg-gray-500"
+                  }`}
+                  title={otherUserOnline ? "Online" : "Offline"}
+                />
+              </div>
               <p className="text-xs text-gray-400">
-                {otherUser.freelancer_username || "No freelancer name set"}
+                {otherUserOnline ? "🟢 Online" : "🔴 Offline"}
               </p>
             </div>
           </div>

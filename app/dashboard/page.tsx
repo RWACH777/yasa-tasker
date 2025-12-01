@@ -89,6 +89,7 @@ export default function DashboardPage() {
 
   // Notifications state
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
 
   const handleContactTasker = async (task: Task) => {
     if (!user?.id) {
@@ -116,7 +117,20 @@ export default function DashboardPage() {
     if (!error) {
       setUser(data);
       setLoading(false);
+      // Load notification count
+      await loadNotificationCount(authUserId);
     }
+  };
+
+  // Load notification count
+  const loadNotificationCount = async (userId: string) => {
+    const { data } = await supabase
+      .from("notifications")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("read", false);
+    
+    setNotificationCount(data?.length || 0);
   };
 
   // 🔥 FIXED — prevents double login & ensures correct session flow + session persistence on refresh
@@ -216,11 +230,8 @@ export default function DashboardPage() {
     const { data, error } = await q;
     
     if (!error && data) {
-      // Filter tasks based on user role
-      // Tasker sees: tasks they posted
-      // Freelancer sees: tasks they haven't posted (available to apply to)
-      const filtered = data.filter(task => task.poster_id !== user.id);
-      setTasks(filtered);
+      // Show all tasks - user can edit/delete their own, or apply to others
+      setTasks(data);
     }
   };
 
@@ -614,6 +625,7 @@ export default function DashboardPage() {
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onNotificationsClick={() => setShowNotificationsModal(true)}
+        notificationCount={notificationCount}
       />
       
       {/* Navigation Bar */}
