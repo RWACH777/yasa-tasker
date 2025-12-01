@@ -29,3 +29,30 @@ body {
   backdrop-filter: blur(12px);
   border-radius: 16px;
 }
+
+/* Ensure all inputs are fully interactive */
+input,
+textarea,
+select {
+  pointer-events: auto !important;
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none !important;
+}
+
+/* Ensure text is visible in inputs */
+input::placeholder,
+textarea::placeholder {
+  color: rgba(156, 163, 175, 0.8) !important;
+}
+
+input,
+textarea {
+  color: white !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
