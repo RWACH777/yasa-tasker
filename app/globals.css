@@ -37,6 +37,8 @@ select {
   pointer-events: auto !important;
   -webkit-user-select: text !important;
   user-select: text !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
 }
 
 input:focus,
@@ -55,4 +57,16 @@ input,
 textarea {
   color: white !important;
   background-color: rgba(255, 255, 255, 0.1) !important;
+  font-size: 16px !important; /* Prevents zoom on iOS */
+}
+
+/* Ensure inputs accept text input */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+textarea {
+  -webkit-text-fill-color: white !important;
+  caret-color: white !important;
 }
