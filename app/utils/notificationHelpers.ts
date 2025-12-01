@@ -6,6 +6,38 @@ const supabase = createClient(
 );
 
 /**
+ * Send notification to tasker when a new application is submitted
+ */
+export const sendApplicationNotification = async (
+  taskerId: string,
+  taskId: string,
+  applicationId: string,
+  taskTitle: string,
+  applicantName: string
+) => {
+  const message = `📋 New application from ${applicantName} for "${taskTitle}"`;
+
+  const { error } = await supabase.from("notifications").insert([
+    {
+      user_id: taskerId,
+      type: "application_submitted",
+      related_task_id: taskId,
+      related_application_id: applicationId,
+      message,
+      read: false,
+    },
+  ]);
+
+  if (error) {
+    console.error("❌ Failed to send application notification:", error);
+  } else {
+    console.log("✅ Application notification sent to tasker");
+  }
+
+  return !error;
+};
+
+/**
  * Send notification to freelancer when application is approved
  */
 export const sendApprovalNotification = async (

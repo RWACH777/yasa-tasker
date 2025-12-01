@@ -7,8 +7,7 @@ import Sidebar from "@/app/components/Sidebar";
 import ApplicationModal, { ApplicationFormData } from "@/app/components/ApplicationModal";
 import ApplicationReviewModal from "@/app/components/ApplicationReviewModal";
 import NotificationsModal from "@/app/components/NotificationsModal";
-import { sendApprovalNotification } from "@/app/utils/notificationHelpers";
-import { sendDenialNotification } from "@/app/utils/notificationHelpers";
+import { sendApprovalNotification, sendDenialNotification, sendApplicationNotification } from "@/app/utils/notificationHelpers";
 
 interface Task {
   id: string;
@@ -432,9 +431,10 @@ export default function DashboardPage() {
       });
     };
 
+    const appId = generateUUID();
     const { error } = await supabase.from("applications").insert([
       {
-        id: generateUUID(),
+        id: appId,
         task_id: selectedTaskId,
         applicant_id: user.id,
         applicant_name: form.name,
@@ -449,6 +449,12 @@ export default function DashboardPage() {
     if (error) {
       setMessage("❌ Failed to apply: " + error.message);
     } else {
+      // Get task details to send notification to tasker
+      const task = tasks.find(t => t.id === selectedTaskId);
+      if (task) {
+        await sendApplicationNotification(task.poster_id, selectedTaskId, appId, task.title, form.name);
+      }
+      
       setMessage("✅ Application submitted!");
       setShowApplicationModal(false);
       setApplicationForm({ name: "", skills: "", experience: "", description: "" });
