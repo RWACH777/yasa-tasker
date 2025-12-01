@@ -9,56 +9,72 @@ const supabase = createClient(
  * Set user as online
  */
 export const setUserOnline = async (userId: string) => {
-  const { error } = await supabase.from("presence").upsert({
-    user_id: userId,
-    is_online: true,
-    last_seen: new Date().toISOString(),
-  });
+  try {
+    const { error } = await supabase.from("presence").upsert({
+      user_id: userId,
+      is_online: true,
+      last_seen: new Date().toISOString(),
+    });
 
-  if (error) {
-    console.error("❌ Failed to set user online:", error);
-  } else {
-    console.log("✅ User set online");
+    if (error) {
+      console.warn("⚠️ Could not set user online (table may not exist):", error.message);
+      return false;
+    } else {
+      console.log("✅ User set online");
+      return true;
+    }
+  } catch (err) {
+    console.warn("⚠️ Error setting user online:", err);
+    return false;
   }
-
-  return !error;
 };
 
 /**
  * Set user as offline
  */
 export const setUserOffline = async (userId: string) => {
-  const { error } = await supabase.from("presence").upsert({
-    user_id: userId,
-    is_online: false,
-    last_seen: new Date().toISOString(),
-  });
+  try {
+    const { error } = await supabase.from("presence").upsert({
+      user_id: userId,
+      is_online: false,
+      last_seen: new Date().toISOString(),
+    });
 
-  if (error) {
-    console.error("❌ Failed to set user offline:", error);
-  } else {
-    console.log("✅ User set offline");
+    if (error) {
+      console.warn("⚠️ Could not set user offline (table may not exist):", error.message);
+      return false;
+    } else {
+      console.log("✅ User set offline");
+      return true;
+    }
+  } catch (err) {
+    console.warn("⚠️ Error setting user offline:", err);
+    return false;
   }
-
-  return !error;
 };
 
 /**
  * Get user online status
  */
 export const getUserOnlineStatus = async (userId: string) => {
-  const { data, error } = await supabase
-    .from("presence")
-    .select("is_online, last_seen")
-    .eq("user_id", userId)
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from("presence")
+      .select("is_online, last_seen")
+      .eq("user_id", userId)
+      .single();
 
-  if (error) {
-    console.error("❌ Failed to get user status:", error);
+    if (error) {
+      // Table might not exist yet, return default offline status
+      console.warn("⚠️ Could not fetch user status (table may not exist):", error.message);
+      return { is_online: false, last_seen: null };
+    }
+
+    return data || { is_online: false, last_seen: null };
+  } catch (err) {
+    console.warn("⚠️ Error getting user status:", err);
     return { is_online: false, last_seen: null };
   }
-
-  return data || { is_online: false, last_seen: null };
 };
 
 /**
