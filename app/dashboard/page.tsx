@@ -638,9 +638,14 @@ export default function DashboardPage() {
       <div className="w-full max-w-3xl mb-4 flex justify-between items-center">
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="px-4 py-2 bg-gray-600/80 hover:bg-gray-700 rounded-lg transition text-sm"
+          className="relative px-4 py-2 bg-gray-600/80 hover:bg-gray-700 rounded-lg transition text-sm"
         >
           ☰ Menu
+          {notificationCount > 0 && (
+            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+              {notificationCount}
+            </span>
+          )}
         </button>
       </div>
       <div
