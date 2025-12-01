@@ -15,6 +15,7 @@ interface Message {
   text: string;
   file_url?: string;
   voice_url?: string;
+  reply_to_id?: string;
   created_at: string;
 }
 
@@ -176,8 +177,7 @@ export default function ChatPage() {
 
     if (fileUrl) messageData.file_url = fileUrl;
     if (voiceUrl) messageData.voice_url = voiceUrl;
-    // TODO: Add reply_to_id column to messages table in Supabase
-    // if (replyingTo) messageData.reply_to_id = replyingTo.id;
+    if (replyingTo) messageData.reply_to_id = replyingTo.id;
 
     console.log("📤 Sending message:", messageData);
     console.log("👤 User ID:", user.id);
@@ -555,6 +555,12 @@ export default function ChatPage() {
                           🗑️ Delete
                         </button>
                       )}
+                    </div>
+                  )}
+                  {msg.reply_to_id && messages.find(m => m.id === msg.reply_to_id) && (
+                    <div className="text-xs bg-white/20 rounded p-2 mb-2 border-l-2 border-blue-400 mb-2">
+                      <p className="font-semibold text-blue-300">Replying to:</p>
+                      <p className="text-gray-300 truncate">{messages.find(m => m.id === msg.reply_to_id)?.text}</p>
                     </div>
                   )}
                   {replyingTo?.id === msg.id && (
