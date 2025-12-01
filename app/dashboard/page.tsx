@@ -710,7 +710,7 @@ export default function DashboardPage() {
                       placeholder="Your freelancer username"
                       value={freelancerUsername || user.freelancer_username || ""}
                       onChange={(e) => setFreelancerUsername(e.target.value)}
-                      className="flex-1 min-w-0 bg-white/10 border-2 border-white/30 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 caret-white pointer-events-auto"
+                      className="flex-1 min-w-0 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 caret-white pointer-events-auto"
                     />
                     <button
                       onClick={handleUpdateFreelancerUsername}
@@ -865,7 +865,7 @@ export default function DashboardPage() {
               setForm({ ...form, title: e.target.value })
             }
             autoComplete="off"
-            className="w-full bg-white/10 border-2 border-white/30 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 caret-white pointer-events-auto"
+            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 caret-white pointer-events-auto"
           />
           <textarea
             placeholder="Task description"
@@ -873,7 +873,7 @@ export default function DashboardPage() {
             onChange={(e) =>
               setForm({ ...form, description: e.target.value })
             }
-            className="w-full bg-white/10 border-2 border-white/30 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 caret-white pointer-events-auto"
+            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 caret-white pointer-events-auto"
             rows={3}
           />
           <select
@@ -881,7 +881,7 @@ export default function DashboardPage() {
             onChange={(e) =>
               setForm({ ...form, category: e.target.value })
             }
-            className="w-full bg-white/10 border-2 border-white/30 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pointer-events-auto"
+            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pointer-events-auto"
           >
             <option value="">Select a category</option>
             {categories.filter(cat => cat !== "all").map((cat) => (
@@ -895,9 +895,9 @@ export default function DashboardPage() {
             placeholder="Budget (in π)"
             value={form.budget}
             onChange={(e) =>
-              setForm({ ...form, budget: e.target.value })
+              setForm({ ...form, budget: parseFloat(e.target.value) })
             }
-            className="w-full bg-white/10 border-2 border-white/30 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 caret-white pointer-events-auto"
+            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 caret-white pointer-events-auto"
           />
           <input
             type="date"
@@ -905,7 +905,7 @@ export default function DashboardPage() {
             onChange={(e) =>
               setForm({ ...form, deadline: e.target.value })
             }
-            className="w-full bg-white/10 border-2 border-white/30 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pointer-events-auto"
+            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pointer-events-auto"
           />
 
           <button

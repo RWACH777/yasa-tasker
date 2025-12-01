@@ -176,6 +176,7 @@ export default function ChatPage() {
 
     if (fileUrl) messageData.file_url = fileUrl;
     if (voiceUrl) messageData.voice_url = voiceUrl;
+    if (replyingTo) messageData.reply_to_id = replyingTo.id;
 
     console.log("📤 Sending message:", messageData);
     console.log("👤 User ID:", user.id);
@@ -194,6 +195,7 @@ export default function ChatPage() {
     } else {
       console.log("✅ Message sent successfully:", data);
       setNewMessage("");
+      setReplyingTo(null);
       // Manually add to state to ensure it appears
       if (data && data[0]) {
         console.log("📥 Adding message to state:", data[0]);
@@ -656,7 +658,7 @@ export default function ChatPage() {
               autoFocus
               autoComplete="off"
               disabled={false}
-              className="w-full bg-white/10 border-2 border-white/30 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 caret-white pointer-events-auto"
+              className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 caret-white pointer-events-auto"
             />
             {/* Attach button below textbox */}
             <label className="px-3 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition cursor-pointer text-sm flex items-center gap-2 w-fit" title="Upload files">
