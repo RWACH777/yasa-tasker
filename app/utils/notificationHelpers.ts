@@ -25,7 +25,7 @@ export const sendApplicationNotification = async (
   const { data, error } = await supabase.from("notifications").insert([
     {
       user_id: taskerId,
-      type: "application_submitted",
+      type: "application_received",
       related_task_id: taskId,
       related_application_id: applicationId,
       message,
