@@ -61,28 +61,15 @@ export default function NotificationsModal({
     setLoading(true);
     try {
       if (userRole === "tasker") {
-        // Load applications for tasks posted by this user
-        const { data: userTasks } = await supabase
-          .from("tasks")
-          .select("id, title")
-          .eq("poster_id", userId);
+        // Load notifications from notifications table for tasker
+        const { data: notifs } = await supabase
+          .from("notifications")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false });
 
-        if (userTasks && userTasks.length > 0) {
-          const taskIds = userTasks.map((t) => t.id);
-          const { data: apps } = await supabase
-            .from("applications")
-            .select("*")
-            .in("task_id", taskIds)
-            .eq("status", "pending")
-            .order("created_at", { ascending: false });
-
-          if (apps) {
-            const enriched = apps.map((app) => ({
-              ...app,
-              task_title: userTasks.find((t) => t.id === app.task_id)?.title,
-            }));
-            setNotifications(enriched);
-          }
+        if (notifs) {
+          setNotifications(notifs as any);
         }
       } else {
         // Load notifications for this freelancer from notifications table
@@ -138,53 +125,14 @@ export default function NotificationsModal({
               {userRole === "tasker" ? (
                 <>
                   <h3 className="text-lg font-semibold text-blue-400 mb-3">
-                    {selectedNotification.applicant_name}
+                    {(selectedNotification as Notification).message}
                   </h3>
-                  <p className="text-sm text-gray-300 mb-2">
-                    <span className="font-semibold">Task:</span> {selectedNotification.task_title}
-                  </p>
-                  <p className="text-sm text-gray-300 mb-2">
-                    <span className="font-semibold">Skills:</span> {selectedNotification.applicant_skills}
-                  </p>
-                  <p className="text-sm text-gray-300 mb-2">
-                    <span className="font-semibold">Experience:</span>{" "}
-                    {selectedNotification.applicant_experience}
-                  </p>
                   <p className="text-sm text-gray-300 mb-4">
-                    <span className="font-semibold">About:</span>
+                    Type: {(selectedNotification as Notification).type === "application_submitted" ? "📋 New Application" : "Other"}
                   </p>
-                  <p className="text-sm text-gray-400 bg-white/5 p-3 rounded border border-white/10 mb-4">
-                    {selectedNotification.applicant_description}
+                  <p className="text-xs text-gray-500">
+                    {new Date((selectedNotification as Notification).created_at).toLocaleString()}
                   </p>
-
-                  {selectedNotification.status === "pending" && (
-                    <div className="space-y-3">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => {
-                            if (onApprove) {
-                              onApprove(selectedNotification.id, selectedNotification.applicant_id);
-                              setSelectedNotification(null);
-                            }
-                          }}
-                          className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition text-sm font-semibold"
-                        >
-                          ✓ Approve
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (onDeny) {
-                              onDeny(selectedNotification.id);
-                              setSelectedNotification(null);
-                            }
-                          }}
-                          className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm font-semibold"
-                        >
-                          ✗ Deny
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </>
               ) : (
                 <>
@@ -229,8 +177,10 @@ export default function NotificationsModal({
               >
                 {userRole === "tasker" ? (
                   <>
-                    <p className="font-semibold text-blue-400">{(notif as Application).applicant_name}</p>
-                    <p className="text-sm text-gray-300 mt-1">Task: {(notif as Application).task_title}</p>
+                    <p className="font-semibold text-blue-400">
+                      {(notif as Notification).type === "application_submitted" ? "📋 New Application" : "Other"}
+                    </p>
+                    <p className="text-sm text-gray-300 mt-1 line-clamp-2">{(notif as Notification).message}</p>
                     <p className="text-xs text-gray-500 mt-2">
                       {new Date(notif.created_at).toLocaleDateString()}
                     </p>
