@@ -462,9 +462,17 @@ export default function DashboardPage() {
       setMessage("❌ Failed to apply: " + error.message);
     } else {
       // Get task details to send notification to tasker
-      const task = tasks.find(t => t.id === selectedTaskId);
-      if (task) {
-        await sendApplicationNotification(task.poster_id, selectedTaskId, appId, task.title, form.name);
+      const { data: taskData } = await supabase
+        .from("tasks")
+        .select("poster_id, title")
+        .eq("id", selectedTaskId)
+        .single();
+      
+      if (taskData) {
+        console.log("📋 Sending notification to tasker:", taskData.poster_id);
+        await sendApplicationNotification(taskData.poster_id, selectedTaskId, appId, taskData.title, form.name);
+      } else {
+        console.warn("⚠️ Could not find task details for notification");
       }
       
       setMessage("✅ Application submitted!");
