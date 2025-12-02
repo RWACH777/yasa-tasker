@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { loadNotifications } from "@/app/utils/notificationHelpers";
 
 interface Application {
   id: string;
