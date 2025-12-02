@@ -1,10 +1,10 @@
-import { createClient } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabaseClient";
+import { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Send notification to tasker when a new application is submitted
  */
 export const sendApplicationNotification = async (
+  supabase: SupabaseClient,
   taskerId: string,
   taskId: string,
   applicationId: string,
@@ -48,6 +48,7 @@ export const sendApplicationNotification = async (
  * Send notification to freelancer when application is approved
  */
 export const sendApprovalNotification = async (
+  supabase: SupabaseClient,
   freelancerId: string,
   taskId: string,
   applicationId: string,
@@ -79,6 +80,7 @@ export const sendApprovalNotification = async (
  * Send notification to freelancer when application is denied
  */
 export const sendDenialNotification = async (
+  supabase: SupabaseClient,
   freelancerId: string,
   taskId: string,
   applicationId: string,
@@ -110,6 +112,7 @@ export const sendDenialNotification = async (
  * Send notification to both tasker and freelancer when task is completed
  */
 export const sendCompletionNotification = async (
+  supabase: SupabaseClient,
   taskerId: string,
   freelancerId: string,
   taskId: string,
@@ -146,7 +149,7 @@ export const sendCompletionNotification = async (
 /**
  * Load notifications for a user
  */
-export const loadNotifications = async (userId: string) => {
+export const loadNotifications = async (supabase: SupabaseClient, userId: string) => {
   const { data, error } = await supabase
     .from("notifications")
     .select("*")
@@ -164,7 +167,7 @@ export const loadNotifications = async (userId: string) => {
 /**
  * Mark notification as read
  */
-export const markNotificationAsRead = async (notificationId: string) => {
+export const markNotificationAsRead = async (supabase: SupabaseClient, notificationId: string) => {
   const { error } = await supabase
     .from("notifications")
     .update({ read: true })
@@ -180,7 +183,7 @@ export const markNotificationAsRead = async (notificationId: string) => {
 /**
  * Delete notification
  */
-export const deleteNotification = async (notificationId: string) => {
+export const deleteNotification = async (supabase: SupabaseClient, notificationId: string) => {
   const { error } = await supabase
     .from("notifications")
     .delete()

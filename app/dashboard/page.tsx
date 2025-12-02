@@ -470,7 +470,7 @@ export default function DashboardPage() {
       
       if (taskData) {
         console.log("📋 Sending notification to tasker:", taskData.poster_id);
-        await sendApplicationNotification(taskData.poster_id, selectedTaskId, appId, taskData.title, form.name);
+        await sendApplicationNotification(supabase, taskData.poster_id, selectedTaskId, appId, taskData.title, form.name);
       } else {
         console.warn("⚠️ Could not find task details for notification");
       }
@@ -520,6 +520,7 @@ export default function DashboardPage() {
     // Send notification to freelancer
     if (taskData) {
       await sendApprovalNotification(
+        supabase,
         applicantId,
         reviewTaskId,
         applicationId,
@@ -588,9 +589,9 @@ export default function DashboardPage() {
       .eq("id", reviewTaskId)
       .single();
 
-    // Send notification to freelancer
     if (appData && taskData) {
       await sendDenialNotification(
+        supabase,
         appData.applicant_id,
         reviewTaskId,
         applicationId,
