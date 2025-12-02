@@ -89,6 +89,7 @@ export default function DashboardPage() {
   // Notifications state
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
+  const [messageCount, setMessageCount] = useState(0);
 
   const handleContactTasker = async (task: Task) => {
     if (!user?.id) {
@@ -118,6 +119,7 @@ export default function DashboardPage() {
       setLoading(false);
       // Load notification count
       await loadNotificationCount(authUserId);
+      await loadMessageCount(authUserId);
     }
   };
 
@@ -130,6 +132,19 @@ export default function DashboardPage() {
       .eq("read", false);
     
     setNotificationCount(data?.length || 0);
+  };
+
+  // Load message count (unread messages from other users)
+  const loadMessageCount = async (userId: string) => {
+    const { data: received } = await supabase
+      .from("messages")
+      .select("sender_id")
+      .eq("receiver_id", userId)
+      .order("created_at", { ascending: false });
+    
+    // Count unique senders (conversations with unread messages)
+    const uniqueSenders = new Set(received?.map((msg) => msg.sender_id) || []);
+    setMessageCount(uniqueSenders.size);
   };
 
   // 🔥 FIXED — prevents double login & ensures correct session flow + session persistence on refresh
@@ -238,13 +253,14 @@ export default function DashboardPage() {
     if (user) fetchTasks();
   }, [filter, user]);
 
-  // Refresh notification count periodically
+  // Refresh notification and message count periodically
   useEffect(() => {
     if (!user?.id) return;
 
-    // Refresh notification count every 3 seconds
+    // Refresh notification and message count every 3 seconds
     const interval = setInterval(() => {
       loadNotificationCount(user.id);
+      loadMessageCount(user.id);
     }, 3000);
 
     return () => clearInterval(interval);
@@ -653,6 +669,7 @@ export default function DashboardPage() {
         onClose={() => setSidebarOpen(false)}
         onNotificationsClick={() => setShowNotificationsModal(true)}
         notificationCount={notificationCount}
+        messageCount={messageCount}
       />
       
       {/* Navigation Bar */}

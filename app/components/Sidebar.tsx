@@ -5,9 +5,10 @@ interface SidebarProps {
   onClose: () => void;
   onNotificationsClick: () => void;
   notificationCount?: number;
+  messageCount?: number;
 }
 
-export default function Sidebar({ isOpen, onClose, onNotificationsClick, notificationCount = 0 }: SidebarProps) {
+export default function Sidebar({ isOpen, onClose, onNotificationsClick, notificationCount = 0, messageCount = 0 }: SidebarProps) {
   return (
     <div
       className={`fixed left-0 top-0 h-screen bg-white/10 backdrop-blur-lg border-r border-white/20 transition-all duration-300 z-40 ${
@@ -23,7 +24,14 @@ export default function Sidebar({ isOpen, onClose, onNotificationsClick, notific
         </button>
 
         <div>
-          <h3 className="text-lg font-semibold mb-3">💬 Messages</h3>
+          <div className="flex items-center gap-2 mb-3">
+            <h3 className="text-lg font-semibold">💬 Messages</h3>
+            {messageCount > 0 && (
+              <span className="bg-purple-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                {messageCount}
+              </span>
+            )}
+          </div>
           <a
             href="/messages"
             onClick={onClose}
