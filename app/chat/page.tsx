@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
-import { sendCompletionNotification } from "@/app/utils/notificationHelpers";
 import { setUserOnline, setUserOffline, getUserOnlineStatus } from "@/app/utils/presenceHelpers";
 import RatingModal from "@/app/components/RatingModal";
 
