@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  type TEXT NOT NULL CHECK (type IN ('application_approved', 'application_denied', 'task_completed')),
+  type TEXT NOT NULL CHECK (type IN ('application_received', 'application_approved', 'application_denied', 'task_completed')),
   related_task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
   related_application_id UUID REFERENCES applications(id) ON DELETE CASCADE,
   message TEXT NOT NULL,

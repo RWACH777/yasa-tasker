@@ -127,7 +127,7 @@ export default function NotificationsModal({
                     {(selectedNotification as Notification).message}
                   </h3>
                   <p className="text-sm text-gray-300 mb-4">
-                    Type: {(selectedNotification as Notification).type === "application_submitted" ? "📋 New Application" : "Other"}
+                    Type: {(selectedNotification as Notification).type === "application_received" ? "📋 New Application" : "Other"}
                   </p>
                   <p className="text-xs text-gray-500">
                     {new Date((selectedNotification as Notification).created_at).toLocaleString()}
@@ -177,7 +177,7 @@ export default function NotificationsModal({
                 {userRole === "tasker" ? (
                   <>
                     <p className="font-semibold text-blue-400">
-                      {(notif as Notification).type === "application_submitted" ? "📋 New Application" : "Other"}
+                      {(notif as Notification).type === "application_received" ? "📋 New Application" : "Other"}
                     </p>
                     <p className="text-sm text-gray-300 mt-1 line-clamp-2">{(notif as Notification).message}</p>
                     <p className="text-xs text-gray-500 mt-2">
