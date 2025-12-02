@@ -42,10 +42,12 @@ function ApplicationDetailView({
   notification,
   onApprove,
   onDeny,
+  onMarkAsRead,
 }: {
   notification: Notification;
   onApprove?: (applicationId: string, applicantId: string) => void;
   onDeny?: (applicationId: string) => void;
+  onMarkAsRead?: () => void;
 }) {
   const [application, setApplication] = useState<Application | null>(null);
   const [loading, setLoading] = useState(true);
@@ -82,44 +84,62 @@ function ApplicationDetailView({
 
   return (
     <div className="space-y-4 mt-4">
-      <div className="bg-white/10 rounded-lg p-4 space-y-3">
+      <div className="bg-white/10 rounded-lg p-4 space-y-4">
+        {/* Freelancer Name */}
         <div>
-          <p className="text-xs text-gray-400">Freelancer Name</p>
-          <p className="text-sm font-semibold text-white">{application.applicant_name}</p>
+          <p className="text-xs text-gray-400 mb-1">Freelancer Name</p>
+          <p className="text-lg font-semibold text-blue-400">{application.applicant_name}</p>
         </div>
+
+        {/* Skills */}
         <div>
-          <p className="text-xs text-gray-400">Skills</p>
+          <p className="text-xs text-gray-400 mb-1">Skills</p>
           <p className="text-sm text-gray-200">{application.applicant_skills}</p>
         </div>
+
+        {/* Experience */}
         <div>
-          <p className="text-xs text-gray-400">Experience</p>
+          <p className="text-xs text-gray-400 mb-1">Experience</p>
           <p className="text-sm text-gray-200">{application.applicant_experience}</p>
         </div>
+
+        {/* Application Description */}
         <div>
-          <p className="text-xs text-gray-400">Description</p>
-          <p className="text-sm text-gray-200">{application.applicant_description}</p>
+          <p className="text-xs text-gray-400 mb-1">Application Message</p>
+          <p className="text-sm text-gray-200 bg-white/5 rounded p-3 border border-white/10">
+            {application.applicant_description}
+          </p>
+        </div>
+
+        {/* Applied Date */}
+        <div>
+          <p className="text-xs text-gray-400">
+            Applied on {new Date(application.created_at).toLocaleDateString()}
+          </p>
         </div>
       </div>
 
       {/* Approve and Deny Buttons */}
-      <div className="flex gap-3">
+      <div className="flex gap-3 pt-4">
         <button
           onClick={() => {
+            if (onMarkAsRead) onMarkAsRead();
             if (onApprove) {
               onApprove(application.id, application.applicant_id);
             }
           }}
-          className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition text-sm font-semibold"
+          className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 rounded-lg transition text-sm font-semibold"
         >
           ✅ Approve
         </button>
         <button
           onClick={() => {
+            if (onMarkAsRead) onMarkAsRead();
             if (onDeny) {
               onDeny(application.id);
             }
           }}
-          className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm font-semibold"
+          className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm font-semibold"
         >
           ❌ Deny
         </button>
@@ -137,9 +157,9 @@ export default function NotificationsModal({
   onDeny,
   onOpenChat,
 }: NotificationsModalProps) {
-  const [notifications, setNotifications] = useState<(Application | Notification)[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedNotification, setSelectedNotification] = useState<(Application | Notification) | null>(null);
+  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -150,31 +170,27 @@ export default function NotificationsModal({
   const loadNotifications = async () => {
     setLoading(true);
     try {
-      if (userRole === "tasker") {
-        // Load notifications from notifications table for tasker
-        const { data: notifs } = await supabase
-          .from("notifications")
-          .select("*")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false });
+      // Load notifications from notifications table
+      const { data: notifs } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
 
-        if (notifs) {
-          setNotifications(notifs as any);
-        }
-      } else {
-        // Load notifications for this freelancer from notifications table
-        const { data: notifs } = await supabase
-          .from("notifications")
-          .select("*")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false });
-        
-        setNotifications(notifs as any);
+      if (notifs) {
+        setNotifications(notifs as Notification[]);
       }
     } catch (error) {
       console.error("Error loading notifications:", error);
     }
     setLoading(false);
+  };
+
+  const markAsRead = async (notificationId: string) => {
+    await supabase
+      .from("notifications")
+      .update({ read: true })
+      .eq("id", notificationId);
   };
 
   if (!isOpen) return null;
@@ -184,7 +200,7 @@ export default function NotificationsModal({
       <div className="w-full max-w-2xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">
-            {userRole === "tasker" ? "📬 Applications" : "✅ Approved Tasks"}
+            {userRole === "tasker" ? "📬 Applications" : "✅ Notifications"}
           </h2>
           <button
             onClick={onClose}
@@ -203,7 +219,7 @@ export default function NotificationsModal({
               : "No notifications yet"}
           </p>
         ) : selectedNotification ? (
-          // Detail view
+          // Detail view - Full application details
           <div className="space-y-4">
             <button
               onClick={() => setSelectedNotification(null)}
@@ -211,57 +227,47 @@ export default function NotificationsModal({
             >
               ← Back
             </button>
-            <div className="bg-white/5 border border-white/10 rounded-lg p-4">
-              {userRole === "tasker" ? (
-                <>
-                  <h3 className="text-lg font-semibold text-blue-400 mb-3">
-                    {(selectedNotification as Notification).message}
-                  </h3>
-                  <p className="text-sm text-gray-300 mb-4">
-                    Type: {(selectedNotification as Notification).type === "application_received" ? "📋 New Application" : "Other"}
-                  </p>
-                  <p className="text-xs text-gray-500 mb-4">
-                    {new Date((selectedNotification as Notification).created_at).toLocaleString()}
-                  </p>
-                  
-                  {/* Application Details */}
-                  <ApplicationDetailView 
-                    notification={selectedNotification as Notification}
-                    onApprove={onApprove}
-                    onDeny={onDeny}
-                  />
-                </>
-              ) : (
-                <>
-                  <h3 className="text-lg font-semibold text-green-400 mb-3">
-                    {(selectedNotification as Notification).type === "application_approved" ? "✅ Approved" : "❌ Denied"}
-                  </h3>
-                  <p className="text-sm text-gray-300 mb-4">
-                    {(selectedNotification as Notification).message}
-                  </p>
-                  {(selectedNotification as Notification).type === "application_approved" && (
-                    <button
-                      onClick={() => {
-                        if (onOpenChat) {
-                          // Get tasker ID from the related task
-                          const taskId = (selectedNotification as Notification).related_task_id;
-                          // We need to fetch the tasker ID from the task
-                          supabase.from("tasks").select("poster_id").eq("id", taskId).single().then(({ data }) => {
-                            if (data?.poster_id) {
-                              onOpenChat(data.poster_id);
-                              setSelectedNotification(null);
-                            }
-                          });
-                        }
-                      }}
-                      className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm font-semibold"
-                    >
-                      💬 Open Chat
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
+            
+            {userRole === "tasker" && selectedNotification.type === "application_received" ? (
+              <ApplicationDetailView 
+                notification={selectedNotification}
+                onApprove={onApprove}
+                onDeny={onDeny}
+                onMarkAsRead={() => markAsRead(selectedNotification.id)}
+              />
+            ) : (
+              // Freelancer notification view
+              <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-green-400 mb-3">
+                  {selectedNotification.type === "application_approved" ? "✅ Approved" : "❌ Denied"}
+                </h3>
+                <p className="text-sm text-gray-300 mb-4">
+                  {selectedNotification.message}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {new Date(selectedNotification.created_at).toLocaleString()}
+                </p>
+                
+                {selectedNotification.type === "application_approved" && (
+                  <button
+                    onClick={() => {
+                      if (onOpenChat) {
+                        const taskId = selectedNotification.related_task_id;
+                        supabase.from("tasks").select("poster_id").eq("id", taskId).single().then(({ data }) => {
+                          if (data?.poster_id) {
+                            onOpenChat(data.poster_id);
+                            setSelectedNotification(null);
+                          }
+                        });
+                      }
+                    }}
+                    className="w-full mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm font-semibold"
+                  >
+                    💬 Open Chat
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           // List view
@@ -269,15 +275,20 @@ export default function NotificationsModal({
             {notifications.map((notif) => (
               <button
                 key={notif.id}
-                onClick={() => setSelectedNotification(notif)}
-                className="w-full text-left bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition"
+                onClick={() => {
+                  setSelectedNotification(notif);
+                  markAsRead(notif.id);
+                }}
+                className={`w-full text-left rounded-lg p-4 hover:bg-white/10 transition ${
+                  notif.read ? "bg-white/5 border border-white/10" : "bg-blue-900/30 border border-blue-500/50"
+                }`}
               >
                 {userRole === "tasker" ? (
                   <>
                     <p className="font-semibold text-blue-400">
-                      {(notif as Notification).type === "application_received" ? "📋 New Application" : "Other"}
+                      {notif.type === "application_received" ? "📋 New Application" : "Other"}
                     </p>
-                    <p className="text-sm text-gray-300 mt-1 line-clamp-2">{(notif as Notification).message}</p>
+                    <p className="text-sm text-gray-300 mt-1 line-clamp-2">{notif.message}</p>
                     <p className="text-xs text-gray-500 mt-2">
                       {new Date(notif.created_at).toLocaleDateString()}
                     </p>
@@ -285,9 +296,9 @@ export default function NotificationsModal({
                 ) : (
                   <>
                     <p className="font-semibold text-green-400">
-                      {(notif as Notification).type === "application_approved" ? "✅ Approved" : "❌ Denied"}
+                      {notif.type === "application_approved" ? "✅ Approved" : "❌ Denied"}
                     </p>
-                    <p className="text-sm text-gray-300 mt-1 line-clamp-2">{(notif as Notification).message}</p>
+                    <p className="text-sm text-gray-300 mt-1 line-clamp-2">{notif.message}</p>
                     <p className="text-xs text-gray-500 mt-2">
                       {new Date(notif.created_at).toLocaleDateString()}
                     </p>
