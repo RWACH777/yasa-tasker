@@ -42,13 +42,15 @@ export default function Sidebar({ isOpen, onClose, onNotificationsClick, notific
               </span>
             )}
           </div>
-          <a
-            href="/notifications"
-            onClick={onClose}
+          <button
+            onClick={() => {
+              onNotificationsClick();
+              onClose();
+            }}
             className="w-full px-4 py-2 bg-orange-600/80 hover:bg-orange-700 rounded-lg transition text-sm block text-center"
           >
             View All Notifications
-          </a>
+          </button>
         </div>
 
         <div className="mt-2">
