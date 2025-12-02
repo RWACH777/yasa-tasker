@@ -177,14 +177,19 @@ export default function NotificationsModal({
   const loadNotifications = async () => {
     setLoading(true);
     try {
+      console.log("📬 Loading notifications for user:", userId);
       // Load notifications from notifications table
-      const { data: notifs } = await supabase
+      const { data: notifs, error } = await supabase
         .from("notifications")
         .select("*")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
+      console.log("📬 Notifications loaded:", notifs);
+      console.log("❌ Notifications error:", error);
+
       if (notifs) {
+        console.log("✅ Setting notifications:", notifs.length, "items");
         setNotifications(notifs as Notification[]);
       }
     } catch (error) {
