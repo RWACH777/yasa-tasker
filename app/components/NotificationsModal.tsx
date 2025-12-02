@@ -132,6 +132,7 @@ function ApplicationDetailView({
           onClick={() => {
             if (onMarkAsRead) onMarkAsRead();
             if (onApprove) {
+              console.log("✅ Approving application:", application.id, "for applicant:", application.applicant_id, "task:", notification.related_task_id);
               onApprove(application.id, application.applicant_id);
             }
           }}
@@ -143,6 +144,7 @@ function ApplicationDetailView({
           onClick={() => {
             if (onMarkAsRead) onMarkAsRead();
             if (onDeny) {
+              console.log("❌ Denying application:", application.id, "task:", notification.related_task_id);
               onDeny(application.id);
             }
           }}
