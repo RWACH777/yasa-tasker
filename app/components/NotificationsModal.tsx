@@ -54,16 +54,23 @@ function ApplicationDetailView({
 
   useEffect(() => {
     const loadApplication = async () => {
+      console.log("🔍 Loading application for notification:", notification);
+      console.log("📌 Related Application ID:", notification.related_application_id);
+      
       if (!notification.related_application_id) {
+        console.warn("⚠️ No related_application_id found");
         setLoading(false);
         return;
       }
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("applications")
         .select("*")
         .eq("id", notification.related_application_id)
         .single();
+
+      console.log("📦 Application data:", data);
+      console.log("❌ Application error:", error);
 
       if (data) {
         setApplication(data);
