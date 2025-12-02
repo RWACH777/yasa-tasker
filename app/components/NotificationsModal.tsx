@@ -37,6 +37,97 @@ interface NotificationsModalProps {
   onOpenChat?: (applicantId: string) => void;
 }
 
+// Component to display application details from notification
+function ApplicationDetailView({
+  notification,
+  onApprove,
+  onDeny,
+}: {
+  notification: Notification;
+  onApprove?: (applicationId: string, applicantId: string) => void;
+  onDeny?: (applicationId: string) => void;
+}) {
+  const [application, setApplication] = useState<Application | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadApplication = async () => {
+      if (!notification.related_application_id) {
+        setLoading(false);
+        return;
+      }
+
+      const { data } = await supabase
+        .from("applications")
+        .select("*")
+        .eq("id", notification.related_application_id)
+        .single();
+
+      if (data) {
+        setApplication(data);
+      }
+      setLoading(false);
+    };
+
+    loadApplication();
+  }, [notification.related_application_id]);
+
+  if (loading) {
+    return <p className="text-gray-400">Loading application details...</p>;
+  }
+
+  if (!application) {
+    return <p className="text-gray-400">Application details not found</p>;
+  }
+
+  return (
+    <div className="space-y-4 mt-4">
+      <div className="bg-white/10 rounded-lg p-4 space-y-3">
+        <div>
+          <p className="text-xs text-gray-400">Freelancer Name</p>
+          <p className="text-sm font-semibold text-white">{application.applicant_name}</p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-400">Skills</p>
+          <p className="text-sm text-gray-200">{application.applicant_skills}</p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-400">Experience</p>
+          <p className="text-sm text-gray-200">{application.applicant_experience}</p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-400">Description</p>
+          <p className="text-sm text-gray-200">{application.applicant_description}</p>
+        </div>
+      </div>
+
+      {/* Approve and Deny Buttons */}
+      <div className="flex gap-3">
+        <button
+          onClick={() => {
+            if (onApprove) {
+              onApprove(application.id, application.applicant_id);
+            }
+          }}
+          className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition text-sm font-semibold"
+        >
+          ✅ Approve
+        </button>
+        <button
+          onClick={() => {
+            if (onDeny) {
+              onDeny(application.id);
+            }
+          }}
+          className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm font-semibold"
+        >
+          ❌ Deny
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function NotificationsModal({
   isOpen,
   onClose,
@@ -129,9 +220,16 @@ export default function NotificationsModal({
                   <p className="text-sm text-gray-300 mb-4">
                     Type: {(selectedNotification as Notification).type === "application_received" ? "📋 New Application" : "Other"}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 mb-4">
                     {new Date((selectedNotification as Notification).created_at).toLocaleString()}
                   </p>
+                  
+                  {/* Application Details */}
+                  <ApplicationDetailView 
+                    notification={selectedNotification as Notification}
+                    onApprove={onApprove}
+                    onDeny={onDeny}
+                  />
                 </>
               ) : (
                 <>
