@@ -1,9 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
-);
+import { supabase } from "@/lib/supabaseClient";
 
 /**
  * Send notification to tasker when a new application is submitted
@@ -17,7 +13,16 @@ export const sendApplicationNotification = async (
 ) => {
   const message = `📋 New application from ${applicantName} for "${taskTitle}"`;
 
-  const { error } = await supabase.from("notifications").insert([
+  console.log("📋 Attempting to send notification with:", {
+    taskerId,
+    taskId,
+    applicationId,
+    taskTitle,
+    applicantName,
+    message,
+  });
+
+  const { data, error } = await supabase.from("notifications").insert([
     {
       user_id: taskerId,
       type: "application_submitted",
@@ -30,8 +35,10 @@ export const sendApplicationNotification = async (
 
   if (error) {
     console.error("❌ Failed to send application notification:", error);
+    console.error("Error details:", JSON.stringify(error, null, 2));
   } else {
     console.log("✅ Application notification sent to tasker");
+    console.log("Notification data:", data);
   }
 
   return !error;
