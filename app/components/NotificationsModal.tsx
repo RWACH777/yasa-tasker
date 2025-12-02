@@ -235,7 +235,8 @@ export default function NotificationsModal({
               ← Back
             </button>
             
-            {userRole === "tasker" && selectedNotification.type === "application_received" ? (
+            {userRole === "tasker" ? (
+              // Tasker view - show application details with approve/deny buttons
               <ApplicationDetailView 
                 notification={selectedNotification}
                 onApprove={onApprove}
