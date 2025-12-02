@@ -516,6 +516,16 @@ export default function DashboardPage() {
   // Approve application
   const handleApproveApplication = async (applicationId: string, applicantId: string) => {
   setReviewLoading(true);
+  
+  // Get application data to find task_id
+  const { data: appData } = await supabase
+    .from("applications")
+    .select("task_id")
+    .eq("id", applicationId)
+    .single();
+
+  const taskId = appData?.task_id || reviewTaskId;
+
   const { error } = await supabase
     .from("applications")
     .update({ status: "approved" })
@@ -526,26 +536,27 @@ export default function DashboardPage() {
   } else {
     setMessage("✅ Application approved!");
     
-    // Update task status to active
+    // Get task title for notification
     const { data: taskData } = await supabase
       .from("tasks")
       .select("title")
-      .eq("id", reviewTaskId)
+      .eq("id", taskId)
       .single();
 
     // Send notification to freelancer
     if (taskData) {
+      console.log("📬 Sending approval notification to freelancer:", applicantId);
       await sendApprovalNotification(
         supabase,
         applicantId,
-        reviewTaskId,
+        taskId,
         applicationId,
         taskData.title
       );
     }
 
     // Send system message to chat
-    if (user?.id && reviewTaskId) {
+    if (user?.id && taskId) {
       const systemMessage = {
         sender_id: user.id,
         receiver_id: applicantId,
@@ -556,11 +567,11 @@ export default function DashboardPage() {
     }
 
     // Refresh applications list
-    if (reviewTaskId) {
+    if (taskId) {
       const { data } = await supabase
         .from("applications")
         .select("*")
-        .eq("task_id", reviewTaskId)
+        .eq("task_id", taskId)
         .order("created_at", { ascending: false });
       setTaskApplications(data || []);
       
@@ -577,16 +588,18 @@ export default function DashboardPage() {
   setReviewLoading(false);
 };
 
-  // Deny application
-  const handleDenyApplication = async (applicationId: string) => {
+// Deny application
+const handleDenyApplication = async (applicationId: string) => {
   setReviewLoading(true);
   
   // Get application details for notification
   const { data: appData } = await supabase
     .from("applications")
-    .select("applicant_id")
+    .select("applicant_id, task_id")
     .eq("id", applicationId)
     .single();
+
+  const taskId = appData?.task_id || reviewTaskId;
 
   const { error } = await supabase
     .from("applications")
@@ -602,59 +615,117 @@ export default function DashboardPage() {
     const { data: taskData } = await supabase
       .from("tasks")
       .select("title")
-      .eq("id", reviewTaskId)
+      .eq("id", taskId)
       .single();
 
     if (appData && taskData) {
+      console.log("📬 Sending denial notification to freelancer:", appData.applicant_id);
       await sendDenialNotification(
         supabase,
         appData.applicant_id,
-        reviewTaskId,
+        taskId,
         applicationId,
         taskData.title
       );
     }
 
     // Refresh applications list
-    if (reviewTaskId) {
+    if (taskId) {
       const { data } = await supabase
         .from("applications")
         .select("*")
-        .eq("task_id", reviewTaskId)
+        .eq("task_id", taskId)
         .order("created_at", { ascending: false });
       setTaskApplications(data || []);
     }
-    loadProfileTasks();
-  }
-  setReviewLoading(false);
 };
 
+// Update freelancer username
+const handleUpdateFreelancerUsername = async () => {
+if (!user?.id || !freelancerUsername.trim()) {
+setMessage("⚠️ Please enter a valid freelancer username.");
+return;
+}
 
-  // Update freelancer username
-  const handleUpdateFreelancerUsername = async () => {
-    if (!user?.id || !freelancerUsername.trim()) {
-      setMessage("⚠️ Please enter a valid freelancer username.");
-      return;
-    }
+const { error } = await supabase
+.from("profiles")
+.update({ freelancer_username: freelancerUsername })
+.eq("id", user.id);
 
-    const { error } = await supabase
-      .from("profiles")
-      .update({ freelancer_username: freelancerUsername })
-      .eq("id", user.id);
+if (error) {
+setMessage("❌ Failed to update username: " + error.message);
+} else {
+setUser({ ...user, freelancer_username: freelancerUsername });
+setFreelancerUsername("");
+setMessage("✅ Freelancer username updated!");
+}
+};
 
-    if (error) {
-      setMessage("❌ Failed to update username: " + error.message);
-    } else {
-      setUser({ ...user, freelancer_username: freelancerUsername });
-      setFreelancerUsername("");
-      setMessage("✅ Freelancer username updated!");
-    }
-  };
+const categories = [
+"all",
+"design",
+"writing",
+"development",
+"marketing",
+"translation",
+"other",
+];
 
-  const categories = [
-    "all",
-    "design",
-    "writing",
+// ⭐️ UI WITH SIDEBAR
+return (
+<div className="min-h-screen bg-[#000222] text-white flex flex-col items-center px-4 py-10">
+<Sidebar
+isOpen={sidebarOpen}
+onClose={() => setSidebarOpen(false)}
+onNotificationsClick={() => setShowNotificationsModal(true)}
+notificationCount={notificationCount}
+/>
+  
+{/* Navigation Bar */}
+<div className="w-full max-w-3xl mb-4 flex justify-between items-center">
+<button
+onClick={() => setSidebarOpen(!sidebarOpen)}
+className="relative px-4 py-2 bg-gray-600/80 hover:bg-gray-700 rounded-lg transition text-sm"
+>
+☰ Menu
+{notificationCount > 0 && (
+<span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+{notificationCount}
+</span>
+)}
+</button>
+</div>
+<div
+onClick={() => {
+if (user?.id) {
+loadProfileTasks();
+setShowProfileModal(true);
+}
+}}
+className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 text-center mb-6 cursor-pointer hover:bg-white/20 transition"
+>
+{loading ? (
+<p>Loading profile...</p>
+) : user ? (
+<div className="flex flex-col items-center space-y-2">
+<img
+src={
+user.avatar_url ||
+`https://api.dicebear.com/8.x/thumbs/svg?seed=${user.username}`
+}
+alt="Avatar"
+className="w-20 h-20 rounded-full border border-white/30 object-cover"
+/>
+<h2 className="text-xl font-semibold">{user.username}</h2>
+<p className="text-sm text-gray-300">
+⭐️ {user.rating || 0} • {user.completed_tasks || 0} Tasks Completed
+</p>
+<p className="text-xs text-gray-400">Click to view profile details</p>
+</div>
+) : (
+<p>⚠️ Please log in with Pi to view your profile.</p>
+)}
+</div>
     "development",
     "marketing",
     "translation",
