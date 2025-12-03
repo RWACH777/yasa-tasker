@@ -53,8 +53,10 @@ export default function DashboardPage() {
   // New state for features
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showPictureModal, setShowPictureModal] = useState(false);
+  const [showRatingsPage, setShowRatingsPage] = useState(false);
   const [profileTasks, setProfileTasks] = useState({ active: [], pending: [], completed: [] });
   const [userApplications, setUserApplications] = useState<any[]>([]);
+  const [userRatings, setUserRatings] = useState<any[]>([]);
   
   // Picture modal state
   const [pictureToEdit, setPictureToEdit] = useState<string | null>(null);
@@ -448,7 +450,7 @@ export default function DashboardPage() {
         if (tasks) {
           const active = tasks.filter((t) => {
             const app = apps.find((a) => a.task_id === t.id);
-            return app?.status === "approved";
+            return app?.status === "approved" && t.status === "active";
           });
           const pending = tasks.filter((t) => {
             const app = apps.find((a) => a.task_id === t.id);
@@ -463,6 +465,21 @@ export default function DashboardPage() {
       } else {
         setProfileTasks({ active: [], pending: [], completed: [] });
       }
+    }
+  };
+
+  // Load user ratings
+  const loadUserRatings = async () => {
+    if (!user?.id) return;
+
+    const { data: ratings } = await supabase
+      .from("ratings")
+      .select("*, rater:profiles(username, avatar_url)")
+      .eq("rated_user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (ratings) {
+      setUserRatings(ratings);
     }
   };
 
@@ -747,6 +764,7 @@ const handleUpdateFreelancerUsername = async () => {
         onClick={() => {
           if (user?.id) {
             loadProfileTasks();
+            loadUserRatings();
             setShowProfileModal(true);
           }
         }}
@@ -918,6 +936,47 @@ const handleUpdateFreelancerUsername = async () => {
                 )}
               </div>
             </div>
+
+            {/* Ratings Section */}
+            <div className="mt-8 pt-6 border-t border-white/10">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">⭐ Recent Ratings</h3>
+                {user.total_ratings && user.total_ratings > 0 && (
+                  <button
+                    onClick={() => setShowRatingsPage(true)}
+                    className="text-xs text-blue-400 hover:text-blue-300 transition"
+                  >
+                    View All ({user.total_ratings})
+                  </button>
+                )}
+              </div>
+              {userRatings && userRatings.length > 0 ? (
+                <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                  {/* Show only first rating */}
+                  {(() => {
+                    const rating = userRatings[0];
+                    const raterName = rating.rater?.username || "Anonymous";
+                    const stars = rating.rating || 0;
+                    return (
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-yellow-400">{"⭐".repeat(stars)}</span>
+                          <span className="text-sm font-semibold">{raterName}</span>
+                        </div>
+                        {rating.comment && (
+                          <p className="text-sm text-gray-300 italic">"{rating.comment}"</p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-2">
+                          {new Date(rating.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400">No ratings yet. Complete tasks to receive ratings!</p>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -940,6 +999,58 @@ const handleUpdateFreelancerUsername = async () => {
         onDeny={handleDenyApplication}
         loading={reviewLoading}
       />
+
+      {/* RATINGS PAGE MODAL */}
+      {showRatingsPage && user && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-2xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">All Ratings ({userRatings.length})</h2>
+              <button
+                onClick={() => setShowRatingsPage(false)}
+                className="text-gray-400 hover:text-white text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            {userRatings && userRatings.length > 0 ? (
+              <div className="space-y-4">
+                {userRatings.map((rating, index) => (
+                  <div key={index} className="bg-white/5 border border-white/10 rounded-lg p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={
+                            rating.rater?.avatar_url ||
+                            `https://api.dicebear.com/8.x/thumbs/svg?seed=${rating.rater?.username || "user"}`
+                          }
+                          alt={rating.rater?.username}
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                        <div>
+                          <p className="font-semibold text-sm">{rating.rater?.username || "Anonymous"}</p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(rating.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-yellow-400 text-lg">
+                        {"⭐".repeat(rating.rating || 0)}
+                      </div>
+                    </div>
+                    {rating.comment && (
+                      <p className="text-sm text-gray-300 italic">"{rating.comment}"</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-gray-400">No ratings yet</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* EVERYTHING BELOW IS IDENTICAL — tasks, forms, filters, etc */}
       {/* (I DID NOT TOUCH YOUR UI) */}
@@ -1079,23 +1190,6 @@ const handleUpdateFreelancerUsername = async () => {
                 </div>
               </div>
             ))}
-          </div>
-        )}
-
-        {/* Ratings Section */}
-        {user && (
-          <div className="mt-8 pt-6 border-t border-white/10">
-            <h3 className="text-lg font-semibold mb-4">⭐ Recent Ratings</h3>
-            {user.total_ratings && user.total_ratings > 0 ? (
-              <div className="space-y-3 max-h-64 overflow-y-auto">
-                {/* Note: In production, you'd fetch actual ratings from the ratings table */}
-                <p className="text-xs text-gray-400 italic">
-                  {user.total_ratings} rating{user.total_ratings !== 1 ? 's' : ''} received
-                </p>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-400">No ratings yet. Complete tasks to receive ratings!</p>
-            )}
           </div>
         )}
       </div>
