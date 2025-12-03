@@ -137,9 +137,25 @@ export default function NotificationsPage() {
   };
 
   const handleApproveApplication = async (applicationId: string, applicantId: string) => {
-    if (!selectedNotification?.related_task_id) return;
+    // Get taskId from selectedApplication if available, otherwise from notification
+    let taskId = selectedNotification?.related_task_id;
+    
+    if (!taskId && selectedApplication) {
+      // Fetch the application to get task_id
+      const { data: appData } = await supabase
+        .from("applications")
+        .select("task_id")
+        .eq("id", applicationId)
+        .single();
+      taskId = appData?.task_id;
+    }
 
-    const taskId = selectedNotification.related_task_id;
+    if (!taskId) {
+      console.error("❌ No taskId found!");
+      return;
+    }
+    
+    console.log("✅ Approving application with taskId:", taskId);
 
     // Update application status
     await supabase
