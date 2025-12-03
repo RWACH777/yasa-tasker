@@ -588,6 +588,24 @@ export default function ChatPage() {
             </div>
           </div>
           <div className="flex gap-1 md:gap-2">
+            {taskId && taskStatus === "active" && user?.id && (
+              <button
+                onClick={async () => {
+                  // Mark task as completed
+                  await supabase
+                    .from("tasks")
+                    .update({ status: "completed" })
+                    .eq("id", taskId);
+                  setTaskStatus("completed");
+                  // Show success message
+                  alert("✅ Task marked as completed! Rating is now available.");
+                }}
+                className="px-2 md:px-4 py-1 md:py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition text-xs md:text-sm"
+                title="Mark this task as completed"
+              >
+                ✓ Complete
+              </button>
+            )}
             {taskId && taskStatus === "completed" && (
               <button
                 onClick={() => setShowRatingModal(true)}
