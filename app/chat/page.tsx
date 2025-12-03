@@ -42,6 +42,7 @@ export default function ChatPage() {
   const [ratingLoading, setRatingLoading] = useState(false);
   const [hasRated, setHasRated] = useState(false);
   const [taskStatus, setTaskStatus] = useState<string | null>(null);
+  const [taskPosterId, setTaskPosterId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -174,12 +175,13 @@ export default function ChatPage() {
     const loadTaskStatus = async () => {
       const { data } = await supabase
         .from("tasks")
-        .select("status")
+        .select("status, poster_id")
         .eq("id", taskId)
         .single();
 
       if (data) {
         setTaskStatus(data.status);
+        setTaskPosterId(data.poster_id);
       }
     };
 
@@ -198,6 +200,7 @@ export default function ChatPage() {
         },
         (payload) => {
           setTaskStatus(payload.new.status);
+          setTaskPosterId(payload.new.poster_id);
         }
       )
       .subscribe();
@@ -588,7 +591,7 @@ export default function ChatPage() {
             </div>
           </div>
           <div className="flex gap-1 md:gap-2">
-            {taskId && taskStatus === "active" && user?.id && (
+            {taskId && taskStatus === "active" && user?.id === taskPosterId && (
               <button
                 onClick={async () => {
                   // Mark task as completed

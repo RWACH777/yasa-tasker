@@ -182,7 +182,7 @@ export default function NotificationsPage() {
     
     // Redirect to chat with a slight delay to ensure all updates are processed
     setTimeout(() => {
-      router.push(`/chat?user=${applicantId}`);
+      router.push(`/chat?user=${applicantId}&task=${taskId}`);
     }, 500);
   };
 
