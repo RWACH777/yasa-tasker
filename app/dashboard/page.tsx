@@ -6,7 +6,6 @@ import { supabase } from "@/lib/supabaseClient";
 import Sidebar from "@/app/components/Sidebar";
 import ApplicationModal, { ApplicationFormData } from "@/app/components/ApplicationModal";
 import ApplicationReviewModal from "@/app/components/ApplicationReviewModal";
-import NotificationsModal from "@/app/components/NotificationsModal";
 import { sendApprovalNotification, sendDenialNotification, sendApplicationNotification } from "@/app/utils/notificationHelpers";
 
 interface Task {
@@ -87,7 +86,6 @@ export default function DashboardPage() {
   const [reviewLoading, setReviewLoading] = useState(false);
 
   // Notifications state
-  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
   const [messageCount, setMessageCount] = useState(0);
 
@@ -681,7 +679,6 @@ const handleUpdateFreelancerUsername = async () => {
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        onNotificationsClick={() => setShowNotificationsModal(true)}
         notificationCount={notificationCount}
         messageCount={messageCount}
       />
@@ -894,18 +891,6 @@ const handleUpdateFreelancerUsername = async () => {
         onApprove={handleApproveApplication}
         onDeny={handleDenyApplication}
         loading={reviewLoading}
-      />
-
-      {/* NOTIFICATIONS MODAL */}
-      <NotificationsModal
-        isOpen={showNotificationsModal}
-        onClose={() => setShowNotificationsModal(false)}
-        userId={user?.id || ""}
-        userRole={profileView}
-        onApprove={handleApproveApplication}
-        onDeny={handleDenyApplication}
-        onOpenChat={(applicantId) => router.push(`/chat?user=${applicantId}`)}
-        onNotificationCountChange={setNotificationCount}
       />
 
       {/* EVERYTHING BELOW IS IDENTICAL — tasks, forms, filters, etc */}

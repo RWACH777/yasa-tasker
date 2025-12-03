@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
+
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  onNotificationsClick: () => void;
+  onNotificationsClick?: () => void;
   notificationCount?: number;
   messageCount?: number;
 }
@@ -50,15 +52,13 @@ export default function Sidebar({ isOpen, onClose, onNotificationsClick, notific
               </span>
             )}
           </div>
-          <button
-            onClick={() => {
-              onNotificationsClick();
-              onClose();
-            }}
+          <Link
+            href="/notifications"
+            onClick={onClose}
             className="w-full px-4 py-2 bg-orange-600/80 hover:bg-orange-700 rounded-lg transition text-sm block text-center"
           >
             View All Notifications
-          </button>
+          </Link>
         </div>
 
         <div className="mt-2">

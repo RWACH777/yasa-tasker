@@ -5,6 +5,16 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Sidebar from "@/app/components/Sidebar";
 
+interface Application {
+  id: string;
+  applicant_id: string;
+  applicant_name: string;
+  applicant_skills: string;
+  applicant_experience: string;
+  applicant_description: string;
+  created_at: string;
+}
+
 interface Notification {
   id: string;
   user_id: string;
@@ -22,6 +32,9 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
+  const [applicationLoading, setApplicationLoading] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -97,6 +110,86 @@ export default function NotificationsPage() {
     }
   };
 
+  const loadApplicationDetails = async (notification: Notification) => {
+    if (!notification.related_application_id) return;
+
+    setApplicationLoading(true);
+    const { data } = await supabase
+      .from("applications")
+      .select("*")
+      .eq("id", notification.related_application_id)
+      .single();
+
+    if (data) {
+      setSelectedApplication(data);
+    }
+    setApplicationLoading(false);
+  };
+
+  const handleNotificationClick = async (notification: Notification) => {
+    setSelectedNotification(notification);
+    await markAsRead(notification.id);
+    
+    // Load application details if it's an application notification
+    if (notification.type === "application_received") {
+      await loadApplicationDetails(notification);
+    }
+  };
+
+  const handleApproveApplication = async (applicationId: string, applicantId: string) => {
+    if (!selectedNotification?.related_task_id) return;
+
+    // Update application status
+    await supabase
+      .from("applications")
+      .update({ status: "approved" })
+      .eq("id", applicationId);
+
+    // Send notification to freelancer
+    await supabase.from("notifications").insert([
+      {
+        user_id: applicantId,
+        type: "application_approved",
+        related_task_id: selectedNotification.related_task_id,
+        related_application_id: applicationId,
+        message: `✅ Your application was approved! Check Messages to communicate with the tasker.`,
+        read: false,
+      },
+    ]);
+
+    // Close detail view and refresh
+    setSelectedNotification(null);
+    setSelectedApplication(null);
+    await loadNotifications(user.id);
+  };
+
+  const handleDenyApplication = async (applicationId: string) => {
+    if (!selectedNotification?.related_task_id || !selectedApplication) return;
+
+    // Update application status
+    await supabase
+      .from("applications")
+      .update({ status: "denied" })
+      .eq("id", applicationId);
+
+    // Send notification to freelancer
+    await supabase.from("notifications").insert([
+      {
+        user_id: selectedApplication.applicant_id,
+        type: "application_denied",
+        related_task_id: selectedNotification.related_task_id,
+        related_application_id: applicationId,
+        message: `❌ Your application was denied. Try applying to other tasks!`,
+        read: false,
+      },
+    ]);
+
+    // Close detail view and refresh
+    setSelectedNotification(null);
+    setSelectedApplication(null);
+    await loadNotifications(user.id);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#000222] text-white flex items-center justify-center">
@@ -130,56 +223,138 @@ export default function NotificationsPage() {
         </button>
       </div>
 
-      {/* Notifications List */}
+      {/* Notifications List or Detail View */}
       <div className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
-        {notifications.length === 0 ? (
-          <p className="text-gray-400 text-center py-8">No notifications yet</p>
-        ) : (
-          <div className="space-y-3">
-            {notifications.map((notif) => (
-              <div
-                key={notif.id}
-                className={`p-4 rounded-lg border transition ${
-                  notif.read
-                    ? "bg-white/5 border-white/10"
-                    : "bg-blue-500/10 border-blue-400/50"
-                }`}
-              >
-                <div className="flex justify-between items-start gap-4">
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-300">{notif.message}</p>
-                    <p className="text-xs text-gray-500 mt-2">
-                      {new Date(notif.created_at).toLocaleString()}
+        {selectedNotification ? (
+          // Detail View
+          <div className="space-y-4">
+            <button
+              onClick={() => {
+                setSelectedNotification(null);
+                setSelectedApplication(null);
+              }}
+              className="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded text-sm"
+            >
+              ← Back
+            </button>
+
+            {selectedNotification.type === "application_received" && selectedApplication ? (
+              // Application Details for Tasker
+              <div className="space-y-4 mt-4">
+                <div className="bg-white/10 rounded-lg p-4 space-y-4">
+                  {/* Freelancer Name */}
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">Freelancer Name</p>
+                    <p className="text-lg font-semibold text-blue-400">{selectedApplication.applicant_name}</p>
+                  </div>
+
+                  {/* Skills */}
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">Skills</p>
+                    <p className="text-sm text-gray-200">{selectedApplication.applicant_skills}</p>
+                  </div>
+
+                  {/* Experience */}
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">Experience</p>
+                    <p className="text-sm text-gray-200">{selectedApplication.applicant_experience}</p>
+                  </div>
+
+                  {/* Application Description */}
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">Application Message</p>
+                    <p className="text-sm text-gray-200 bg-white/5 rounded p-3 border border-white/10">
+                      {selectedApplication.applicant_description}
                     </p>
                   </div>
-                  <div className="flex gap-2">
-                    {notif.type === "application_approved" && (
-                      <button
-                        onClick={() => handleOpenChat(notif)}
-                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs font-semibold transition"
-                      >
-                        💬 Chat
-                      </button>
-                    )}
-                    {!notif.read && (
-                      <button
-                        onClick={() => markAsRead(notif.id)}
-                        className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-xs font-semibold transition"
-                      >
-                        ✓ Read
-                      </button>
-                    )}
-                    <button
-                      onClick={() => deleteNotification(notif.id)}
-                      className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-xs font-semibold transition"
-                    >
-                      ✕
-                    </button>
+
+                  {/* Applied Date */}
+                  <div>
+                    <p className="text-xs text-gray-400">
+                      Applied on {new Date(selectedApplication.created_at).toLocaleDateString()}
+                    </p>
                   </div>
                 </div>
+
+                {/* Approve and Deny Buttons */}
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => handleApproveApplication(selectedApplication.id, selectedApplication.applicant_id)}
+                    className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 rounded-lg transition text-sm font-semibold"
+                  >
+                    ✅ Approve
+                  </button>
+                  <button
+                    onClick={() => handleDenyApplication(selectedApplication.id)}
+                    className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm font-semibold"
+                  >
+                    ❌ Deny
+                  </button>
+                </div>
               </div>
-            ))}
+            ) : (
+              // Freelancer Notification View
+              <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-green-400 mb-3">
+                  {selectedNotification.type === "application_approved" ? "✅ Approved" : "❌ Denied"}
+                </h3>
+                <p className="text-sm text-gray-300 mb-4">
+                  {selectedNotification.message}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {new Date(selectedNotification.created_at).toLocaleString()}
+                </p>
+
+                {selectedNotification.type === "application_approved" && (
+                  <button
+                    onClick={() => handleOpenChat(selectedNotification)}
+                    className="w-full mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm font-semibold"
+                  >
+                    💬 Open Chat
+                  </button>
+                )}
+              </div>
+            )}
           </div>
+        ) : (
+          // List View
+          <>
+            {notifications.length === 0 ? (
+              <p className="text-gray-400 text-center py-8">No notifications yet</p>
+            ) : (
+              <div className="space-y-3">
+                {notifications.map((notif) => (
+                  <button
+                    key={notif.id}
+                    onClick={() => handleNotificationClick(notif)}
+                    className={`w-full text-left p-4 rounded-lg border transition hover:bg-white/10 ${
+                      notif.read
+                        ? "bg-white/5 border-white/10"
+                        : "bg-blue-500/10 border-blue-400/50"
+                    }`}
+                  >
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-300">{notif.message}</p>
+                        <p className="text-xs text-gray-500 mt-2">
+                          {new Date(notif.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteNotification(notif.id);
+                        }}
+                        className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-xs font-semibold transition"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
