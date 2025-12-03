@@ -255,6 +255,31 @@ export default function DashboardPage() {
     if (user) fetchTasks();
   }, [filter, user]);
 
+  // Subscribe to real-time task changes
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const subscription = supabase
+      .channel("tasks:all")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "tasks",
+        },
+        () => {
+          // Reload tasks when any task is created, updated, or deleted
+          fetchTasks();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [user?.id, filter]);
+
   // Refresh notification and message count periodically
   useEffect(() => {
     if (!user?.id) return;
