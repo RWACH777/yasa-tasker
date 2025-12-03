@@ -152,10 +152,13 @@ export default function NotificationsPage() {
 
     if (!taskId) {
       console.error("❌ No taskId found!");
+      console.error("selectedNotification:", selectedNotification);
+      console.error("selectedApplication:", selectedApplication);
       return;
     }
     
     console.log("✅ Approving application with taskId:", taskId);
+    console.log("📤 Will redirect to:", `/chat?user=${applicantId}&task=${taskId}`);
 
     // Update application status
     await supabase

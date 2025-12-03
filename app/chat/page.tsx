@@ -53,6 +53,8 @@ export default function ChatPage() {
     console.log("🔍 Chat page loaded");
     console.log("👥 otherUserId from URL:", otherUserId);
     console.log("📋 taskId from URL:", taskId);
+    console.log("🔗 Full URL:", window.location.href);
+    console.log("📍 Search params:", window.location.search);
   }, [otherUserId, taskId]);
 
   // Debug task status
