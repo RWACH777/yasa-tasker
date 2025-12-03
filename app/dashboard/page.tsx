@@ -487,7 +487,7 @@ export default function DashboardPage() {
         setProfileTasks({ active, pending, completed });
       }
     } else {
-      // FREELANCER VIEW: Load tasks I applied to, grouped by application status
+      // FREELANCER VIEW: Load tasks I applied to, grouped by task status (same as tasker)
       const { data: apps } = await supabase
         .from("applications")
         .select("task_id, status")
@@ -501,18 +501,10 @@ export default function DashboardPage() {
           .in("id", taskIds);
 
         if (tasks) {
-          const active = tasks.filter((t) => {
-            const app = apps.find((a) => a.task_id === t.id);
-            return app?.status === "approved" && t.status === "active";
-          });
-          const pending = tasks.filter((t) => {
-            const app = apps.find((a) => a.task_id === t.id);
-            return app?.status === "pending";
-          });
-          const completed = tasks.filter((t) => {
-            const app = apps.find((a) => a.task_id === t.id);
-            return app?.status === "approved" && t.status === "completed";
-          });
+          // Filter by task status only (same as tasker view)
+          const active = tasks.filter((t) => t.status === "active");
+          const pending = tasks.filter((t) => t.status === "open");
+          const completed = tasks.filter((t) => t.status === "completed");
           setProfileTasks({ active, pending, completed });
         }
       } else {

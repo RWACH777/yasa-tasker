@@ -52,7 +52,20 @@ export default function ChatPage() {
   useEffect(() => {
     console.log("🔍 Chat page loaded");
     console.log("👥 otherUserId from URL:", otherUserId);
-  }, [otherUserId]);
+    console.log("📋 taskId from URL:", taskId);
+  }, [otherUserId, taskId]);
+
+  // Debug task status
+  useEffect(() => {
+    console.log("📊 Task Status Debug:", {
+      taskId,
+      taskStatus,
+      taskPosterId,
+      currentUserId: user?.id,
+      isTasker: user?.id === taskPosterId,
+      shouldShowCompleteButton: taskId && taskStatus === "active" && user?.id === taskPosterId,
+    });
+  }, [taskId, taskStatus, taskPosterId, user?.id]);
 
   // Load current user
   useEffect(() => {
