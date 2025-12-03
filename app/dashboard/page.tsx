@@ -270,7 +270,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (user && showProfileModal) {
+      // Reload profile tasks when modal opens or view changes
       loadProfileTasks();
+      // Also reload after a short delay to catch any pending updates
+      const timer = setTimeout(() => {
+        loadProfileTasks();
+      }, 500);
+      return () => clearTimeout(timer);
     }
   }, [profileView, showProfileModal, user]);
 
@@ -278,45 +284,67 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user?.id || !showProfileModal) return;
 
-    // Subscribe to task changes
-    const tasksSubscription = supabase
-      .channel(`tasks:${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "tasks",
-          filter: `poster_id=eq.${user.id}`,
-        },
-        () => {
-          loadProfileTasks();
-        }
-      )
-      .subscribe();
+    const subscriptions: any[] = [];
 
-    // Subscribe to application changes
-    const appsSubscription = supabase
-      .channel(`applications:${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "applications",
-          filter: `applicant_id=eq.${user.id}`,
-        },
-        () => {
-          loadProfileTasks();
-        }
-      )
-      .subscribe();
+    if (profileView === "tasker") {
+      // Tasker: Subscribe to own tasks
+      const tasksSubscription = supabase
+        .channel(`tasks:${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "tasks",
+            filter: `poster_id=eq.${user.id}`,
+          },
+          () => {
+            loadProfileTasks();
+          }
+        )
+        .subscribe();
+      subscriptions.push(tasksSubscription);
+    } else {
+      // Freelancer: Subscribe to application changes AND all task changes
+      const appsSubscription = supabase
+        .channel(`applications:${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "applications",
+            filter: `applicant_id=eq.${user.id}`,
+          },
+          () => {
+            loadProfileTasks();
+          }
+        )
+        .subscribe();
+      subscriptions.push(appsSubscription);
+
+      // Also subscribe to ALL task changes (to catch status updates)
+      const tasksSubscription = supabase
+        .channel(`tasks:all`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "tasks",
+          },
+          () => {
+            loadProfileTasks();
+          }
+        )
+        .subscribe();
+      subscriptions.push(tasksSubscription);
+    }
 
     return () => {
-      tasksSubscription.unsubscribe();
-      appsSubscription.unsubscribe();
+      subscriptions.forEach((sub) => sub.unsubscribe());
     };
-  }, [user?.id, showProfileModal]);
+  }, [user?.id, showProfileModal, profileView]);
 
   // Post / update task
   const handleSubmit = async (e: any) => {
