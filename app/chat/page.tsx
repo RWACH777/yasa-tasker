@@ -103,6 +103,21 @@ export default function ChatPage() {
     };
 
     loadOtherUser();
+
+    // Subscribe to online status changes
+    const subscription = supabase
+      .channel(`presence:${otherUserId}`)
+      .on('presence', { event: 'sync' }, () => {
+        // Recheck online status
+        getUserOnlineStatus(otherUserId).then((status) => {
+          setOtherUserOnline(status.is_online || false);
+        });
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [otherUserId, router]);
 
   // Load messages
@@ -479,15 +494,15 @@ export default function ChatPage() {
               </p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1 md:gap-2">
             {taskId && (
               <button
                 onClick={() => setShowRatingModal(true)}
                 disabled={hasRated}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-2 md:px-4 py-1 md:py-2 bg-green-600 hover:bg-green-700 rounded-lg transition text-xs md:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 title={hasRated ? "You've already rated this task" : "Rate this task"}
               >
-                {hasRated ? "✓ Rated" : "⭐ Rate"}
+                {hasRated ? "✓" : "⭐"}
               </button>
             )}
             <button
@@ -496,17 +511,17 @@ export default function ChatPage() {
                   setMessages([]);
                 }
               }}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm"
+              className="px-2 md:px-4 py-1 md:py-2 bg-red-600 hover:bg-red-700 rounded-lg transition text-xs md:text-sm"
               title="Clear chat history"
             >
-              🗑️ Clear
+              🗑️
             </button>
             <Link
               href="/messages"
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm"
+              className="px-2 md:px-4 py-1 md:py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-xs md:text-sm"
               title="Back to messages list"
             >
-              ← Back
+              ←
             </Link>
           </div>
         </div>

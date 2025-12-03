@@ -127,33 +127,39 @@ function ApplicationDetailView({
         </div>
       </div>
 
-      {/* Approve and Deny Buttons */}
-      <div className="flex gap-3 pt-4">
-        <button
-          onClick={() => {
-            if (onMarkAsRead) onMarkAsRead();
-            if (onApprove) {
-              console.log("✅ Approving application:", application.id, "for applicant:", application.applicant_id, "task:", notification.related_task_id);
-              onApprove(application.id, application.applicant_id);
-            }
-          }}
-          className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 rounded-lg transition text-sm font-semibold"
-        >
-          ✅ Approve
-        </button>
-        <button
-          onClick={() => {
-            if (onMarkAsRead) onMarkAsRead();
-            if (onDeny) {
-              console.log("❌ Denying application:", application.id, "task:", notification.related_task_id);
-              onDeny(application.id);
-            }
-          }}
-          className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm font-semibold"
-        >
-          ❌ Deny
-        </button>
-      </div>
+      {/* Approve and Deny Buttons - Only show if callbacks are provided (tasker only) */}
+      {(onApprove || onDeny) && (
+        <div className="flex gap-3 pt-4">
+          {onApprove && (
+            <button
+              onClick={() => {
+                if (onMarkAsRead) onMarkAsRead();
+                if (onApprove) {
+                  console.log("✅ Approving application:", application.id, "for applicant:", application.applicant_id, "task:", notification.related_task_id);
+                  onApprove(application.id, application.applicant_id);
+                }
+              }}
+              className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 rounded-lg transition text-sm font-semibold"
+            >
+              ✅ Approve
+            </button>
+          )}
+          {onDeny && (
+            <button
+              onClick={() => {
+                if (onMarkAsRead) onMarkAsRead();
+                if (onDeny) {
+                  console.log("❌ Denying application:", application.id, "task:", notification.related_task_id);
+                  onDeny(application.id);
+                }
+              }}
+              className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm font-semibold"
+            >
+              ❌ Deny
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -225,8 +231,7 @@ export default function NotificationsModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="w-full max-w-2xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
+    <div className="w-full max-w-2xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 mx-auto my-4">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">
             {userRole === "tasker" ? "📬 Applications" : "✅ Notifications"}
@@ -340,7 +345,6 @@ export default function NotificationsModal({
             ))}
           </div>
         )}
-      </div>
     </div>
   );
 }
