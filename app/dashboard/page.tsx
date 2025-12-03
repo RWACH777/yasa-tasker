@@ -645,23 +645,23 @@ const handleDenyApplication = async (applicationId: string) => {
 
 // Update freelancer username
 const handleUpdateFreelancerUsername = async () => {
-if (!user?.id || !freelancerUsername.trim()) {
-setMessage("⚠️ Please enter a valid freelancer username.");
-return;
-}
+  if (!user?.id || !freelancerUsername.trim()) {
+    setMessage("⚠️ Please enter a valid freelancer username.");
+    return;
+  }
 
-const { error } = await supabase
-.from("profiles")
-.update({ freelancer_username: freelancerUsername })
-.eq("id", user.id);
+  const { error } = await supabase
+    .from("profiles")
+    .update({ freelancer_username: freelancerUsername })
+    .eq("id", user.id);
 
-if (error) {
-setMessage("❌ Failed to update username: " + error.message);
-} else {
-setUser({ ...user, freelancer_username: freelancerUsername });
-setFreelancerUsername("");
-setMessage("✅ Freelancer username updated!");
-}
+  if (error) {
+    setMessage("❌ Failed to update username: " + error.message);
+  } else {
+    setUser({ ...user, freelancer_username: freelancerUsername });
+    setFreelancerUsername("");
+    setMessage("✅ Freelancer username updated!");
+  }
 };
 
 const categories = [
@@ -682,6 +682,7 @@ isOpen={sidebarOpen}
 onClose={() => setSidebarOpen(false)}
 onNotificationsClick={() => setShowNotificationsModal(true)}
 notificationCount={notificationCount}
+messageCount={messageCount}
 />
   
 {/* Navigation Bar */}
@@ -743,8 +744,9 @@ className="w-20 h-20 rounded-full border border-white/30 object-cover"
         onClose={() => setSidebarOpen(false)}
         onNotificationsClick={() => setShowNotificationsModal(true)}
         notificationCount={notificationCount}
+messageCount={messageCount}
         messageCount={messageCount}
-      />
+        />
       
       {/* Navigation Bar */}
       <div className="w-full max-w-3xl mb-4 flex justify-between items-center">
@@ -965,6 +967,7 @@ className="w-20 h-20 rounded-full border border-white/30 object-cover"
         onApprove={handleApproveApplication}
         onDeny={handleDenyApplication}
         onOpenChat={(applicantId) => router.push(`/chat?user=${applicantId}`)}
+        onNotificationCountChange={setNotificationCount}
       />
 
       {/* EVERYTHING BELOW IS IDENTICAL — tasks, forms, filters, etc */}
