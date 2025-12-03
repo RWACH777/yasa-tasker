@@ -139,28 +139,51 @@ export default function NotificationsPage() {
   const handleApproveApplication = async (applicationId: string, applicantId: string) => {
     if (!selectedNotification?.related_task_id) return;
 
+    const taskId = selectedNotification.related_task_id;
+
     // Update application status
     await supabase
       .from("applications")
       .update({ status: "approved" })
       .eq("id", applicationId);
 
+    // Update task status to active
+    await supabase
+      .from("tasks")
+      .update({ status: "active" })
+      .eq("id", taskId);
+
     // Send notification to freelancer
     await supabase.from("notifications").insert([
       {
         user_id: applicantId,
         type: "application_approved",
-        related_task_id: selectedNotification.related_task_id,
+        related_task_id: taskId,
         related_application_id: applicationId,
         message: `✅ Your application was approved! Check Messages to communicate with the tasker.`,
         read: false,
       },
     ]);
 
-    // Close detail view and refresh
+    // Send system message to chat
+    if (user?.id) {
+      const systemMessage = {
+        sender_id: user.id,
+        receiver_id: applicantId,
+        text: "✅ Application approved - chat started",
+        created_at: new Date().toISOString(),
+      };
+      await supabase.from("messages").insert([systemMessage]);
+    }
+
+    // Close detail view and redirect to chat
     setSelectedNotification(null);
     setSelectedApplication(null);
-    await loadNotifications(user.id);
+    
+    // Redirect to chat with a slight delay to ensure all updates are processed
+    setTimeout(() => {
+      router.push(`/chat?user=${applicantId}`);
+    }, 500);
   };
 
   const handleDenyApplication = async (applicationId: string) => {

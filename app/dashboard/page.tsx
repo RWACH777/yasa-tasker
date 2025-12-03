@@ -270,6 +270,50 @@ export default function DashboardPage() {
     }
   }, [profileView, showProfileModal, user]);
 
+  // Subscribe to real-time changes in tasks and applications
+  useEffect(() => {
+    if (!user?.id || !showProfileModal) return;
+
+    // Subscribe to task changes
+    const tasksSubscription = supabase
+      .channel(`tasks:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "tasks",
+          filter: `poster_id=eq.${user.id}`,
+        },
+        () => {
+          loadProfileTasks();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to application changes
+    const appsSubscription = supabase
+      .channel(`applications:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "applications",
+          filter: `applicant_id=eq.${user.id}`,
+        },
+        () => {
+          loadProfileTasks();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      tasksSubscription.unsubscribe();
+      appsSubscription.unsubscribe();
+    };
+  }, [user?.id, showProfileModal]);
+
   // Post / update task
   const handleSubmit = async (e: any) => {
     e.preventDefault();
