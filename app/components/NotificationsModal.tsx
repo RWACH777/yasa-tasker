@@ -55,28 +55,26 @@ function ApplicationDetailView({
 
   useEffect(() => {
     const loadApplication = async () => {
-      console.log("🔍 Loading application for notification:", notification);
-      console.log("📌 Related Application ID:", notification.related_application_id);
-      
       if (!notification.related_application_id) {
-        console.warn("⚠️ No related_application_id found");
         setLoading(false);
         return;
       }
 
-      const { data, error } = await supabase
-        .from("applications")
-        .select("*")
-        .eq("id", notification.related_application_id)
-        .single();
+      try {
+        const { data } = await supabase
+          .from("applications")
+          .select("*")
+          .eq("id", notification.related_application_id)
+          .single();
 
-      console.log("📦 Application data:", data);
-      console.log("❌ Application error:", error);
-
-      if (data) {
-        setApplication(data);
+        if (data) {
+          setApplication(data);
+        }
+      } catch (error) {
+        console.error("Error loading application:", error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     loadApplication();
@@ -135,7 +133,6 @@ function ApplicationDetailView({
               onClick={() => {
                 if (onMarkAsRead) onMarkAsRead();
                 if (onApprove) {
-                  console.log("✅ Approving application:", application.id, "for applicant:", application.applicant_id, "task:", notification.related_task_id);
                   onApprove(application.id, application.applicant_id);
                 }
               }}
@@ -149,7 +146,6 @@ function ApplicationDetailView({
               onClick={() => {
                 if (onMarkAsRead) onMarkAsRead();
                 if (onDeny) {
-                  console.log("❌ Denying application:", application.id, "task:", notification.related_task_id);
                   onDeny(application.id);
                 }
               }}
@@ -187,19 +183,13 @@ export default function NotificationsModal({
   const loadNotifications = async () => {
     setLoading(true);
     try {
-      console.log("📬 Loading notifications for user:", userId);
-      // Load notifications from notifications table
-      const { data: notifs, error } = await supabase
+      const { data: notifs } = await supabase
         .from("notifications")
         .select("*")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
-      console.log("📬 Notifications loaded:", notifs);
-      console.log("❌ Notifications error:", error);
-
       if (notifs) {
-        console.log("✅ Setting notifications:", notifs.length, "items");
         setNotifications(notifs as Notification[]);
         const unreadCount = notifs.filter((n) => !n.read).length;
         if (onNotificationCountChange) {
@@ -207,7 +197,7 @@ export default function NotificationsModal({
         }
       }
     } catch (error) {
-      console.error("Error loading notifications:", error);
+      // Silently fail
     }
     setLoading(false);
   };
@@ -287,15 +277,18 @@ export default function NotificationsModal({
                 
                 {selectedNotification.type === "application_approved" && (
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       if (onOpenChat) {
                         const taskId = selectedNotification.related_task_id;
-                        supabase.from("tasks").select("poster_id").eq("id", taskId).single().then(({ data }) => {
+                        try {
+                          const { data } = await supabase.from("tasks").select("poster_id").eq("id", taskId).single();
                           if (data?.poster_id) {
                             onOpenChat(data.poster_id);
                             setSelectedNotification(null);
                           }
-                        });
+                        } catch (err) {
+                          // Silently fail
+                        }
                       }
                     }}
                     className="w-full mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm font-semibold"

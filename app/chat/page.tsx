@@ -48,26 +48,6 @@ export default function ChatPage() {
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const messageStartXRef = useRef<number>(0);
 
-  // Debug logging
-  useEffect(() => {
-    console.log("🔍 Chat page loaded");
-    console.log("👥 otherUserId from URL:", otherUserId);
-    console.log("📋 taskId from URL:", taskId);
-    console.log("🔗 Full URL:", window.location.href);
-    console.log("📍 Search params:", window.location.search);
-  }, [otherUserId, taskId]);
-
-  // Debug task status
-  useEffect(() => {
-    console.log("📊 Task Status Debug:", {
-      taskId,
-      taskStatus,
-      taskPosterId,
-      currentUserId: user?.id,
-      isTasker: user?.id === taskPosterId,
-      shouldShowCompleteButton: taskId && taskStatus === "active" && user?.id === taskPosterId,
-    });
-  }, [taskId, taskStatus, taskPosterId, user?.id]);
 
   // Load current user
   useEffect(() => {
@@ -226,18 +206,7 @@ export default function ChatPage() {
   }, [taskId]);
 
   const sendMessage = async (fileUrl?: string, voiceUrl?: string) => {
-    console.log("🚀 sendMessage called");
-    console.log("📝 newMessage:", newMessage);
-    console.log("📎 fileUrl:", fileUrl);
-    console.log("🎙️ voiceUrl:", voiceUrl);
-    console.log("👤 user?.id:", user?.id);
-    console.log("👥 otherUserId:", otherUserId);
-    
     if ((!newMessage.trim() && !fileUrl && !voiceUrl) || !user?.id || !otherUserId) {
-      console.warn("⚠️ Cannot send: empty message and no file/voice, or missing user/otherUserId");
-      console.warn("  - newMessage.trim():", newMessage.trim());
-      console.warn("  - user?.id:", user?.id);
-      console.warn("  - otherUserId:", otherUserId);
       return;
     }
 
@@ -252,27 +221,16 @@ export default function ChatPage() {
     if (voiceUrl) messageData.voice_url = voiceUrl;
     if (replyingTo) messageData.reply_to_id = replyingTo.id;
 
-    console.log("📤 Sending message:", messageData);
-    console.log("👤 User ID:", user.id);
-    console.log("👥 Other User ID:", otherUserId);
-    
     const { error, data } = await supabase.from("messages").insert([messageData]).select();
 
     if (error) {
-      console.error("❌ Error sending message:", error);
-      console.error("Error code:", error.code);
-      console.error("Error message:", error.message);
-      console.error("Full error:", JSON.stringify(error));
-      const errorMsg = `❌ Failed to send message: ${error.message} (Code: ${error.code})`;
+      const errorMsg = `❌ Failed to send message: ${error.message}`;
       setError(errorMsg);
       alert(errorMsg);
     } else {
-      console.log("✅ Message sent successfully:", data);
       setNewMessage("");
       setReplyingTo(null);
-      // Manually add to state to ensure it appears
       if (data && data[0]) {
-        console.log("📥 Adding message to state:", data[0]);
         setMessages((prev) => [...prev, data[0]]);
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
       }
@@ -319,6 +277,8 @@ export default function ChatPage() {
           .getPublicUrl(fileName);
         await sendMessage(data.publicUrl);
         setFilePreview(null);
+      } else {
+        setError(`❌ File upload failed: ${uploadError.message}`);
       }
     } catch (err) {
       console.error("File upload error:", err);
@@ -351,7 +311,6 @@ export default function ChatPage() {
           }
         });
       } catch (permErr: any) {
-        console.error("Permission error:", permErr);
         setIsRecording(false);
         
         // Check if it's a permission denied error
@@ -375,24 +334,20 @@ export default function ChatPage() {
           const blob = new Blob(chunks, { type: "audio/webm" });
           const fileName = `${user.id}/${otherUserId}/voice_${Date.now()}.webm`;
 
-          console.log("📤 Uploading voice message:", fileName);
           const { error: uploadError } = await supabase.storage
             .from("message-files")
             .upload(fileName, blob);
 
           if (uploadError) {
-            console.error("Voice upload error:", uploadError);
             setError(`❌ Failed to upload voice message: ${uploadError.message}`);
           } else {
             const { data } = supabase.storage
               .from("message-files")
               .getPublicUrl(fileName);
-            console.log("✅ Voice message uploaded:", data.publicUrl);
             await sendMessage(undefined, data.publicUrl);
             setError(null);
           }
         } catch (err) {
-          console.error("Voice processing error:", err);
           setError(`❌ Error processing voice message: ${(err as any).message}`);
         } finally {
           stream.getTracks().forEach((track) => track.stop());
@@ -411,7 +366,6 @@ export default function ChatPage() {
         }
       }, 60000);
     } catch (err) {
-      console.error("Voice recording error:", err);
       setError(`❌ Microphone error: ${(err as any).message}`);
       setIsRecording(false);
     }
@@ -438,6 +392,8 @@ export default function ChatPage() {
     if (!error) {
       setMessages(messages.filter((m) => m.id !== messageId));
       setSelectedMessageId(null);
+    } else {
+      setError(`❌ Failed to delete message: ${error.message}`);
     }
   };
 
@@ -458,7 +414,6 @@ export default function ChatPage() {
       ]);
 
       if (ratingError) {
-        console.error("Rating error:", ratingError);
         setError("Failed to submit rating");
         setRatingLoading(false);
         return;
@@ -476,7 +431,6 @@ export default function ChatPage() {
             allRatings.reduce((sum, r) => sum + (r.rating || 0), 0) / allRatings.length
           ).toFixed(2);
 
-          // Update rated user's profile with average rating
           await supabase
             .from("profiles")
             .update({
@@ -485,11 +439,10 @@ export default function ChatPage() {
             })
             .eq("id", otherUser.id);
         } catch (updateErr) {
-          console.error("Error updating profile rating:", updateErr);
+          // Silently fail - rating was submitted successfully
         }
       }
 
-      // Track mutual rating - mark current user as rated
       if (taskId) {
         try {
           const { data: taskData } = await supabase
@@ -510,14 +463,13 @@ export default function ChatPage() {
               .eq("id", taskId);
           }
         } catch (taskErr) {
-          console.error("Error updating task rating status:", taskErr);
+          // Silently fail - rating was submitted successfully
         }
       }
 
       setHasRated(true);
       setShowRatingModal(false);
     } catch (err) {
-      console.error("Rating submission error:", err);
       setError("Error submitting rating");
     } finally {
       setRatingLoading(false);
@@ -610,14 +562,12 @@ export default function ChatPage() {
             {taskId && !taskStatus && (
               <button
                 onClick={async () => {
-                  console.log("🔄 Reloading task status...");
                   const { data } = await supabase
                     .from("tasks")
                     .select("status, poster_id")
                     .eq("id", taskId)
                     .single();
                   if (data) {
-                    console.log("✅ Task data loaded:", data);
                     setTaskStatus(data.status);
                     setTaskPosterId(data.poster_id);
                   }
@@ -631,14 +581,16 @@ export default function ChatPage() {
             {taskId && taskStatus === "active" && user?.id === taskPosterId && (
               <button
                 onClick={async () => {
-                  // Mark task as completed
-                  await supabase
+                  const { error } = await supabase
                     .from("tasks")
                     .update({ status: "completed" })
                     .eq("id", taskId);
-                  setTaskStatus("completed");
-                  // Show success message
-                  alert("✅ Task marked as completed! Rating is now available.");
+                  if (!error) {
+                    setTaskStatus("completed");
+                    alert("✅ Task marked as completed! Rating is now available.");
+                  } else {
+                    alert(`❌ Failed to complete task: ${error.message}`);
+                  }
                 }}
                 className="px-2 md:px-4 py-1 md:py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition text-xs md:text-sm"
                 title="Mark this task as completed"

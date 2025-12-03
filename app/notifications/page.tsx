@@ -151,14 +151,8 @@ export default function NotificationsPage() {
     }
 
     if (!taskId) {
-      console.error("❌ No taskId found!");
-      console.error("selectedNotification:", selectedNotification);
-      console.error("selectedApplication:", selectedApplication);
       return;
     }
-    
-    console.log("✅ Approving application with taskId:", taskId);
-    console.log("📤 Will redirect to:", `/chat?user=${applicantId}&task=${taskId}`);
 
     // Update application status
     await supabase
@@ -199,7 +193,6 @@ export default function NotificationsPage() {
     setSelectedNotification(null);
     setSelectedApplication(null);
     
-    // Redirect to chat with a slight delay to ensure all updates are processed
     setTimeout(() => {
       router.push(`/chat?user=${applicantId}&task=${taskId}`);
     }, 500);
