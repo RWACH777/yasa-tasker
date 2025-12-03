@@ -204,3 +204,17 @@ CREATE POLICY "Users can delete own message files" ON storage.objects
     bucket_id = 'message-files' AND
     auth.uid()::text = (string_to_array(name, '/'))[1]
   );
+
+-- 16. Add rating columns to profiles table
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS average_rating DECIMAL(3,2) DEFAULT 0;
+
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS total_ratings INTEGER DEFAULT 0;
+
+-- 17. Add mutual rating tracking to tasks table
+ALTER TABLE tasks
+  ADD COLUMN IF NOT EXISTS tasker_rated BOOLEAN DEFAULT false;
+
+ALTER TABLE tasks
+  ADD COLUMN IF NOT EXISTS freelancer_rated BOOLEAN DEFAULT false;

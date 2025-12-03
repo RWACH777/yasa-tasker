@@ -387,24 +387,67 @@ export default function ChatPage() {
 
     setRatingLoading(true);
     try {
-      const { error } = await supabase.from("ratings").insert([
+      // Insert rating
+      const { error: ratingError } = await supabase.from("ratings").insert([
         {
           rater_id: user.id,
-          ratee_id: otherUser.id,
-          task_id: taskId,
-          stars,
+          rated_user_id: otherUser.id,
+          rating: stars,
           comment: comment || null,
           created_at: new Date().toISOString(),
         },
       ]);
 
-      if (error) {
-        console.error("Rating error:", error);
+      if (ratingError) {
+        console.error("Rating error:", ratingError);
         setError("Failed to submit rating");
-      } else {
-        setHasRated(true);
-        setShowRatingModal(false);
+        setRatingLoading(false);
+        return;
       }
+
+      // Get all ratings for the rated user to calculate average
+      const { data: allRatings } = await supabase
+        .from("ratings")
+        .select("rating")
+        .eq("rated_user_id", otherUser.id);
+
+      if (allRatings && allRatings.length > 0) {
+        const average = (
+          allRatings.reduce((sum, r) => sum + (r.rating || 0), 0) / allRatings.length
+        ).toFixed(2);
+
+        // Update rated user's profile with average rating
+        await supabase
+          .from("profiles")
+          .update({
+            average_rating: parseFloat(average),
+            total_ratings: allRatings.length,
+          })
+          .eq("id", otherUser.id);
+      }
+
+      // Track mutual rating - mark current user as rated
+      const isTasker = user.id === otherUser.id; // This will be false, need to check task poster
+      const { data: taskData } = await supabase
+        .from("tasks")
+        .select("poster_id")
+        .eq("id", taskId)
+        .single();
+
+      if (taskData) {
+        const isCurrentUserTasker = user.id === taskData.poster_id;
+        await supabase
+          .from("tasks")
+          .update(
+            isCurrentUserTasker
+              ? { tasker_rated: true }
+              : { freelancer_rated: true }
+          )
+          .eq("id", taskId);
+      }
+
+      setHasRated(true);
+      setShowRatingModal(false);
     } catch (err) {
       console.error("Rating submission error:", err);
       setError("Error submitting rating");
