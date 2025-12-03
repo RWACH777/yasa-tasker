@@ -741,6 +741,7 @@ className="w-20 h-20 rounded-full border border-white/30 object-cover"
         onClose={() => setSidebarOpen(false)}
         onNotificationsClick={() => setShowNotificationsModal(true)}
         notificationCount={notificationCount}
+messageCount={messageCount}
         messageCount={messageCount}
         />
       
