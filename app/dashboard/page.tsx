@@ -742,7 +742,7 @@ className="w-20 h-20 rounded-full border border-white/30 object-cover"
         onNotificationsClick={() => setShowNotificationsModal(true)}
         notificationCount={notificationCount}
         messageCount={messageCount}
-      />
+        />
       
       {/* Navigation Bar */}
       <div className="w-full max-w-3xl mb-4 flex justify-between items-center">
