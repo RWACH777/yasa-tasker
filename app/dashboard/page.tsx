@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -638,6 +638,9 @@ const handleDenyApplication = async (applicationId: string) => {
         .order("created_at", { ascending: false });
       setTaskApplications(data || []);
     }
+    loadProfileTasks();
+  }
+  setReviewLoading(false);
 };
 
 // Update freelancer username
@@ -1293,7 +1296,7 @@ className="w-20 h-20 rounded-full border border-white/30 object-cover"
       )}
 
       {/* Hidden canvas for image cropping */}
-      <canvas ref={canvasRef} className="hidden" />
+      <canvas ref={canvasRef} className="hidden"></canvas>
     </div>
   );
 }

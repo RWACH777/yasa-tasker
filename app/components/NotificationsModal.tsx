@@ -236,7 +236,9 @@ export default function NotificationsModal({
           // Detail view - Full application details
           <div className="space-y-4">
             <button
-              onClick={() => setSelectedNotification(null)}
+              onClick={() => {
+                setSelectedNotification(null);
+              }}
               className="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded text-sm"
             >
               ← Back
