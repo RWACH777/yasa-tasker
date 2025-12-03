@@ -41,6 +41,7 @@ export default function ChatPage() {
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [ratingLoading, setRatingLoading] = useState(false);
   const [hasRated, setHasRated] = useState(false);
+  const [taskStatus, setTaskStatus] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -165,6 +166,46 @@ export default function ChatPage() {
       subscription.unsubscribe();
     };
   }, [user?.id, otherUserId]);
+
+  // Load task status
+  useEffect(() => {
+    if (!taskId) return;
+
+    const loadTaskStatus = async () => {
+      const { data } = await supabase
+        .from("tasks")
+        .select("status")
+        .eq("id", taskId)
+        .single();
+
+      if (data) {
+        setTaskStatus(data.status);
+      }
+    };
+
+    loadTaskStatus();
+
+    // Subscribe to task status changes
+    const subscription = supabase
+      .channel(`task:${taskId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "tasks",
+          filter: `id=eq.${taskId}`,
+        },
+        (payload) => {
+          setTaskStatus(payload.new.status);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [taskId]);
 
   const sendMessage = async (fileUrl?: string, voiceUrl?: string) => {
     console.log("🚀 sendMessage called");
@@ -547,7 +588,7 @@ export default function ChatPage() {
             </div>
           </div>
           <div className="flex gap-1 md:gap-2">
-            {taskId && (
+            {taskId && taskStatus === "completed" && (
               <button
                 onClick={() => setShowRatingModal(true)}
                 disabled={hasRated}
