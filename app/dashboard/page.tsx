@@ -638,6 +638,7 @@ const handleDenyApplication = async (applicationId: string) => {
         .order("created_at", { ascending: false });
       setTaskApplications(data || []);
     }
+    
     loadProfileTasks();
   }
   setReviewLoading(false);
@@ -664,72 +665,10 @@ const handleUpdateFreelancerUsername = async () => {
   }
 };
 
-const categories = [
-"all",
-"design",
-"writing",
-"development",
-"marketing",
-"translation",
-"other",
-];
-
-// ⭐️ UI WITH SIDEBAR
-return (
-<div className="min-h-screen bg-[#000222] text-white flex flex-col items-center px-4 py-10">
-<Sidebar
-isOpen={sidebarOpen}
-onClose={() => setSidebarOpen(false)}
-onNotificationsClick={() => setShowNotificationsModal(true)}
-notificationCount={notificationCount}
-messageCount={messageCount}
-/>
-  
-{/* Navigation Bar */}
-<div className="w-full max-w-3xl mb-4 flex justify-between items-center">
-<button
-onClick={() => setSidebarOpen(!sidebarOpen)}
-className="relative px-4 py-2 bg-gray-600/80 hover:bg-gray-700 rounded-lg transition text-sm"
->
-☰ Menu
-{notificationCount > 0 && (
-<span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
-{notificationCount}
-</span>
-)}
-</button>
-</div>
-<div
-onClick={() => {
-if (user?.id) {
-loadProfileTasks();
-setShowProfileModal(true);
-}
-}}
-className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 text-center mb-6 cursor-pointer hover:bg-white/20 transition"
->
-{loading ? (
-<p>Loading profile...</p>
-) : user ? (
-<div className="flex flex-col items-center space-y-2">
-<img
-src={
-user.avatar_url ||
-`https://api.dicebear.com/8.x/thumbs/svg?seed=${user.username}`
-}
-alt="Avatar"
-className="w-20 h-20 rounded-full border border-white/30 object-cover"
-/>
-<h2 className="text-xl font-semibold">{user.username}</h2>
-<p className="text-sm text-gray-300">
-⭐️ {user.rating || 0} • {user.completed_tasks || 0} Tasks Completed
-</p>
-<p className="text-xs text-gray-400">Click to view profile details</p>
-</div>
-) : (
-<p>⚠️ Please log in with Pi to view your profile.</p>
-)}
-</div>
+  const categories = [
+    "all",
+    "design",
+    "writing",
     "development",
     "marketing",
     "translation",
@@ -744,9 +683,54 @@ className="w-20 h-20 rounded-full border border-white/30 object-cover"
         onClose={() => setSidebarOpen(false)}
         onNotificationsClick={() => setShowNotificationsModal(true)}
         notificationCount={notificationCount}
-messageCount={messageCount}
         messageCount={messageCount}
-        />
+      />
+      
+      {/* Navigation Bar */}
+      <div className="w-full max-w-3xl mb-4 flex justify-between items-center">
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="relative px-4 py-2 bg-gray-600/80 hover:bg-gray-700 rounded-lg transition text-sm"
+        >
+          ☰ Menu
+          {notificationCount > 0 && (
+            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+              {notificationCount}
+            </span>
+          )}
+        </button>
+      </div>
+      <div
+        onClick={() => {
+          if (user?.id) {
+            loadProfileTasks();
+            setShowProfileModal(true);
+          }
+        }}
+        className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 text-center mb-6 cursor-pointer hover:bg-white/20 transition"
+      >
+        {loading ? (
+          <p>Loading profile...</p>
+        ) : user ? (
+          <div className="flex flex-col items-center space-y-2">
+            <img
+              src={
+                user.avatar_url ||
+                `https://api.dicebear.com/8.x/thumbs/svg?seed=${user.username}`
+              }
+              alt="Avatar"
+              className="w-20 h-20 rounded-full border border-white/30 object-cover"
+            />
+            <h2 className="text-xl font-semibold">{user.username}</h2>
+            <p className="text-sm text-gray-300">
+              ⭐️ {user.rating || 0} • {user.completed_tasks || 0} Tasks Completed
+            </p>
+            <p className="text-xs text-gray-400">Click to view profile details</p>
+          </div>
+        ) : (
+          <p>⚠️ Please log in with Pi to view your profile.</p>
+        )}
+      </div>
       
       {/* Navigation Bar */}
       <div className="w-full max-w-3xl mb-4 flex justify-between items-center">
