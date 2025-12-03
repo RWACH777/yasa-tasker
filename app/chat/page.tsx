@@ -604,6 +604,28 @@ export default function ChatPage() {
             </div>
           </div>
           <div className="flex gap-1 md:gap-2">
+            {/* Debug: Show button if taskId exists (for testing) */}
+            {taskId && !taskStatus && (
+              <button
+                onClick={async () => {
+                  console.log("🔄 Reloading task status...");
+                  const { data } = await supabase
+                    .from("tasks")
+                    .select("status, poster_id")
+                    .eq("id", taskId)
+                    .single();
+                  if (data) {
+                    console.log("✅ Task data loaded:", data);
+                    setTaskStatus(data.status);
+                    setTaskPosterId(data.poster_id);
+                  }
+                }}
+                className="px-2 md:px-4 py-1 md:py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg transition text-xs md:text-sm"
+                title="Reload task status"
+              >
+                🔄 Reload
+              </button>
+            )}
             {taskId && taskStatus === "active" && user?.id === taskPosterId && (
               <button
                 onClick={async () => {
