@@ -324,33 +324,32 @@ export default function NotificationsPage() {
             ) : (
               <div className="space-y-3">
                 {notifications.map((notif) => (
-                  <button
+                  <div
                     key={notif.id}
-                    onClick={() => handleNotificationClick(notif)}
-                    className={`w-full text-left p-4 rounded-lg border transition hover:bg-white/10 ${
+                    className={`p-4 rounded-lg border transition ${
                       notif.read
                         ? "bg-white/5 border-white/10"
                         : "bg-blue-500/10 border-blue-400/50"
                     }`}
                   >
                     <div className="flex justify-between items-start gap-4">
-                      <div className="flex-1">
+                      <button
+                        onClick={() => handleNotificationClick(notif)}
+                        className="flex-1 text-left hover:opacity-80 transition"
+                      >
                         <p className="text-sm text-gray-300">{notif.message}</p>
                         <p className="text-xs text-gray-500 mt-2">
                           {new Date(notif.created_at).toLocaleString()}
                         </p>
-                      </div>
+                      </button>
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteNotification(notif.id);
-                        }}
-                        className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-xs font-semibold transition"
+                        onClick={() => deleteNotification(notif.id)}
+                        className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-xs font-semibold transition flex-shrink-0"
                       >
                         ✕
                       </button>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             )}
