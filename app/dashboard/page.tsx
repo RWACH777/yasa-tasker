@@ -679,6 +679,7 @@ isOpen={sidebarOpen}
 onClose={() => setSidebarOpen(false)}
 onNotificationsClick={() => setShowNotificationsModal(true)}
 notificationCount={notificationCount}
+messageCount={messageCount}
 />
   
 {/* Navigation Bar */}
@@ -962,6 +963,7 @@ className="w-20 h-20 rounded-full border border-white/30 object-cover"
         onApprove={handleApproveApplication}
         onDeny={handleDenyApplication}
         onOpenChat={(applicantId) => router.push(`/chat?user=${applicantId}`)}
+        onNotificationCountChange={setNotificationCount}
       />
 
       {/* EVERYTHING BELOW IS IDENTICAL — tasks, forms, filters, etc */}

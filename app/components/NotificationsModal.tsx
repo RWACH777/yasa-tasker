@@ -35,6 +35,7 @@ interface NotificationsModalProps {
   onApprove?: (applicationId: string, applicantId: string) => void;
   onDeny?: (applicationId: string) => void;
   onOpenChat?: (applicantId: string) => void;
+  onNotificationCountChange?: (count: number) => void;
 }
 
 // Component to display application details from notification
@@ -165,6 +166,7 @@ export default function NotificationsModal({
   onApprove,
   onDeny,
   onOpenChat,
+  onNotificationCountChange,
 }: NotificationsModalProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
@@ -193,6 +195,11 @@ export default function NotificationsModal({
       if (notifs) {
         console.log("✅ Setting notifications:", notifs.length, "items");
         setNotifications(notifs as Notification[]);
+        // Update unread count
+        const unreadCount = notifs.filter((n) => !n.read).length;
+        if (onNotificationCountChange) {
+          onNotificationCountChange(unreadCount);
+        }
       }
     } catch (error) {
       console.error("Error loading notifications:", error);
@@ -205,6 +212,17 @@ export default function NotificationsModal({
       .from("notifications")
       .update({ read: true })
       .eq("id", notificationId);
+    
+    // Update local state
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
+    );
+    
+    // Update unread count
+    const unreadCount = notifications.filter((n) => !n.read && n.id !== notificationId).length;
+    if (onNotificationCountChange) {
+      onNotificationCountChange(unreadCount);
+    }
   };
 
   if (!isOpen) return null;
