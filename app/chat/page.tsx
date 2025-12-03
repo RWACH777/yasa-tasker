@@ -406,44 +406,53 @@ export default function ChatPage() {
       }
 
       // Get all ratings for the rated user to calculate average
-      const { data: allRatings } = await supabase
+      const { data: allRatings, error: ratingsError } = await supabase
         .from("ratings")
         .select("rating")
         .eq("rated_user_id", otherUser.id);
 
-      if (allRatings && allRatings.length > 0) {
-        const average = (
-          allRatings.reduce((sum, r) => sum + (r.rating || 0), 0) / allRatings.length
-        ).toFixed(2);
+      if (!ratingsError && allRatings && allRatings.length > 0) {
+        try {
+          const average = (
+            allRatings.reduce((sum, r) => sum + (r.rating || 0), 0) / allRatings.length
+          ).toFixed(2);
 
-        // Update rated user's profile with average rating
-        await supabase
-          .from("profiles")
-          .update({
-            average_rating: parseFloat(average),
-            total_ratings: allRatings.length,
-          })
-          .eq("id", otherUser.id);
+          // Update rated user's profile with average rating
+          await supabase
+            .from("profiles")
+            .update({
+              average_rating: parseFloat(average),
+              total_ratings: allRatings.length,
+            })
+            .eq("id", otherUser.id);
+        } catch (updateErr) {
+          console.error("Error updating profile rating:", updateErr);
+        }
       }
 
       // Track mutual rating - mark current user as rated
-      const isTasker = user.id === otherUser.id; // This will be false, need to check task poster
-      const { data: taskData } = await supabase
-        .from("tasks")
-        .select("poster_id")
-        .eq("id", taskId)
-        .single();
+      if (taskId) {
+        try {
+          const { data: taskData } = await supabase
+            .from("tasks")
+            .select("poster_id")
+            .eq("id", taskId)
+            .single();
 
-      if (taskData) {
-        const isCurrentUserTasker = user.id === taskData.poster_id;
-        await supabase
-          .from("tasks")
-          .update(
-            isCurrentUserTasker
-              ? { tasker_rated: true }
-              : { freelancer_rated: true }
-          )
-          .eq("id", taskId);
+          if (taskData) {
+            const isCurrentUserTasker = user.id === taskData.poster_id;
+            await supabase
+              .from("tasks")
+              .update(
+                isCurrentUserTasker
+                  ? { tasker_rated: true }
+                  : { freelancer_rated: true }
+              )
+              .eq("id", taskId);
+          }
+        } catch (taskErr) {
+          console.error("Error updating task rating status:", taskErr);
+        }
       }
 
       setHasRated(true);

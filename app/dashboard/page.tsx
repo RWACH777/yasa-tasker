@@ -28,6 +28,8 @@ interface Profile {
   freelancer_username?: string;
   rating?: number;
   completed_tasks?: number;
+  average_rating?: number;
+  total_ratings?: number;
 }
 
 export default function DashboardPage() {
@@ -829,7 +831,7 @@ const handleUpdateFreelancerUsername = async () => {
                 </div>
               </div>
               <p className="text-xs text-gray-400 mt-3">
-                ⭐️ Rating: {user.average_rating ? `${user.average_rating}/5 (${user.total_ratings} ratings)` : "No ratings yet"} • Completed: {user.completed_tasks || 0}
+                ⭐️ Rating: {user.average_rating && user.average_rating > 0 ? `${user.average_rating}/5 (${user.total_ratings || 0} ratings)` : "No ratings yet"} • Completed: {user.completed_tasks || 0}
               </p>
             </div>
 
@@ -1081,19 +1083,21 @@ const handleUpdateFreelancerUsername = async () => {
         )}
 
         {/* Ratings Section */}
-        <div className="mt-8 pt-6 border-t border-white/10">
-          <h3 className="text-lg font-semibold mb-4">⭐ Recent Ratings</h3>
-          {user.total_ratings && user.total_ratings > 0 ? (
-            <div className="space-y-3 max-h-64 overflow-y-auto">
-              {/* Note: In production, you'd fetch actual ratings from the ratings table */}
-              <p className="text-xs text-gray-400 italic">
-                {user.total_ratings} rating{user.total_ratings !== 1 ? 's' : ''} received
-              </p>
-            </div>
-          ) : (
-            <p className="text-sm text-gray-400">No ratings yet. Complete tasks to receive ratings!</p>
-          )}
-        </div>
+        {user && (
+          <div className="mt-8 pt-6 border-t border-white/10">
+            <h3 className="text-lg font-semibold mb-4">⭐ Recent Ratings</h3>
+            {user.total_ratings && user.total_ratings > 0 ? (
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {/* Note: In production, you'd fetch actual ratings from the ratings table */}
+                <p className="text-xs text-gray-400 italic">
+                  {user.total_ratings} rating{user.total_ratings !== 1 ? 's' : ''} received
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">No ratings yet. Complete tasks to receive ratings!</p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* PICTURE MODAL */}
