@@ -151,6 +151,10 @@ DROP POLICY IF EXISTS "Sender can update messages" ON messages;
 CREATE POLICY "Sender can update messages" ON messages
   FOR UPDATE USING (auth.uid() = sender_id);
 
+DROP POLICY IF EXISTS "Receiver can update message read status" ON messages;
+CREATE POLICY "Receiver can update message read status" ON messages
+  FOR UPDATE USING (auth.uid() = receiver_id);
+
 DROP POLICY IF EXISTS "Sender can delete messages" ON messages;
 CREATE POLICY "Sender can delete messages" ON messages
   FOR DELETE USING (auth.uid() = sender_id);
@@ -222,8 +226,3 @@ ALTER TABLE tasks
 -- 18. Add read field to messages table for tracking unread messages
 ALTER TABLE messages
   ADD COLUMN IF NOT EXISTS read BOOLEAN DEFAULT false;
-
--- 19. Update RLS policy for messages to allow receiver to mark as read
-DROP POLICY IF EXISTS "Receiver can update message read status" ON messages;
-CREATE POLICY "Receiver can update message read status" ON messages
-  FOR UPDATE USING (auth.uid() = receiver_id);

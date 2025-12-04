@@ -101,14 +101,31 @@ export default function ChatPage() {
 
     loadOtherUser();
 
-    // Poll for online status changes every 2 seconds
+    // Poll for online status changes every 1 second for real-time feel
     const pollInterval = setInterval(async () => {
       const status = await getUserOnlineStatus(otherUserId);
       setOtherUserOnline(status.is_online || false);
-    }, 2000);
+    }, 1000);
+
+    // Also subscribe to presence changes
+    const presenceChannel = supabase
+      .channel(`presence:${otherUserId}`)
+      .on('presence', { event: 'sync' }, () => {
+        getUserOnlineStatus(otherUserId).then((status) => {
+          setOtherUserOnline(status.is_online || false);
+        });
+      })
+      .on('presence', { event: 'join' }, () => {
+        setOtherUserOnline(true);
+      })
+      .on('presence', { event: 'leave' }, () => {
+        setOtherUserOnline(false);
+      })
+      .subscribe();
 
     return () => {
       clearInterval(pollInterval);
+      presenceChannel.unsubscribe();
     };
   }, [otherUserId, router]);
 

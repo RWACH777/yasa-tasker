@@ -100,6 +100,27 @@ export default function MessagesPage() {
     };
 
     loadConversations();
+
+    // Subscribe to message updates to refresh unread counts
+    const subscription = supabase
+      .channel("messages")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "messages",
+        },
+        () => {
+          // Reload conversations when any message changes
+          loadConversations();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [user?.id]);
 
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
