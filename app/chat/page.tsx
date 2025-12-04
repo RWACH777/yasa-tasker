@@ -101,19 +101,14 @@ export default function ChatPage() {
 
     loadOtherUser();
 
-    // Subscribe to online status changes
-    const subscription = supabase
-      .channel(`presence:${otherUserId}`)
-      .on('presence', { event: 'sync' }, () => {
-        // Recheck online status
-        getUserOnlineStatus(otherUserId).then((status) => {
-          setOtherUserOnline(status.is_online || false);
-        });
-      })
-      .subscribe();
+    // Poll for online status changes every 2 seconds
+    const pollInterval = setInterval(async () => {
+      const status = await getUserOnlineStatus(otherUserId);
+      setOtherUserOnline(status.is_online || false);
+    }, 2000);
 
     return () => {
-      subscription.unsubscribe();
+      clearInterval(pollInterval);
     };
   }, [otherUserId, router]);
 
@@ -168,15 +163,24 @@ export default function ChatPage() {
     if (!taskId) return;
 
     const loadTaskStatus = async () => {
-      const { data } = await supabase
-        .from("tasks")
-        .select("status, poster_id")
-        .eq("id", taskId)
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from("tasks")
+          .select("status, poster_id")
+          .eq("id", taskId)
+          .single();
 
-      if (data) {
-        setTaskStatus(data.status);
-        setTaskPosterId(data.poster_id);
+        if (error) {
+          console.error("Error loading task status:", error);
+          return;
+        }
+
+        if (data) {
+          setTaskStatus(data.status);
+          setTaskPosterId(data.poster_id);
+        }
+      } catch (err) {
+        console.error("Exception loading task status:", err);
       }
     };
 
@@ -221,19 +225,30 @@ export default function ChatPage() {
     if (voiceUrl) messageData.voice_url = voiceUrl;
     if (replyingTo) messageData.reply_to_id = replyingTo.id;
 
+    // Optimistic update - add message to UI immediately
+    const optimisticMessage: Message = {
+      id: `temp-${Date.now()}`,
+      ...messageData,
+    };
+    setMessages((prev) => [...prev, optimisticMessage]);
+    setNewMessage("");
+    setReplyingTo(null);
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+
+    // Send to database
     const { error, data } = await supabase.from("messages").insert([messageData]).select();
 
     if (error) {
       const errorMsg = `❌ Failed to send message: ${error.message}`;
       setError(errorMsg);
       alert(errorMsg);
-    } else {
-      setNewMessage("");
-      setReplyingTo(null);
-      if (data && data[0]) {
-        setMessages((prev) => [...prev, data[0]]);
-        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-      }
+      // Remove optimistic message on error
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticMessage.id));
+    } else if (data && data[0]) {
+      // Replace optimistic message with real one
+      setMessages((prev) =>
+        prev.map((m) => (m.id === optimisticMessage.id ? data[0] : m))
+      );
     }
   };
 

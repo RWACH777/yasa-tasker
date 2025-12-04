@@ -22,6 +22,7 @@ interface Conversation {
   lastMessage: string;
   lastMessageTime: string;
   isOnline: boolean;
+  unreadCount: number;
 }
 
 export default function MessagesPage() {
@@ -78,13 +79,20 @@ export default function MessagesPage() {
             .eq("id", otherUserId)
             .single();
 
+          // For now, show badge if there are any messages from this user
+          // TODO: Add 'read' field to messages table to track read status properly
+          const messagesFromUser = (received || []).filter(
+            (m) => m.sender_id === otherUserId
+          );
+
           uniqueUsers.set(otherUserId, {
             userId: otherUserId,
             username: profile?.username || "Unknown",
             avatar_url: profile?.avatar_url,
             lastMessage: msg.text || (msg.file_url ? "[File shared]" : "[Voice message]"),
             lastMessageTime: msg.created_at,
-            isOnline: false, // TODO: Implement real-time online status
+            isOnline: false,
+            unreadCount: 0, // Placeholder - will be implemented when read field is added
           });
         }
       }
@@ -198,7 +206,14 @@ export default function MessagesPage() {
                     
                     {/* Message Info */}
                     <div className="flex-1 min-w-0 overflow-hidden">
-                      <p className="font-semibold text-sm truncate">{conv.username}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-sm truncate">{conv.username}</p>
+                        {conv.unreadCount > 0 && (
+                          <span className="bg-red-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
+                            {conv.unreadCount > 9 ? "9+" : conv.unreadCount}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-400 break-words line-clamp-2">{conv.lastMessage}</p>
                       <p className="text-xs text-gray-500 truncate">
                         {new Date(conv.lastMessageTime).toLocaleDateString()}
