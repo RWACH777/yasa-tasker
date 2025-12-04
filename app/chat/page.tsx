@@ -133,6 +133,22 @@ export default function ChatPage() {
 
     loadMessages();
 
+    // Mark all unread messages from other user as read
+    const markMessagesAsRead = async () => {
+      const { error } = await supabase
+        .from("messages")
+        .update({ read: true })
+        .eq("sender_id", otherUserId)
+        .eq("receiver_id", user.id)
+        .eq("read", false);
+
+      if (error) {
+        console.error("Error marking messages as read:", error);
+      }
+    };
+
+    markMessagesAsRead();
+
     // Subscribe to new messages
     const subscription = supabase
       .channel(`chat:${user.id}:${otherUserId}`)

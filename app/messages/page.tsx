@@ -79,10 +79,9 @@ export default function MessagesPage() {
             .eq("id", otherUserId)
             .single();
 
-          // For now, show badge if there are any messages from this user
-          // TODO: Add 'read' field to messages table to track read status properly
-          const messagesFromUser = (received || []).filter(
-            (m) => m.sender_id === otherUserId
+          // Count unread messages from this user (messages received from them that haven't been read)
+          const unreadMessages = (received || []).filter(
+            (m) => m.sender_id === otherUserId && !m.read
           );
 
           uniqueUsers.set(otherUserId, {
@@ -92,7 +91,7 @@ export default function MessagesPage() {
             lastMessage: msg.text || (msg.file_url ? "[File shared]" : "[Voice message]"),
             lastMessageTime: msg.created_at,
             isOnline: false,
-            unreadCount: 0, // Placeholder - will be implemented when read field is added
+            unreadCount: unreadMessages.length,
           });
         }
       }

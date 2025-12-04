@@ -218,3 +218,12 @@ ALTER TABLE tasks
 
 ALTER TABLE tasks
   ADD COLUMN IF NOT EXISTS freelancer_rated BOOLEAN DEFAULT false;
+
+-- 18. Add read field to messages table for tracking unread messages
+ALTER TABLE messages
+  ADD COLUMN IF NOT EXISTS read BOOLEAN DEFAULT false;
+
+-- 19. Update RLS policy for messages to allow receiver to mark as read
+DROP POLICY IF EXISTS "Receiver can update message read status" ON messages;
+CREATE POLICY "Receiver can update message read status" ON messages
+  FOR UPDATE USING (auth.uid() = receiver_id);
