@@ -2,19 +2,39 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 // Server-side Supabase admin client
-const admin = createClient(supabaseUrl, serviceRoleKey, {
-  auth: { persistSession: false },
-});
+let admin: any = null;
+
+function getAdminClient() {
+  if (!admin && supabaseUrl && serviceRoleKey) {
+    admin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false },
+    });
+  }
+  return admin;
+}
 
 export async function POST(req: Request) {
   try {
     const { username, pi_uid, avatar_url } = await req.json();
     console.log("🔵 LOGIN API:", { username, pi_uid });
+
+    // Check environment variables
+    if (!supabaseUrl || !serviceRoleKey || !anonKey) {
+      console.error("❌ Missing environment variables:", {
+        hasUrl: !!supabaseUrl,
+        hasServiceRole: !!serviceRoleKey,
+        hasAnonKey: !!anonKey,
+      });
+      return NextResponse.json(
+        { error: "Server configuration error", details: "Missing environment variables" },
+        { status: 500 }
+      );
+    }
 
     if (!pi_uid || !username) {
       return NextResponse.json(
@@ -28,28 +48,46 @@ export async function POST(req: Request) {
     const email = `${safe}@pi.mock`;
 
     // 2️⃣ Check if user exists
-    const { data: userList } = await admin.auth.admin.listUsers();
+    console.log("📋 Checking for existing user with email:", email);
+    const adminClient = getAdminClient();
+    if (!adminClient) {
+      throw new Error("Failed to initialize Supabase admin client");
+    }
+    
+    const { data: userList, error: listError } = await adminClient.auth.admin.listUsers();
+    
+    if (listError) {
+      console.error("❌ Error listing users:", listError);
+      throw new Error(`Failed to list users: ${listError.message}`);
+    }
+    
     let existingUser = userList.users.find((u) => u.email === email);
+    console.log("👤 Existing user found:", !!existingUser);
 
     // 3️⃣ Create user if missing
     let newUser = null;
 
     if (!existingUser) {
-      const { data, error } = await admin.auth.admin.createUser({
+      console.log("➕ Creating new user with email:", email);
+      const { data, error } = await adminClient.auth.admin.createUser({
         email,
         password: crypto.randomUUID(),
         email_confirm: true,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ Error creating user:", error);
+        throw new Error(`Failed to create user: ${error.message}`);
+      }
       newUser = data.user;
+      console.log("✅ New user created:", newUser.id);
     }
 
     const authUser = existingUser || newUser;
     console.log("✅ Auth user:", authUser.id);
 
     // 4️⃣ Generate a magic link and immediately use it to create a session
-    const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
+    const { data: linkData, error: linkErr } = await adminClient.auth.admin.generateLink({
       type: "magiclink",
       email,
     });
@@ -96,7 +134,7 @@ export async function POST(req: Request) {
     console.log("✅ Session tokens obtained successfully");
 
     // 6️⃣ Update or insert profile
-    const { error: profileErr } = await admin.from("profiles").upsert(
+    const { error: profileErr } = await adminClient.from("profiles").upsert(
       {
         id: authUser.id,
         username,
