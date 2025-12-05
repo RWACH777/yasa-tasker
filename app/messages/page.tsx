@@ -84,15 +84,18 @@ export default function MessagesPage() {
             (m) => m.sender_id === otherUserId && !m.read
           );
 
-          uniqueUsers.set(otherUserId, {
-            userId: otherUserId,
-            username: profile?.username || "Unknown",
-            avatar_url: profile?.avatar_url,
-            lastMessage: msg.text || (msg.file_url ? "[File shared]" : "[Voice message]"),
-            lastMessageTime: msg.created_at,
-            isOnline: false,
-            unreadCount: unreadMessages.length,
-          });
+          // Only add if there are actual messages
+          if (msg) {
+            uniqueUsers.set(otherUserId, {
+              userId: otherUserId,
+              username: profile?.username || "Unknown",
+              avatar_url: profile?.avatar_url,
+              lastMessage: msg.text || (msg.file_url ? "[File shared]" : "[Voice message]"),
+              lastMessageTime: msg.created_at,
+              isOnline: false,
+              unreadCount: unreadMessages.length,
+            });
+          }
         }
       }
 

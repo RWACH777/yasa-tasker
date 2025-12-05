@@ -153,7 +153,8 @@ CREATE POLICY "Sender can update messages" ON messages
 
 DROP POLICY IF EXISTS "Receiver can update message read status" ON messages;
 CREATE POLICY "Receiver can update message read status" ON messages
-  FOR UPDATE USING (auth.uid() = receiver_id);
+  FOR UPDATE USING (auth.uid() = receiver_id)
+  WITH CHECK (auth.uid() = receiver_id);
 
 DROP POLICY IF EXISTS "Sender can delete messages" ON messages;
 CREATE POLICY "Sender can delete messages" ON messages

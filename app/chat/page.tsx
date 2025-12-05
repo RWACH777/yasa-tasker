@@ -152,15 +152,19 @@ export default function ChatPage() {
 
     // Mark all unread messages from other user as read
     const markMessagesAsRead = async () => {
-      const { error } = await supabase
-        .from("messages")
-        .update({ read: true })
-        .eq("sender_id", otherUserId)
-        .eq("receiver_id", user.id)
-        .eq("read", false);
+      try {
+        const { error } = await supabase
+          .from("messages")
+          .update({ read: true })
+          .eq("sender_id", otherUserId)
+          .eq("receiver_id", user.id)
+          .eq("read", false);
 
-      if (error) {
-        console.error("Error marking messages as read:", error);
+        if (error) {
+          console.error("Error marking messages as read:", error.message || error);
+        }
+      } catch (err) {
+        console.error("Exception marking messages as read:", err);
       }
     };
 
@@ -231,6 +235,7 @@ export default function ChatPage() {
           filter: `id=eq.${taskId}`,
         },
         (payload) => {
+          console.log("Task updated:", payload.new);
           setTaskStatus(payload.new.status);
           setTaskPosterId(payload.new.poster_id);
         }
