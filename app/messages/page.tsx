@@ -107,13 +107,24 @@ export default function MessagesPage() {
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
           schema: "public",
           table: "messages",
         },
         (payload) => {
-          console.log("Message changed:", payload.eventType, payload.new);
-          // Reload conversations when any message changes (including read status)
+          console.log("New message inserted:", payload.new);
+          loadConversations();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+        },
+        (payload) => {
+          console.log("Message updated (read status):", payload.new);
           loadConversations();
         }
       )

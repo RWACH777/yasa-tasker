@@ -689,14 +689,14 @@ export default function ChatPage() {
                   setMessages([]);
                 }
               }}
-              className="px-2 md:px-4 py-1 md:py-2 bg-red-600 hover:bg-red-700 rounded-lg transition text-xs md:text-sm"
+              className="px-3 md:px-5 py-2 md:py-2.5 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm md:text-base"
               title="Clear chat history"
             >
               🗑️
             </button>
             <Link
               href="/messages"
-              className="px-2 md:px-4 py-1 md:py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-xs md:text-sm"
+              className="px-3 md:px-5 py-2 md:py-2.5 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm md:text-base"
               title="Back to messages list"
             >
               ←
