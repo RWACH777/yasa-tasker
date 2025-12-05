@@ -182,6 +182,7 @@ export default function ChatPage() {
           filter: `or(and(sender_id=eq.${user.id},receiver_id=eq.${otherUserId}),and(sender_id=eq.${otherUserId},receiver_id=eq.${user.id}))`,
         },
         (payload) => {
+          console.log("New message received:", payload.new);
           setMessages((prev) => [...prev, payload.new as Message]);
           setTimeout(() => {
             messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -190,8 +191,27 @@ export default function ChatPage() {
       )
       .subscribe();
 
+    // Also poll for new messages every 2 seconds as backup
+    const pollInterval = setInterval(async () => {
+      const { data } = await supabase
+        .from("messages")
+        .select("*")
+        .or(
+          `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
+        )
+        .order("created_at", { ascending: true });
+
+      if (data && data.length > messages.length) {
+        setMessages(data);
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
+      }
+    }, 2000);
+
     return () => {
       subscription.unsubscribe();
+      clearInterval(pollInterval);
     };
   }, [user?.id, otherUserId]);
 
@@ -213,6 +233,7 @@ export default function ChatPage() {
         }
 
         if (data) {
+          console.log("Task loaded:", { status: data.status, poster_id: data.poster_id, current_user: user?.id });
           setTaskStatus(data.status);
           setTaskPosterId(data.poster_id);
         }
@@ -221,6 +242,7 @@ export default function ChatPage() {
       }
     };
 
+    console.log("Loading task status for taskId:", taskId);
     loadTaskStatus();
 
     // Subscribe to task status changes
