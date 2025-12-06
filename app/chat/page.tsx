@@ -89,45 +89,17 @@ export default function ChatPage() {
 
     const loadOtherUser = async () => {
       try {
-        // Check if there's a valid relationship (task or application) between users
-        const { data: tasks } = await supabase
-          .from("tasks")
-          .select("id")
-          .eq("poster_id", user.id)
-          .limit(1);
-
-        const { data: applications } = await supabase
-          .from("applications")
-          .select("id")
-          .eq("applicant_id", user.id)
-          .limit(1);
-
-        const { data: otherTasks } = await supabase
-          .from("tasks")
-          .select("id")
-          .eq("poster_id", otherUserId)
-          .limit(1);
-
-        const { data: otherApplications } = await supabase
-          .from("applications")
-          .select("id")
-          .eq("applicant_id", otherUserId)
-          .limit(1);
-
-        // Allow chat if there's any connection (tasks or applications)
-        const hasConnection = (tasks?.length || 0) > 0 || (applications?.length || 0) > 0 || 
-                             (otherTasks?.length || 0) > 0 || (otherApplications?.length || 0) > 0;
-
-        if (!hasConnection) {
-          console.warn("⚠️ No valid connection found between users");
-          // Still allow chat but log it
-        }
-
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("profiles")
           .select("*")
           .eq("id", otherUserId)
           .single();
+        
+        if (error) {
+          console.error("Error loading other user profile:", error);
+          return;
+        }
+        
         setOtherUser(data);
         
         // Load other user's online status
@@ -710,10 +682,35 @@ export default function ChatPage() {
               </button>
             )}
             <button
-              onClick={() => {
+              onClick={async () => {
                 if (confirm("Clear all messages in this chat? (Only clears for you)")) {
-                  setMessages([]);
-                  alert("✅ Chat cleared successfully (only for you)");
+                  try {
+                    // Delete all messages sent by current user
+                    const { error: error1 } = await supabase
+                      .from("messages")
+                      .delete()
+                      .eq("sender_id", user.id)
+                      .eq("receiver_id", otherUserId);
+                    
+                    // Delete all messages received by current user
+                    const { error: error2 } = await supabase
+                      .from("messages")
+                      .delete()
+                      .eq("sender_id", otherUserId)
+                      .eq("receiver_id", user.id);
+                    
+                    if (error1 || error2) {
+                      console.error("Delete errors:", { error1, error2 });
+                      alert(`❌ Failed to clear chat`);
+                      return;
+                    }
+                    
+                    setMessages([]);
+                    alert("✅ Chat cleared successfully (only for you)");
+                  } catch (err) {
+                    console.error("Exception clearing chat:", err);
+                    alert(`❌ Error clearing chat: ${err}`);
+                  }
                 }
               }}
               className="px-3 md:px-5 py-2 md:py-2.5 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm md:text-base"

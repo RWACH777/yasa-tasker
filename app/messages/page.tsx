@@ -79,10 +79,9 @@ export default function MessagesPage() {
             .eq("id", otherUserId)
             .single();
 
-          // Count unread messages from this user (messages received from them that haven't been read)
-          // Count messages where read is false OR null/undefined (unread)
+          // Count only unread messages from this user (messages received from them with read=false)
           const unreadMessages = (received || []).filter(
-            (m) => m.sender_id === otherUserId && (m.read === false || m.read === null || m.read === undefined)
+            (m) => m.sender_id === otherUserId && m.read === false
           );
 
           console.log(`Conversation with ${profile?.username}:`, {
