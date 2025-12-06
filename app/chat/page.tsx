@@ -512,10 +512,13 @@ export default function ChatPage() {
       ]);
 
       if (ratingError) {
+        console.error("❌ Rating error:", ratingError);
         setError("Failed to submit rating");
         setRatingLoading(false);
         return;
       }
+
+      console.log("✅ Rating submitted successfully");
 
       // Get all ratings for the rated user to calculate average
       const { data: allRatings, error: ratingsError } = await supabase

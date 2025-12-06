@@ -550,8 +550,37 @@ export default function DashboardPage() {
 
     if (ratings) {
       setUserRatings(ratings);
+      console.log("✅ Ratings loaded:", ratings.length);
     }
   };
+
+  // Subscribe to rating changes
+  useEffect(() => {
+    if (!user?.id || !showProfileModal) return;
+
+    const subscription = supabase
+      .channel(`ratings:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "ratings",
+          filter: `rated_user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log("New rating received:", payload.new);
+          loadUserRatings();
+          // Also reload profile to get updated average_rating and total_ratings
+          loadProfile(user.id);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [user?.id, showProfileModal]);
 
   // Open application modal
   const handleApplyToTask = (taskId: string) => {
