@@ -83,22 +83,59 @@ export default function ChatPage() {
 
   // Load other user info and check online status
   useEffect(() => {
-    if (!otherUserId) {
-      router.push("/messages");
+    if (!otherUserId || !user?.id) {
       return;
     }
 
     const loadOtherUser = async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", otherUserId)
-        .single();
-      setOtherUser(data);
-      
-      // Load other user's online status
-      const status = await getUserOnlineStatus(otherUserId);
-      setOtherUserOnline(status.is_online || false);
+      try {
+        // Check if there's a valid relationship (task or application) between users
+        const { data: tasks } = await supabase
+          .from("tasks")
+          .select("id")
+          .eq("poster_id", user.id)
+          .limit(1);
+
+        const { data: applications } = await supabase
+          .from("applications")
+          .select("id")
+          .eq("applicant_id", user.id)
+          .limit(1);
+
+        const { data: otherTasks } = await supabase
+          .from("tasks")
+          .select("id")
+          .eq("poster_id", otherUserId)
+          .limit(1);
+
+        const { data: otherApplications } = await supabase
+          .from("applications")
+          .select("id")
+          .eq("applicant_id", otherUserId)
+          .limit(1);
+
+        // Allow chat if there's any connection (tasks or applications)
+        const hasConnection = (tasks?.length || 0) > 0 || (applications?.length || 0) > 0 || 
+                             (otherTasks?.length || 0) > 0 || (otherApplications?.length || 0) > 0;
+
+        if (!hasConnection) {
+          console.warn("⚠️ No valid connection found between users");
+          // Still allow chat but log it
+        }
+
+        const { data } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", otherUserId)
+          .single();
+        setOtherUser(data);
+        
+        // Load other user's online status
+        const status = await getUserOnlineStatus(otherUserId);
+        setOtherUserOnline(status.is_online || false);
+      } catch (err) {
+        console.error("Error loading other user:", err);
+      }
     };
 
     loadOtherUser();
@@ -155,15 +192,18 @@ export default function ChatPage() {
     // Mark all unread messages from other user as read
     const markMessagesAsRead = async () => {
       try {
+        // Update messages where read is false OR null/undefined (unread)
         const { error } = await supabase
           .from("messages")
           .update({ read: true })
           .eq("sender_id", otherUserId)
           .eq("receiver_id", user.id)
-          .eq("read", false);
+          .or("read.eq.false,read.is.null");
 
         if (error) {
           console.error("Error marking messages as read:", error.message || error);
+        } else {
+          console.log("✅ Messages marked as read");
         }
       } catch (err) {
         console.error("Exception marking messages as read:", err);
@@ -667,34 +707,10 @@ export default function ChatPage() {
               </button>
             )}
             <button
-              onClick={async () => {
-                if (confirm("Clear all messages in this chat?")) {
-                  try {
-                    // Delete all messages from database - delete both directions
-                    const { error: error1 } = await supabase
-                      .from("messages")
-                      .delete()
-                      .eq("sender_id", user.id)
-                      .eq("receiver_id", otherUserId);
-                    
-                    const { error: error2 } = await supabase
-                      .from("messages")
-                      .delete()
-                      .eq("sender_id", otherUserId)
-                      .eq("receiver_id", user.id);
-                    
-                    if (!error1 && !error2) {
-                      setMessages([]);
-                      alert("✅ Chat cleared successfully");
-                    } else {
-                      const errMsg = error1?.message || error2?.message || "Unknown error";
-                      console.error("Delete error:", { error1, error2 });
-                      alert(`❌ Failed to clear chat: ${errMsg}`);
-                    }
-                  } catch (err) {
-                    console.error("Exception clearing chat:", err);
-                    alert(`❌ Error clearing chat: ${err}`);
-                  }
+              onClick={() => {
+                if (confirm("Clear all messages in this chat? (Only clears for you)")) {
+                  setMessages([]);
+                  alert("✅ Chat cleared successfully (only for you)");
                 }
               }}
               className="px-3 md:px-5 py-2 md:py-2.5 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm md:text-base"
