@@ -877,7 +877,7 @@ export default function ChatPage() {
         )}
         <div className="w-full px-4 flex gap-2 items-flex-end">
           {/* Left: Textbox */}
-          <div className="flex-1 flex flex-col gap-2">
+          <div className="flex-1 flex flex-col gap-2 relative z-20">
             <input
               type="text"
               placeholder="Type a message..."
@@ -888,8 +888,8 @@ export default function ChatPage() {
               }}
               autoFocus
               autoComplete="off"
-              disabled={false}
-              className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 caret-white pointer-events-auto"
+              disabled={!otherUser}
+              className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 caret-white pointer-events-auto disabled:opacity-50 disabled:cursor-not-allowed"
             />
             {/* Attach button below textbox */}
             <label className="px-3 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition cursor-pointer text-sm flex items-center gap-2 w-fit" title="Upload files">
