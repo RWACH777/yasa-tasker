@@ -184,7 +184,7 @@ export default function ChatPage() {
 
     markMessagesAsRead();
 
-    // Subscribe to new messages
+    // Subscribe to new messages and deletions
     const subscription = supabase
       .channel(`chat:${user.id}:${otherUserId}`)
       .on(
@@ -200,7 +200,20 @@ export default function ChatPage() {
           setMessages((prev) => [...prev, payload.new as Message]);
           setTimeout(() => {
             messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-          }, 100);
+          }, 50);
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "messages",
+          filter: `or(and(sender_id=eq.${user.id},receiver_id=eq.${otherUserId}),and(sender_id=eq.${otherUserId},receiver_id=eq.${user.id}))`,
+        },
+        (payload) => {
+          console.log("Message deleted:", payload.old);
+          setMessages((prev) => prev.filter((m) => m.id !== payload.old.id));
         }
       )
       .subscribe();
@@ -680,35 +693,10 @@ export default function ChatPage() {
               </button>
             )}
             <button
-              onClick={async () => {
+              onClick={() => {
                 if (confirm("Clear all messages in this chat? (Only clears for you)")) {
-                  try {
-                    // Delete all messages sent by current user
-                    const { error: error1 } = await supabase
-                      .from("messages")
-                      .delete()
-                      .eq("sender_id", user.id)
-                      .eq("receiver_id", otherUserId);
-                    
-                    // Delete all messages received by current user
-                    const { error: error2 } = await supabase
-                      .from("messages")
-                      .delete()
-                      .eq("sender_id", otherUserId)
-                      .eq("receiver_id", user.id);
-                    
-                    if (error1 || error2) {
-                      console.error("Delete errors:", { error1, error2 });
-                      alert(`❌ Failed to clear chat`);
-                      return;
-                    }
-                    
-                    setMessages([]);
-                    alert("✅ Chat cleared successfully (only for you)");
-                  } catch (err) {
-                    console.error("Exception clearing chat:", err);
-                    alert(`❌ Error clearing chat: ${err}`);
-                  }
+                  setMessages([]);
+                  alert("✅ Chat cleared successfully (only for you)");
                 }
               }}
               className="px-3 md:px-5 py-2 md:py-2.5 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm md:text-base"
