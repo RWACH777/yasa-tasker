@@ -570,18 +570,10 @@ export default function ChatPage() {
     }
   };
 
-  if (loading) {
+  if (loading || !user) {
     return (
       <div className="min-h-screen bg-[#000222] text-white flex items-center justify-center">
         <p>Loading chat...</p>
-      </div>
-    );
-  }
-
-  if (!user || !otherUser) {
-    return (
-      <div className="min-h-screen bg-[#000222] text-white flex items-center justify-center">
-        <p>Chat not found. Redirecting...</p>
       </div>
     );
   }
@@ -607,28 +599,34 @@ export default function ChatPage() {
       <div className="sticky top-0 z-10 bg-white/10 backdrop-blur-lg border-b border-white/20 p-4">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <img
-              src={
-                otherUser.avatar_url ||
-                `https://api.dicebear.com/8.x/thumbs/svg?seed=${otherUser.username}`
-              }
-              alt={otherUser.username}
-              className="w-10 h-10 rounded-full border border-white/30"
-            />
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold">{otherUser.username}</h1>
-                <span
-                  className={`w-3 h-3 rounded-full ${
-                    otherUserOnline ? "bg-blue-500" : "bg-gray-400"
-                  }`}
-                  title={otherUserOnline ? "Online" : "Offline"}
+            {otherUser ? (
+              <>
+                <img
+                  src={
+                    otherUser.avatar_url ||
+                    `https://api.dicebear.com/8.x/thumbs/svg?seed=${otherUser.username}`
+                  }
+                  alt={otherUser.username}
+                  className="w-10 h-10 rounded-full border border-white/30"
                 />
-              </div>
-              <p className="text-xs text-gray-400">
-                {otherUserOnline ? "Online" : "Offline"}
-              </p>
-            </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-xl font-bold">{otherUser.username}</h1>
+                    <span
+                      className={`w-3 h-3 rounded-full ${
+                        otherUserOnline ? "bg-blue-500" : "bg-gray-400"
+                      }`}
+                      title={otherUserOnline ? "Online" : "Offline"}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    {otherUserOnline ? "Online" : "Offline"}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="text-gray-400">Loading user...</div>
+            )}
           </div>
           <div className="flex gap-1 md:gap-2">
             {/* Debug: Show button if taskId exists (for testing) */}
