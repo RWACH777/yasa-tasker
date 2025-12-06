@@ -227,3 +227,10 @@ ALTER TABLE tasks
 -- 18. Add read field to messages table for tracking unread messages
 ALTER TABLE messages
   ADD COLUMN IF NOT EXISTS read BOOLEAN DEFAULT false;
+
+-- 19. Add cleared_at timestamp to track when user cleared chat
+ALTER TABLE messages
+  ADD COLUMN IF NOT EXISTS cleared_by_user_id UUID;
+
+-- 20. Create index for faster queries on cleared messages
+CREATE INDEX IF NOT EXISTS idx_messages_cleared_by ON messages(cleared_by_user_id);
