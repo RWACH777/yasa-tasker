@@ -135,10 +135,28 @@ export default function MessagesPage() {
           loadConversations();
         }
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "messages",
+        },
+        (payload) => {
+          console.log("Message deleted:", payload.old);
+          loadConversations();
+        }
+      )
       .subscribe();
+
+    // Also poll every 3 seconds as backup to ensure badges update
+    const pollInterval = setInterval(() => {
+      loadConversations();
+    }, 3000);
 
     return () => {
       subscription.unsubscribe();
+      clearInterval(pollInterval);
     };
   }, [user?.id]);
 

@@ -156,9 +156,9 @@ CREATE POLICY "Receiver can update message read status" ON messages
   FOR UPDATE USING (auth.uid() = receiver_id)
   WITH CHECK (auth.uid() = receiver_id);
 
-DROP POLICY IF EXISTS "Sender can delete messages" ON messages;
-CREATE POLICY "Sender can delete messages" ON messages
-  FOR DELETE USING (auth.uid() = sender_id);
+DROP POLICY IF EXISTS "Users can delete messages" ON messages;
+CREATE POLICY "Users can delete messages" ON messages
+  FOR DELETE USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
 
 -- 14. Create RLS policies for ratings
 DROP POLICY IF EXISTS "Users can rate others" ON ratings;

@@ -669,19 +669,31 @@ export default function ChatPage() {
             <button
               onClick={async () => {
                 if (confirm("Clear all messages in this chat?")) {
-                  // Delete all messages from database
-                  const { error } = await supabase
-                    .from("messages")
-                    .delete()
-                    .or(
-                      `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
-                    );
-                  
-                  if (!error) {
-                    setMessages([]);
-                    alert("✅ Chat cleared successfully");
-                  } else {
-                    alert(`❌ Failed to clear chat: ${error.message}`);
+                  try {
+                    // Delete all messages from database - delete both directions
+                    const { error: error1 } = await supabase
+                      .from("messages")
+                      .delete()
+                      .eq("sender_id", user.id)
+                      .eq("receiver_id", otherUserId);
+                    
+                    const { error: error2 } = await supabase
+                      .from("messages")
+                      .delete()
+                      .eq("sender_id", otherUserId)
+                      .eq("receiver_id", user.id);
+                    
+                    if (!error1 && !error2) {
+                      setMessages([]);
+                      alert("✅ Chat cleared successfully");
+                    } else {
+                      const errMsg = error1?.message || error2?.message || "Unknown error";
+                      console.error("Delete error:", { error1, error2 });
+                      alert(`❌ Failed to clear chat: ${errMsg}`);
+                    }
+                  } catch (err) {
+                    console.error("Exception clearing chat:", err);
+                    alert(`❌ Error clearing chat: ${err}`);
                   }
                 }
               }}

@@ -47,6 +47,7 @@ export default function DashboardPage() {
   const [message, setMessage] = useState("");
   const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [isSubmittingApplication, setIsSubmittingApplication] = useState(false);
 
   const [freelancerUsername, setFreelancerUsername] = useState("");
 
@@ -565,6 +566,12 @@ export default function DashboardPage() {
 
   // Submit application
   const handleSubmitApplication = async (form: ApplicationFormData) => {
+    // Prevent duplicate submissions
+    if (isSubmittingApplication) {
+      console.warn("⚠️ Application already being submitted");
+      return;
+    }
+
     if (!user?.id || !selectedTaskId) {
       setMessage("⚠️ Error: Missing user or task information.");
       return;
@@ -579,6 +586,8 @@ export default function DashboardPage() {
       setMessage("⚠️ Please fill in all application form fields.");
       return;
     }
+
+    setIsSubmittingApplication(true);
 
     // Generate UUID for applications
     const generateUUID = () => {
@@ -627,6 +636,7 @@ export default function DashboardPage() {
       setSelectedTaskId(null);
       loadProfileTasks();
     }
+    setIsSubmittingApplication(false);
   };
 
   // Open application review modal
