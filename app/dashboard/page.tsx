@@ -264,12 +264,36 @@ export default function DashboardPage() {
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
           schema: "public",
           table: "tasks",
         },
-        () => {
-          // Reload tasks when any task is created, updated, or deleted
+        (payload) => {
+          console.log("New task inserted:", payload.new);
+          fetchTasks();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "tasks",
+        },
+        (payload) => {
+          console.log("Task updated:", payload.new);
+          fetchTasks();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "tasks",
+        },
+        (payload) => {
+          console.log("Task deleted:", payload.old);
           fetchTasks();
         }
       )

@@ -47,6 +47,8 @@ export default function ChatPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const messageStartXRef = useRef<number>(0);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const isUserScrollingRef = useRef(false);
 
 
   // Load current user
@@ -191,27 +193,8 @@ export default function ChatPage() {
       )
       .subscribe();
 
-    // Also poll for new messages every 2 seconds as backup
-    const pollInterval = setInterval(async () => {
-      const { data } = await supabase
-        .from("messages")
-        .select("*")
-        .or(
-          `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
-        )
-        .order("created_at", { ascending: true });
-
-      if (data && data.length > messages.length) {
-        setMessages(data);
-        setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-        }, 100);
-      }
-    }, 2000);
-
     return () => {
       subscription.unsubscribe();
-      clearInterval(pollInterval);
     };
   }, [user?.id, otherUserId]);
 
@@ -684,9 +667,22 @@ export default function ChatPage() {
               </button>
             )}
             <button
-              onClick={() => {
+              onClick={async () => {
                 if (confirm("Clear all messages in this chat?")) {
-                  setMessages([]);
+                  // Delete all messages from database
+                  const { error } = await supabase
+                    .from("messages")
+                    .delete()
+                    .or(
+                      `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
+                    );
+                  
+                  if (!error) {
+                    setMessages([]);
+                    alert("✅ Chat cleared successfully");
+                  } else {
+                    alert(`❌ Failed to clear chat: ${error.message}`);
+                  }
                 }
               }}
               className="px-3 md:px-5 py-2 md:py-2.5 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm md:text-base"
@@ -706,7 +702,17 @@ export default function ChatPage() {
       </div>
 
       {/* Messages Area - SCROLLABLE */}
-      <div className="flex-1 overflow-y-auto p-4 pointer-events-auto">
+      <div 
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto p-4 pointer-events-auto"
+        onScroll={() => {
+          // Track if user is scrolling up (not at bottom)
+          if (messagesContainerRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+            isUserScrollingRef.current = scrollHeight - scrollTop - clientHeight > 50;
+          }
+        }}
+      >
         <div className="max-w-2xl mx-auto space-y-3">
           {messages.length === 0 ? (
             <div className="flex items-center justify-center h-full text-gray-400">
