@@ -138,7 +138,7 @@ export default function ChatPage() {
       clearInterval(pollInterval);
       presenceChannel.unsubscribe();
     };
-  }, [otherUserId, router]);
+  }, [otherUserId, user?.id]);
 
   // Load messages
   useEffect(() => {
