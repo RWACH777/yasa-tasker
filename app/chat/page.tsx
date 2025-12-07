@@ -113,6 +113,27 @@ export default function ChatPage() {
 
     loadOtherUser();
 
+    // Clear the cleared_conversations entry so conversation shows up in messages list
+    const clearClearedConversation = async () => {
+      try {
+        const { error } = await supabase
+          .from("cleared_conversations")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("other_user_id", otherUserId);
+
+        if (error) {
+          console.error("Error clearing cleared_conversations entry:", error);
+        } else {
+          console.log("✅ Cleared conversation entry removed, chat will show in messages");
+        }
+      } catch (err) {
+        console.error("Exception clearing cleared_conversations:", err);
+      }
+    };
+
+    clearClearedConversation();
+
     // Subscribe to presence changes using postgres_changes for real-time updates
     const presenceChannel = supabase
       .channel(`presence:${otherUserId}`)
