@@ -43,6 +43,7 @@ export default function ChatPage() {
   const [hasRated, setHasRated] = useState(false);
   const [taskStatus, setTaskStatus] = useState<string | null>(null);
   const [taskPosterId, setTaskPosterId] = useState<string | null>(null);
+  const [isApproved, setIsApproved] = useState<boolean | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -80,6 +81,39 @@ export default function ChatPage() {
       }
     };
   }, [user?.id]);
+
+  // Check if application is approved (if taskId is provided)
+  useEffect(() => {
+    if (!taskId || !user?.id || !otherUserId) {
+      setIsApproved(true); // Allow chat if no task (direct message)
+      return;
+    }
+
+    const checkApproval = async () => {
+      try {
+        // Check if there's an approved application for this task and user
+        const { data, error } = await supabase
+          .from("applications")
+          .select("status")
+          .eq("task_id", taskId)
+          .eq("applicant_id", otherUserId)
+          .single();
+
+        if (error || !data) {
+          console.error("Application not found:", error);
+          setIsApproved(false);
+          return;
+        }
+
+        setIsApproved(data.status === "approved");
+      } catch (err) {
+        console.error("Error checking approval:", err);
+        setIsApproved(false);
+      }
+    };
+
+    checkApproval();
+  }, [taskId, user?.id, otherUserId]);
 
   // Load other user info and check online status
   useEffect(() => {
@@ -153,10 +187,15 @@ export default function ChatPage() {
         )
         .order("created_at", { ascending: true });
 
-      setMessages(data || []);
+      // Filter out messages that were cleared by current user
+      const filteredMessages = (data || []).filter(
+        (msg) => msg.cleared_by_user_id !== user.id
+      );
+
+      setMessages(filteredMessages);
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
+      }, 0);
     };
 
     loadMessages();
@@ -184,7 +223,7 @@ export default function ChatPage() {
 
     markMessagesAsRead();
 
-    // Subscribe to new messages and deletions
+    // Subscribe to new messages and updates
     const subscription = supabase
       .channel(`chat:${user.id}:${otherUserId}`)
       .on(
@@ -197,10 +236,34 @@ export default function ChatPage() {
         },
         (payload) => {
           console.log("New message received:", payload.new);
-          setMessages((prev) => [...prev, payload.new as Message]);
-          setTimeout(() => {
-            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-          }, 50);
+          // Only add if not cleared by current user
+          if (payload.new.cleared_by_user_id !== user.id) {
+            setMessages((prev) => [...prev, payload.new as Message]);
+            setTimeout(() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            }, 0);
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+          filter: `or(and(sender_id=eq.${user.id},receiver_id=eq.${otherUserId}),and(sender_id=eq.${otherUserId},receiver_id=eq.${user.id}))`,
+        },
+        (payload) => {
+          console.log("Message updated:", payload.new);
+          // If message was cleared by current user, remove it
+          if (payload.new.cleared_by_user_id === user.id) {
+            setMessages((prev) => prev.filter((m) => m.id !== payload.new.id));
+          } else {
+            // Otherwise update the message (e.g., read status)
+            setMessages((prev) =>
+              prev.map((m) => (m.id === payload.new.id ? (payload.new as Message) : m))
+            );
+          }
         }
       )
       .on(
@@ -583,10 +646,24 @@ export default function ChatPage() {
     }
   };
 
-  if (loading || !user) {
+  if (loading || !user || isApproved === null) {
     return (
       <div className="min-h-screen bg-[#000222] text-white flex items-center justify-center">
         <p>Loading chat...</p>
+      </div>
+    );
+  }
+
+  if (isApproved === false) {
+    return (
+      <div className="min-h-screen bg-[#000222] text-white flex items-center justify-center flex-col gap-4">
+        <p>❌ Chat is only available after application is approved</p>
+        <button
+          onClick={() => router.push("/messages")}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg"
+        >
+          Back to Messages
+        </button>
       </div>
     );
   }
@@ -693,10 +770,29 @@ export default function ChatPage() {
               </button>
             )}
             <button
-              onClick={() => {
+              onClick={async () => {
                 if (confirm("Clear all messages in this chat? (Only clears for you)")) {
-                  setMessages([]);
-                  alert("✅ Chat cleared successfully (only for you)");
+                  try {
+                    // Mark all messages in this chat as cleared by current user
+                    const { error } = await supabase
+                      .from("messages")
+                      .update({ cleared_by_user_id: user.id })
+                      .or(
+                        `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
+                      );
+                    
+                    if (error) {
+                      console.error("Error clearing chat:", error);
+                      alert("❌ Failed to clear chat");
+                      return;
+                    }
+                    
+                    setMessages([]);
+                    alert("✅ Chat cleared successfully (only for you)");
+                  } catch (err) {
+                    console.error("Exception clearing chat:", err);
+                    alert("❌ Error clearing chat");
+                  }
                 }
               }}
               className="px-3 md:px-5 py-2 md:py-2.5 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm md:text-base"
