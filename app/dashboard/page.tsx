@@ -556,31 +556,56 @@ export default function DashboardPage() {
   const loadUserRatings = async () => {
     if (!user?.id) return;
 
-    const { data: ratings } = await supabase
-      .from("ratings")
-      .select("*, rater:profiles(username, avatar_url)")
-      .eq("rated_user_id", user.id)
-      .order("created_at", { ascending: false });
+    try {
+      const { data: ratings, error } = await supabase
+        .from("ratings")
+        .select("id, rating, comment, rating_type, created_at, rater_id, task_id")
+        .eq("rated_user_id", user.id)
+        .order("created_at", { ascending: false });
 
-    if (ratings) {
-      setUserRatings(ratings);
-      console.log("✅ Ratings loaded:", ratings.length);
-      
-      // Calculate averages by rating type
-      const taskerRatings = ratings.filter((r) => r.rating_type === "tasker");
-      const freelancerRatings = ratings.filter((r) => r.rating_type === "freelancer");
-      
-      const taskerAvg = taskerRatings.length > 0
-        ? (taskerRatings.reduce((sum, r) => sum + (r.rating || 0), 0) / taskerRatings.length).toFixed(2)
-        : 0;
-      
-      const freelancerAvg = freelancerRatings.length > 0
-        ? (freelancerRatings.reduce((sum, r) => sum + (r.rating || 0), 0) / freelancerRatings.length).toFixed(2)
-        : 0;
-      
-      const overallAvg = ((parseFloat(taskerAvg as any) + parseFloat(freelancerAvg as any)) / 2).toFixed(2);
-      
-      console.log("📊 Rating breakdown:", { taskerAvg, freelancerAvg, overallAvg });
+      if (error) {
+        console.error("❌ Error loading ratings:", error);
+        return;
+      }
+
+      if (ratings && ratings.length > 0) {
+        // Fetch rater profiles separately
+        const raterIds = [...new Set(ratings.map((r) => r.rater_id))];
+        const { data: raterProfiles } = await supabase
+          .from("profiles")
+          .select("id, username, avatar_url")
+          .in("id", raterIds);
+
+        // Merge rater info into ratings
+        const enrichedRatings = ratings.map((rating) => ({
+          ...rating,
+          rater: raterProfiles?.find((p) => p.id === rating.rater_id),
+        }));
+
+        setUserRatings(enrichedRatings);
+        console.log("✅ Ratings loaded:", enrichedRatings.length);
+        
+        // Calculate averages by rating type
+        const taskerRatings = enrichedRatings.filter((r) => r.rating_type === "tasker");
+        const freelancerRatings = enrichedRatings.filter((r) => r.rating_type === "freelancer");
+        
+        const taskerAvg = taskerRatings.length > 0
+          ? (taskerRatings.reduce((sum, r) => sum + (r.rating || 0), 0) / taskerRatings.length).toFixed(2)
+          : 0;
+        
+        const freelancerAvg = freelancerRatings.length > 0
+          ? (freelancerRatings.reduce((sum, r) => sum + (r.rating || 0), 0) / freelancerRatings.length).toFixed(2)
+          : 0;
+        
+        const overallAvg = ((parseFloat(taskerAvg as any) + parseFloat(freelancerAvg as any)) / 2).toFixed(2);
+        
+        console.log("📊 Rating breakdown:", { taskerAvg, freelancerAvg, overallAvg, taskerCount: taskerRatings.length, freelancerCount: freelancerRatings.length });
+      } else {
+        console.log("No ratings found");
+        setUserRatings([]);
+      }
+    } catch (err) {
+      console.error("Exception loading ratings:", err);
     }
   };
 
