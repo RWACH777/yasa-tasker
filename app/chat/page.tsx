@@ -112,27 +112,6 @@ export default function ChatPage() {
 
     loadOtherUser();
 
-    // Clear the cleared_conversations entry so conversation shows up in messages list
-    const clearClearedConversation = async () => {
-      try {
-        const { error } = await supabase
-          .from("cleared_conversations")
-          .delete()
-          .eq("user_id", user.id)
-          .eq("other_user_id", otherUserId);
-
-        if (error) {
-          console.error("Error clearing cleared_conversations entry:", error);
-        } else {
-          console.log("✅ Cleared conversation entry removed, chat will show in messages");
-        }
-      } catch (err) {
-        console.error("Exception clearing cleared_conversations:", err);
-      }
-    };
-
-    clearClearedConversation();
-
     // Subscribe to presence changes using postgres_changes for real-time updates
     const presenceChannel = supabase
       .channel(`presence:${otherUserId}`)
@@ -168,6 +147,19 @@ export default function ChatPage() {
     if (!user?.id || !otherUserId) return;
 
     const loadMessages = async () => {
+      // Check if conversation is cleared by current user
+      const { data: clearedConv } = await supabase
+        .from("cleared_conversations")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("other_user_id", otherUserId);
+
+      // If cleared, don't load messages
+      if (clearedConv && clearedConv.length > 0) {
+        setMessages([]);
+        return;
+      }
+
       const { data } = await supabase
         .from("messages")
         .select("*")
@@ -176,12 +168,7 @@ export default function ChatPage() {
         )
         .order("created_at", { ascending: true });
 
-      // Filter out messages that were cleared by current user
-      const filteredMessages = (data || []).filter(
-        (msg) => msg.cleared_by_user_id !== user.id
-      );
-
-      setMessages(filteredMessages);
+      setMessages(data || []);
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       }, 0);
@@ -638,13 +625,14 @@ export default function ChatPage() {
       const ratingType = task?.poster_id === user.id ? "freelancer" : "tasker";
 
       // Check if user already rated this task
-      const { data: existingRating } = await supabase
+      const { data: existingRatings } = await supabase
         .from("ratings")
         .select("id")
         .eq("rater_id", user.id)
         .eq("rated_user_id", otherUser.id)
-        .eq("task_id", taskId)
-        .single();
+        .eq("task_id", taskId);
+
+      const existingRating = existingRatings && existingRatings.length > 0 ? existingRatings[0] : null;
 
       let ratingError;
       if (existingRating) {
