@@ -754,25 +754,30 @@ export default function ChatPage() {
               onClick={async () => {
                 if (confirm("Clear all messages in this chat? (Only clears for you)")) {
                   try {
+                    console.log("Clearing chat for user:", user.id, "with other user:", otherUserId);
                     // Mark all messages in this chat as cleared by current user
-                    const { error } = await supabase
+                    const { error, data } = await supabase
                       .from("messages")
                       .update({ cleared_by_user_id: user.id })
                       .or(
                         `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
-                      );
+                      )
+                      .select();
+                    
+                    console.log("Clear chat response:", { error, data });
                     
                     if (error) {
                       console.error("Error clearing chat:", error);
-                      alert("❌ Failed to clear chat");
+                      alert(`❌ Failed to clear chat: ${error.message || JSON.stringify(error)}`);
                       return;
                     }
                     
+                    console.log("Updated messages:", data?.length || 0);
                     setMessages([]);
                     alert("✅ Chat cleared successfully (only for you)");
                   } catch (err) {
                     console.error("Exception clearing chat:", err);
-                    alert("❌ Error clearing chat");
+                    alert(`❌ Error clearing chat: ${err}`);
                   }
                 }
               }}

@@ -156,6 +156,11 @@ CREATE POLICY "Receiver can update message read status" ON messages
   FOR UPDATE USING (auth.uid() = receiver_id)
   WITH CHECK (auth.uid() = receiver_id);
 
+DROP POLICY IF EXISTS "Users can update cleared_by_user_id" ON messages;
+CREATE POLICY "Users can update cleared_by_user_id" ON messages
+  FOR UPDATE USING (auth.uid() = sender_id OR auth.uid() = receiver_id)
+  WITH CHECK (auth.uid() = sender_id OR auth.uid() = receiver_id);
+
 DROP POLICY IF EXISTS "Users can delete messages" ON messages;
 CREATE POLICY "Users can delete messages" ON messages
   FOR DELETE USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
