@@ -137,15 +137,15 @@ export default function DashboardPage() {
     setNotificationCount(data?.length || 0);
   };
 
-  // Load message count (unread messages from other users)
+  // Load message count (conversations with unread messages)
   const loadMessageCount = async (userId: string) => {
     const { data: received } = await supabase
       .from("messages")
       .select("sender_id")
       .eq("receiver_id", userId)
-      .order("created_at", { ascending: false });
+      .eq("read", false);
     
-    // Count unique senders (conversations with unread messages)
+    // Count unique senders with unread messages (conversations with new messages)
     const uniqueSenders = new Set(received?.map((msg) => msg.sender_id) || []);
     setMessageCount(uniqueSenders.size);
   };
