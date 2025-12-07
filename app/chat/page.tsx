@@ -42,6 +42,7 @@ export default function ChatPage() {
   const [ratingLoading, setRatingLoading] = useState(false);
   const [taskStatus, setTaskStatus] = useState<string | null>(null);
   const [taskPosterId, setTaskPosterId] = useState<string | null>(null);
+  const [hasRatedThisTask, setHasRatedThisTask] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -337,9 +338,21 @@ export default function ChatPage() {
           setTaskStatus(data.status);
           setTaskPosterId(data.poster_id);
           
-          // Auto-show rating modal if task is completed
-          if (data.status === "completed") {
-            console.log("Task is completed, showing rating modal for user to rate");
+          // Check if current user already rated this task
+          const { data: existingRatings } = await supabase
+            .from("ratings")
+            .select("id")
+            .eq("rater_id", user.id)
+            .eq("rated_user_id", otherUser?.id)
+            .eq("task_id", taskId);
+
+          const hasRated = existingRatings && existingRatings.length > 0;
+          setHasRatedThisTask(hasRated);
+          console.log("User has rated this task:", hasRated);
+          
+          // Auto-show rating modal if task is completed and user hasn't rated yet
+          if (data.status === "completed" && !hasRated) {
+            console.log("Task is completed and user hasn't rated, showing rating modal");
             setTimeout(() => setShowRatingModal(true), 800);
           }
         }
@@ -727,6 +740,8 @@ export default function ChatPage() {
       }
 
       setShowRatingModal(false);
+      setHasRatedThisTask(true);
+      console.log("✅ Rating submitted and modal closed");
     } catch (err) {
       setError("Error submitting rating");
     } finally {
@@ -857,10 +872,15 @@ export default function ChatPage() {
             {taskId && taskStatus === "completed" && (
               <button
                 onClick={() => setShowRatingModal(true)}
-                className="px-2 md:px-4 py-1 md:py-2 bg-green-600 hover:bg-green-700 rounded-lg transition text-xs md:text-sm animate-pulse"
-                title="Rate this task and comment"
+                disabled={hasRatedThisTask}
+                className={`px-2 md:px-4 py-1 md:py-2 rounded-lg transition text-xs md:text-sm ${
+                  hasRatedThisTask
+                    ? "bg-gray-600 cursor-not-allowed opacity-50"
+                    : "bg-green-600 hover:bg-green-700 animate-pulse"
+                }`}
+                title={hasRatedThisTask ? "You have already rated this task" : "Rate this task and comment"}
               >
-                ⭐ Rate & Comment
+                {hasRatedThisTask ? "✓ Rated" : "⭐ Rate & Comment"}
               </button>
             )}
             <button
