@@ -881,47 +881,6 @@ export default function ChatPage() {
                 {hasRatedThisTask ? "✓ Rated" : "⭐ Rate & Comment"}
               </button>
             )}
-            <button
-              onClick={async () => {
-                if (confirm("Delete all messages in this chat? (Only deletes for you)")) {
-                  try {
-                    console.log("Deleting all messages for user:", user.id);
-                    
-                    // Get all messages in this conversation
-                    const { data: allMessages } = await supabase
-                      .from("messages")
-                      .select("id")
-                      .or(
-                        `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
-                      );
-
-                    if (allMessages && allMessages.length > 0) {
-                      // Delete all messages
-                      const { error } = await supabase
-                        .from("messages")
-                        .delete()
-                        .in("id", allMessages.map(m => m.id));
-                      
-                      if (error) {
-                        console.error("Error deleting messages:", error);
-                        alert(`❌ Failed to delete messages: ${error.message}`);
-                        return;
-                      }
-                    }
-                    
-                    setMessages([]);
-                    alert("✅ Messages deleted successfully");
-                  } catch (err) {
-                    console.error("Exception deleting messages:", err);
-                    alert(`❌ Error deleting messages: ${err}`);
-                  }
-                }
-              }}
-              className="px-3 md:px-5 py-2 md:py-2.5 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm md:text-base"
-              title="Delete all messages in this chat"
-            >
-              🗑️
-            </button>
             <Link
               href="/messages"
               className="px-3 md:px-5 py-2 md:py-2.5 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm md:text-base"

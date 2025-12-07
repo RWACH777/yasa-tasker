@@ -178,26 +178,32 @@ export default function MessagesPage() {
 
   const deleteConversation = async (otherUserId: string) => {
     try {
-      // Add to cleared_conversations table
-      const { error } = await supabase
-        .from("cleared_conversations")
-        .insert([
-          {
-            user_id: user.id,
-            other_user_id: otherUserId,
-          }
-        ]);
+      // Get all messages in this conversation
+      const { data: allMessages } = await supabase
+        .from("messages")
+        .select("id")
+        .or(
+          `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
+        );
 
-      if (error) {
-        console.error("Error deleting conversation:", error);
-        alert(`❌ Failed to delete conversation: ${error.message}`);
-        return;
+      if (allMessages && allMessages.length > 0) {
+        // Delete all messages
+        const { error: deleteError } = await supabase
+          .from("messages")
+          .delete()
+          .in("id", allMessages.map(m => m.id));
+        
+        if (deleteError) {
+          console.error("Error deleting messages:", deleteError);
+          alert(`❌ Failed to delete conversation: ${deleteError.message}`);
+          return;
+        }
       }
 
       // Remove from UI immediately
       setConversations(conversations.filter((c) => c.userId !== otherUserId));
       setLongPressedConvId(null);
-      console.log("✅ Conversation deleted (cleared for current user)");
+      console.log("✅ Conversation deleted (messages deleted for current user)");
     } catch (err) {
       console.error("Exception deleting conversation:", err);
       alert(`❌ Error deleting conversation: ${err}`);
