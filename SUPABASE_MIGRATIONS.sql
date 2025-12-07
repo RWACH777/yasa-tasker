@@ -258,3 +258,10 @@ CREATE POLICY "Users can manage their cleared conversations" ON cleared_conversa
 
 -- 23. Create index for faster queries
 CREATE INDEX IF NOT EXISTS idx_cleared_conversations_user ON cleared_conversations(user_id, other_user_id);
+
+-- 24. Add rating_type to ratings table to distinguish tasker vs freelancer ratings
+ALTER TABLE ratings
+  ADD COLUMN IF NOT EXISTS rating_type VARCHAR(20) DEFAULT 'freelancer';
+
+-- 25. Create index for rating_type queries
+CREATE INDEX IF NOT EXISTS idx_ratings_type ON ratings(rating_type, rated_user_id);

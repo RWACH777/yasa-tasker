@@ -589,13 +589,23 @@ export default function ChatPage() {
 
     setRatingLoading(true);
     try {
-      // Insert rating
+      // Determine rating_type: if current user is the task poster, they're rating a freelancer
+      const { data: task } = await supabase
+        .from("tasks")
+        .select("poster_id")
+        .eq("id", taskId)
+        .single();
+
+      const ratingType = task?.poster_id === user.id ? "freelancer" : "tasker";
+
+      // Insert rating with rating_type
       const { error: ratingError } = await supabase.from("ratings").insert([
         {
           rater_id: user.id,
           rated_user_id: otherUser.id,
           rating: stars,
           comment: comment || null,
+          rating_type: ratingType,
           created_at: new Date().toISOString(),
         },
       ]);
@@ -607,24 +617,35 @@ export default function ChatPage() {
         return;
       }
 
-      console.log("✅ Rating submitted successfully");
+      console.log("✅ Rating submitted successfully as", ratingType);
 
-      // Get all ratings for the rated user to calculate average
+      // Get all ratings for the rated user to calculate averages by type
       const { data: allRatings, error: ratingsError } = await supabase
         .from("ratings")
-        .select("rating")
+        .select("rating, rating_type")
         .eq("rated_user_id", otherUser.id);
 
       if (!ratingsError && allRatings && allRatings.length > 0) {
         try {
-          const average = (
-            allRatings.reduce((sum, r) => sum + (r.rating || 0), 0) / allRatings.length
-          ).toFixed(2);
+          // Calculate average for tasker ratings
+          const taskerRatings = allRatings.filter((r) => r.rating_type === "tasker");
+          const taskerAvg = taskerRatings.length > 0
+            ? (taskerRatings.reduce((sum, r) => sum + (r.rating || 0), 0) / taskerRatings.length).toFixed(2)
+            : 0;
+
+          // Calculate average for freelancer ratings
+          const freelancerRatings = allRatings.filter((r) => r.rating_type === "freelancer");
+          const freelancerAvg = freelancerRatings.length > 0
+            ? (freelancerRatings.reduce((sum, r) => sum + (r.rating || 0), 0) / freelancerRatings.length).toFixed(2)
+            : 0;
+
+          // Calculate overall average
+          const overallAvg = ((parseFloat(taskerAvg as any) + parseFloat(freelancerAvg as any)) / 2).toFixed(2);
 
           await supabase
             .from("profiles")
             .update({
-              average_rating: parseFloat(average),
+              average_rating: parseFloat(overallAvg),
               total_ratings: allRatings.length,
             })
             .eq("id", otherUser.id);
