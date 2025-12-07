@@ -204,12 +204,34 @@ export default function ChatPage() {
           filter: `or(and(sender_id=eq.${user.id},receiver_id=eq.${otherUserId}),and(sender_id=eq.${otherUserId},receiver_id=eq.${user.id}))`,
         },
         (payload) => {
-          console.log("New message received:", payload.new);
-          // Only add if not cleared by current user and not already in list (avoid duplicates)
+          console.log("✅ New message received from subscription:", payload.new);
+          // Only add if not cleared by current user
           if (payload.new.cleared_by_user_id !== user.id) {
             setMessages((prev) => {
-              const exists = prev.some((m) => m.id === payload.new.id);
-              if (exists) return prev; // Already in list, don't add again
+              // Check if this exact message already exists by ID
+              const messageExists = prev.some((m) => m.id === payload.new.id);
+              if (messageExists) {
+                console.log("Message already in list, skipping");
+                return prev;
+              }
+              
+              // Check if there's a temp message that matches this one
+              const tempMessageIndex = prev.findIndex((m) => 
+                m.id.startsWith("temp-") && 
+                m.sender_id === payload.new.sender_id && 
+                m.receiver_id === payload.new.receiver_id && 
+                m.text === payload.new.text
+              );
+              
+              if (tempMessageIndex !== -1) {
+                console.log("Replacing temp message with real one");
+                // Replace temp message with real one
+                const updated = [...prev];
+                updated[tempMessageIndex] = payload.new as Message;
+                return updated;
+              }
+              
+              console.log("Adding new message from subscription");
               return [...prev, payload.new as Message];
             });
             setTimeout(() => {
