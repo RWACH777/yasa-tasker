@@ -147,6 +147,20 @@ export default function ChatPage() {
     if (!user?.id || !otherUserId) return;
 
     const loadMessages = async () => {
+      // Check if conversation is cleared by current user
+      const { data: clearedConv } = await supabase
+        .from("cleared_conversations")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("other_user_id", otherUserId);
+
+      // If cleared, show empty (but don't block new messages)
+      if (clearedConv && clearedConv.length > 0) {
+        console.log("Conversation is cleared, showing empty");
+        setMessages([]);
+        return;
+      }
+
       const { data } = await supabase
         .from("messages")
         .select("*")
@@ -278,6 +292,19 @@ export default function ChatPage() {
         (payload) => {
           console.log("Message deleted:", payload.old);
           setMessages((prev) => prev.filter((m) => m.id !== payload.old.id));
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "cleared_conversations",
+          filter: `and(user_id=eq.${user.id},other_user_id=eq.${otherUserId})`,
+        },
+        (payload) => {
+          console.log("Conversation cleared, hiding messages");
+          setMessages([]);
         }
       )
       .subscribe();
