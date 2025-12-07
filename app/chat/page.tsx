@@ -91,12 +91,13 @@ export default function ChatPage() {
 
     const checkApproval = async () => {
       try {
-        // Check if there's an approved application for this task and user
+        // Check if there's an approved application for this task
+        // It could be either direction: current user is applicant or current user is task poster
         const { data, error } = await supabase
           .from("applications")
           .select("status")
           .eq("task_id", taskId)
-          .eq("applicant_id", otherUserId)
+          .or(`applicant_id.eq.${otherUserId},applicant_id.eq.${user.id}`)
           .single();
 
         if (error || !data) {
@@ -288,7 +289,7 @@ export default function ChatPage() {
 
   // Load task status
   useEffect(() => {
-    if (!taskId) return;
+    if (!taskId || !user?.id) return;
 
     const loadTaskStatus = async () => {
       try {
@@ -338,7 +339,7 @@ export default function ChatPage() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [taskId]);
+  }, [taskId, user?.id]);
 
   const sendMessage = async (fileUrl?: string, voiceUrl?: string) => {
     if ((!newMessage.trim() && !fileUrl && !voiceUrl) || !user?.id || !otherUserId) {
