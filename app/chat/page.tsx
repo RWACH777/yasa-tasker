@@ -223,17 +223,20 @@ export default function ChatPage() {
         .order("created_at", { ascending: true });
 
       // Check if this conversation is cleared by current user
-      const { data: clearedConv } = await supabase
-        .from("cleared_conversations")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("other_user_id", otherUserId)
-        .single();
+      try {
+        const { data: clearedConv, error } = await supabase
+          .from("cleared_conversations")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("other_user_id", otherUserId);
 
-      // If conversation is cleared, don't show messages
-      if (clearedConv) {
-        setMessages([]);
-        return;
+        // If conversation is cleared, don't show messages
+        if (clearedConv && clearedConv.length > 0) {
+          setMessages([]);
+          return;
+        }
+      } catch (err) {
+        console.log("Error checking cleared conversations:", err);
       }
 
       // Only update if there are new messages
@@ -886,10 +889,9 @@ export default function ChatPage() {
                       .from("cleared_conversations")
                       .select("id")
                       .eq("user_id", user.id)
-                      .eq("other_user_id", otherUserId)
-                      .single();
+                      .eq("other_user_id", otherUserId);
 
-                    if (!existing) {
+                    if (!existing || existing.length === 0) {
                       // Insert into cleared_conversations table
                       const { error } = await supabase
                         .from("cleared_conversations")
