@@ -40,7 +40,6 @@ export default function ChatPage() {
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [ratingLoading, setRatingLoading] = useState(false);
-  const [hasRated, setHasRated] = useState(false);
   const [taskStatus, setTaskStatus] = useState<string | null>(null);
   const [taskPosterId, setTaskPosterId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -349,26 +348,10 @@ export default function ChatPage() {
           setTaskStatus(data.status);
           setTaskPosterId(data.poster_id);
           
-          // Check if current user has already rated THIS task
-          const { data: existingRating } = await supabase
-            .from("ratings")
-            .select("id")
-            .eq("rater_id", user.id)
-            .eq("rated_user_id", otherUserId)
-            .eq("task_id", taskId)
-            .single();
-          
-          if (existingRating) {
-            console.log("User has already rated this task");
-            setHasRated(true);
-          } else {
-            console.log("User hasn't rated this task yet");
-            setHasRated(false);
-            // Auto-show rating modal if task is completed and user hasn't rated yet
-            if (data.status === "completed") {
-              console.log("Task is completed and user hasn't rated, showing modal");
-              setTimeout(() => setShowRatingModal(true), 800);
-            }
+          // Auto-show rating modal if task is completed
+          if (data.status === "completed") {
+            console.log("Task is completed, showing rating modal for user to rate");
+            setTimeout(() => setShowRatingModal(true), 800);
           }
         }
       } catch (err) {
@@ -392,36 +375,13 @@ export default function ChatPage() {
         },
         (payload) => {
           console.log("Task updated:", payload.new);
-          console.log("Current hasRated state:", hasRated);
           setTaskStatus(payload.new.status);
           setTaskPosterId(payload.new.poster_id);
           
           // Auto-show rating modal when task becomes completed
           if (payload.new.status === "completed") {
-            console.log("Task just completed! Checking if user already rated...");
-            // Check if current user has already rated this task
-            const checkRating = async () => {
-              try {
-                const { data: existingRating } = await supabase
-                  .from("ratings")
-                  .select("id")
-                  .eq("rater_id", user.id)
-                  .eq("rated_user_id", otherUserId)
-                  .eq("task_id", taskId)
-                  .single();
-                
-                if (!existingRating) {
-                  console.log("User hasn't rated yet, showing modal");
-                  setShowRatingModal(true);
-                } else {
-                  console.log("User already rated this task");
-                }
-              } catch (err) {
-                console.log("Rating check error (expected if no rating):", err);
-                setShowRatingModal(true);
-              }
-            };
-            checkRating();
+            console.log("Task just completed! Showing rating modal for both users");
+            setTimeout(() => setShowRatingModal(true), 500);
           }
         }
       )
@@ -430,7 +390,7 @@ export default function ChatPage() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [taskId, user?.id, otherUserId, hasRated]);
+  }, [taskId, user?.id, otherUserId]);
 
   const sendMessage = async (fileUrl?: string, voiceUrl?: string) => {
     if ((!newMessage.trim() && !fileUrl && !voiceUrl) || !user?.id || !otherUserId) {
@@ -649,18 +609,43 @@ export default function ChatPage() {
 
       const ratingType = task?.poster_id === user.id ? "freelancer" : "tasker";
 
-      // Insert rating with rating_type and task_id
-      const { error: ratingError } = await supabase.from("ratings").insert([
-        {
-          rater_id: user.id,
-          rated_user_id: otherUser.id,
-          rating: stars,
-          comment: comment || null,
-          rating_type: ratingType,
-          task_id: taskId,
-          created_at: new Date().toISOString(),
-        },
-      ]);
+      // Check if user already rated this task
+      const { data: existingRating } = await supabase
+        .from("ratings")
+        .select("id")
+        .eq("rater_id", user.id)
+        .eq("rated_user_id", otherUser.id)
+        .eq("task_id", taskId)
+        .single();
+
+      let ratingError;
+      if (existingRating) {
+        // Update existing rating
+        const { error: updateError } = await supabase
+          .from("ratings")
+          .update({
+            rating: stars,
+            comment: comment || null,
+          })
+          .eq("id", existingRating.id);
+        ratingError = updateError;
+        console.log("✅ Rating updated successfully as", ratingType);
+      } else {
+        // Insert new rating
+        const { error: insertError } = await supabase.from("ratings").insert([
+          {
+            rater_id: user.id,
+            rated_user_id: otherUser.id,
+            rating: stars,
+            comment: comment || null,
+            rating_type: ratingType,
+            task_id: taskId,
+            created_at: new Date().toISOString(),
+          },
+        ]);
+        ratingError = insertError;
+        console.log("✅ Rating submitted successfully as", ratingType);
+      }
 
       if (ratingError) {
         console.error("❌ Rating error:", ratingError);
@@ -668,8 +653,6 @@ export default function ChatPage() {
         setRatingLoading(false);
         return;
       }
-
-      console.log("✅ Rating submitted successfully as", ratingType);
 
       // Get all ratings for the rated user to calculate averages by type
       const { data: allRatings, error: ratingsError } = await supabase
@@ -730,7 +713,6 @@ export default function ChatPage() {
         }
       }
 
-      setHasRated(true);
       setShowRatingModal(false);
     } catch (err) {
       setError("Error submitting rating");
@@ -859,22 +841,13 @@ export default function ChatPage() {
                 ✓ Complete
               </button>
             )}
-            {taskId && taskStatus === "completed" && !hasRated && (
+            {taskId && taskStatus === "completed" && (
               <button
                 onClick={() => setShowRatingModal(true)}
                 className="px-2 md:px-4 py-1 md:py-2 bg-green-600 hover:bg-green-700 rounded-lg transition text-xs md:text-sm animate-pulse"
-                title="Rate this task"
+                title="Rate this task and comment"
               >
-                ⭐ Rate Now
-              </button>
-            )}
-            {taskId && taskStatus === "completed" && hasRated && (
-              <button
-                disabled
-                className="px-2 md:px-4 py-1 md:py-2 bg-green-600 rounded-lg transition text-xs md:text-sm opacity-50 cursor-not-allowed"
-                title="You've already rated this task"
-              >
-                ✓ Rated
+                ⭐ Rate & Comment
               </button>
             )}
             <button
