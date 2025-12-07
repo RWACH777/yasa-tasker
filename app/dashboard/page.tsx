@@ -270,8 +270,9 @@ export default function DashboardPage() {
           table: "tasks",
         },
         (payload) => {
-          console.log("New task inserted:", payload.new);
-          fetchTasks();
+          console.log("✅ New task inserted:", payload.new);
+          // Add new task to the top of the list immediately
+          setTasks((prev) => [payload.new as Task, ...prev]);
         }
       )
       .on(
@@ -282,8 +283,11 @@ export default function DashboardPage() {
           table: "tasks",
         },
         (payload) => {
-          console.log("Task updated:", payload.new);
-          fetchTasks();
+          console.log("✅ Task updated:", payload.new);
+          // Update the task in the list
+          setTasks((prev) =>
+            prev.map((t) => (t.id === payload.new.id ? (payload.new as Task) : t))
+          );
         }
       )
       .on(
@@ -294,14 +298,24 @@ export default function DashboardPage() {
           table: "tasks",
         },
         (payload) => {
-          console.log("Task deleted:", payload.old);
-          fetchTasks();
+          console.log("✅ Task deleted:", payload.old);
+          // Remove the task from the list
+          setTasks((prev) => prev.filter((t) => t.id !== payload.old.id));
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("Subscription status:", status);
+      });
+
+    // Polling fallback every 5 seconds as backup
+    const pollInterval = setInterval(() => {
+      console.log("Polling tasks...");
+      fetchTasks();
+    }, 5000);
 
     return () => {
       subscription.unsubscribe();
+      clearInterval(pollInterval);
     };
   }, [user?.id, filter]);
 
