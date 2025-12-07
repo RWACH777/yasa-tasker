@@ -1075,65 +1075,87 @@ const handleUpdateFreelancerUsername = async () => {
               </div>
             </div>
 
-            {/* Ratings Section */}
+            {/* Ratings Section - Show only relevant rating type based on view */}
             <div className="mt-8 pt-6 border-t border-white/10">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">⭐ Ratings</h3>
-                {user.total_ratings && user.total_ratings > 0 && (
-                  <button
-                    onClick={() => setShowRatingsPage(true)}
-                    className="text-xs text-blue-400 hover:text-blue-300 transition"
-                  >
-                    View All ({user.total_ratings})
-                  </button>
-                )}
-              </div>
-
-              {/* Tasker Ratings */}
-              <div className="mb-6">
-                <h4 className="text-sm font-semibold text-purple-400 mb-3">👤 Tasker Ratings</h4>
-                {(() => {
-                  const taskerRatings = userRatings.filter((r) => r.rating_type === "tasker");
-                  if (taskerRatings.length === 0) {
-                    return <p className="text-xs text-gray-500">No tasker ratings yet</p>;
-                  }
-                  const rating = taskerRatings[0];
-                  return (
-                    <div className="bg-white/5 border border-white/10 rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-yellow-400">{"⭐".repeat(rating.rating || 0)}</span>
-                        <span className="text-sm font-semibold">{rating.rater?.username || "Anonymous"}</span>
+              {profileView === "tasker" ? (
+                // TASKER VIEW - Show only tasker ratings
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">⭐ Tasker Ratings</h3>
+                    {(() => {
+                      const taskerRatings = userRatings.filter((r) => r.rating_type === "tasker");
+                      return taskerRatings.length > 0 ? (
+                        <button
+                          onClick={() => setShowRatingsPage(true)}
+                          className="text-xs text-blue-400 hover:text-blue-300 transition"
+                        >
+                          View All ({taskerRatings.length})
+                        </button>
+                      ) : null;
+                    })()}
+                  </div>
+                  {(() => {
+                    const taskerRatings = userRatings.filter((r) => r.rating_type === "tasker");
+                    if (taskerRatings.length === 0) {
+                      return <p className="text-sm text-gray-400">No tasker ratings yet. Complete tasks to receive ratings!</p>;
+                    }
+                    const rating = taskerRatings[0];
+                    return (
+                      <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-yellow-400">{"⭐".repeat(rating.rating || 0)}</span>
+                          <span className="text-sm font-semibold">{rating.rater?.username || "Anonymous"}</span>
+                        </div>
+                        {rating.comment && (
+                          <p className="text-sm text-gray-300 italic">"{rating.comment}"</p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-2">
+                          {new Date(rating.created_at).toLocaleDateString()}
+                        </p>
                       </div>
-                      {rating.comment && (
-                        <p className="text-xs text-gray-300 italic">"{rating.comment}"</p>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Freelancer Ratings */}
-              <div>
-                <h4 className="text-sm font-semibold text-green-400 mb-3">💼 Freelancer Ratings</h4>
-                {(() => {
-                  const freelancerRatings = userRatings.filter((r) => r.rating_type === "freelancer");
-                  if (freelancerRatings.length === 0) {
-                    return <p className="text-xs text-gray-500">No freelancer ratings yet</p>;
-                  }
-                  const rating = freelancerRatings[0];
-                  return (
-                    <div className="bg-white/5 border border-white/10 rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-yellow-400">{"⭐".repeat(rating.rating || 0)}</span>
-                        <span className="text-sm font-semibold">{rating.rater?.username || "Anonymous"}</span>
+                    );
+                  })()}
+                </div>
+              ) : (
+                // FREELANCER VIEW - Show only freelancer ratings
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">⭐ Freelancer Ratings</h3>
+                    {(() => {
+                      const freelancerRatings = userRatings.filter((r) => r.rating_type === "freelancer");
+                      return freelancerRatings.length > 0 ? (
+                        <button
+                          onClick={() => setShowRatingsPage(true)}
+                          className="text-xs text-blue-400 hover:text-blue-300 transition"
+                        >
+                          View All ({freelancerRatings.length})
+                        </button>
+                      ) : null;
+                    })()}
+                  </div>
+                  {(() => {
+                    const freelancerRatings = userRatings.filter((r) => r.rating_type === "freelancer");
+                    if (freelancerRatings.length === 0) {
+                      return <p className="text-sm text-gray-400">No freelancer ratings yet. Complete tasks to receive ratings!</p>;
+                    }
+                    const rating = freelancerRatings[0];
+                    return (
+                      <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-yellow-400">{"⭐".repeat(rating.rating || 0)}</span>
+                          <span className="text-sm font-semibold">{rating.rater?.username || "Anonymous"}</span>
+                        </div>
+                        {rating.comment && (
+                          <p className="text-sm text-gray-300 italic">"{rating.comment}"</p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-2">
+                          {new Date(rating.created_at).toLocaleDateString()}
+                        </p>
                       </div>
-                      {rating.comment && (
-                        <p className="text-xs text-gray-300 italic">"{rating.comment}"</p>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           </div>
         </div>
