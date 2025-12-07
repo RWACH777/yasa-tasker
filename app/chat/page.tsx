@@ -222,15 +222,25 @@ export default function ChatPage() {
         )
         .order("created_at", { ascending: true });
 
-      const filteredMessages = (data || []).filter(
-        (msg) => msg.cleared_by_user_id !== user.id
-      );
+      // Check if this conversation is cleared by current user
+      const { data: clearedConv } = await supabase
+        .from("cleared_conversations")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("other_user_id", otherUserId)
+        .single();
+
+      // If conversation is cleared, don't show messages
+      if (clearedConv) {
+        setMessages([]);
+        return;
+      }
 
       // Only update if there are new messages
       setMessages((prev) => {
-        if (prev.length < filteredMessages.length) {
+        if (prev.length < (data || []).length) {
           console.log("Polling detected new messages");
-          return filteredMessages;
+          return data || [];
         }
         return prev;
       });
@@ -249,39 +259,36 @@ export default function ChatPage() {
         },
         (payload) => {
           console.log("✅ New message received from subscription:", payload.new);
-          // Only add if not cleared by current user
-          if (payload.new.cleared_by_user_id !== user.id) {
-            setMessages((prev) => {
-              // Check if this exact message already exists by ID
-              const messageExists = prev.some((m) => m.id === payload.new.id);
-              if (messageExists) {
-                console.log("Message already in list, skipping");
-                return prev;
-              }
-              
-              // Check if there's a temp message that matches this one
-              const tempMessageIndex = prev.findIndex((m) => 
-                m.id.startsWith("temp-") && 
-                m.sender_id === payload.new.sender_id && 
-                m.receiver_id === payload.new.receiver_id && 
-                m.text === payload.new.text
-              );
-              
-              if (tempMessageIndex !== -1) {
-                console.log("Replacing temp message with real one");
-                // Replace temp message with real one
-                const updated = [...prev];
-                updated[tempMessageIndex] = payload.new as Message;
-                return updated;
-              }
-              
-              console.log("Adding new message from subscription");
-              return [...prev, payload.new as Message];
-            });
-            setTimeout(() => {
-              messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-            }, 0);
-          }
+          setMessages((prev) => {
+            // Check if this exact message already exists by ID
+            const messageExists = prev.some((m) => m.id === payload.new.id);
+            if (messageExists) {
+              console.log("Message already in list, skipping");
+              return prev;
+            }
+            
+            // Check if there's a temp message that matches this one
+            const tempMessageIndex = prev.findIndex((m) => 
+              m.id.startsWith("temp-") && 
+              m.sender_id === payload.new.sender_id && 
+              m.receiver_id === payload.new.receiver_id && 
+              m.text === payload.new.text
+            );
+            
+            if (tempMessageIndex !== -1) {
+              console.log("Replacing temp message with real one");
+              // Replace temp message with real one
+              const updated = [...prev];
+              updated[tempMessageIndex] = payload.new as Message;
+              return updated;
+            }
+            
+            console.log("Adding new message from subscription");
+            return [...prev, payload.new as Message];
+          });
+          setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+          }, 0);
         }
       )
       .on(
@@ -294,15 +301,10 @@ export default function ChatPage() {
         },
         (payload) => {
           console.log("Message updated:", payload.new);
-          // If message was cleared by current user, remove it
-          if (payload.new.cleared_by_user_id === user.id) {
-            setMessages((prev) => prev.filter((m) => m.id !== payload.new.id));
-          } else {
-            // Otherwise update the message (e.g., read status)
-            setMessages((prev) =>
-              prev.map((m) => (m.id === payload.new.id ? (payload.new as Message) : m))
-            );
-          }
+          // Update the message (e.g., read status)
+          setMessages((prev) =>
+            prev.map((m) => (m.id === payload.new.id ? (payload.new as Message) : m))
+          );
         }
       )
       .on(
@@ -878,24 +880,34 @@ export default function ChatPage() {
                 if (confirm("Clear all messages in this chat? (Only clears for you)")) {
                   try {
                     console.log("Clearing chat for user:", user.id, "with other user:", otherUserId);
-                    // Mark all messages in this chat as cleared by current user
-                    const { error, data } = await supabase
-                      .from("messages")
-                      .update({ cleared_by_user_id: user.id })
-                      .or(
-                        `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
-                      )
-                      .select();
                     
-                    console.log("Clear chat response:", { error, data });
-                    
-                    if (error) {
-                      console.error("Error clearing chat:", error);
-                      alert(`❌ Failed to clear chat: ${error.message || JSON.stringify(error)}`);
-                      return;
+                    // Check if entry already exists
+                    const { data: existing } = await supabase
+                      .from("cleared_conversations")
+                      .select("id")
+                      .eq("user_id", user.id)
+                      .eq("other_user_id", otherUserId)
+                      .single();
+
+                    if (!existing) {
+                      // Insert into cleared_conversations table
+                      const { error } = await supabase
+                        .from("cleared_conversations")
+                        .insert([
+                          {
+                            user_id: user.id,
+                            other_user_id: otherUserId,
+                            cleared_at: new Date().toISOString(),
+                          },
+                        ]);
+                      
+                      if (error) {
+                        console.error("Error clearing chat:", error);
+                        alert(`❌ Failed to clear chat: ${error.message || JSON.stringify(error)}`);
+                        return;
+                      }
                     }
                     
-                    console.log("Updated messages:", data?.length || 0);
                     setMessages([]);
                     alert("✅ Chat cleared successfully (only for you)");
                   } catch (err) {
