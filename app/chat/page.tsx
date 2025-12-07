@@ -353,15 +353,35 @@ export default function ChatPage() {
           table: "tasks",
           filter: `id=eq.${taskId}`,
         },
-        (payload) => {
+        async (payload) => {
           console.log("✅ Real-time task update received:", payload.new);
           setTaskStatus(payload.new.status);
           setTaskPosterId(payload.new.poster_id);
           
           // Auto-show rating modal when task becomes completed
           if (payload.new.status === "completed") {
-            console.log("Task just completed! Showing rating modal for both users");
-            setTimeout(() => setShowRatingModal(true), 500);
+            console.log("Task just completed! Checking if user has rated...");
+            
+            // Check if current user already rated
+            if (otherUser?.id) {
+              const { data: existingRatings } = await supabase
+                .from("ratings")
+                .select("id")
+                .eq("rater_id", user.id)
+                .eq("rated_user_id", otherUser.id)
+                .eq("task_id", taskId);
+
+              const hasRated = existingRatings && existingRatings.length > 0;
+              console.log("User has already rated:", hasRated);
+              
+              if (!hasRated) {
+                console.log("Showing rating modal for user");
+                setTimeout(() => setShowRatingModal(true), 500);
+              }
+            } else {
+              console.log("otherUser not loaded, showing modal anyway");
+              setTimeout(() => setShowRatingModal(true), 500);
+            }
           }
         }
       )

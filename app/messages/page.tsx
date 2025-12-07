@@ -67,24 +67,11 @@ export default function MessagesPage() {
         .eq("receiver_id", user.id)
         .order("created_at", { ascending: false });
 
-      // Get cleared conversations for current user
-      const { data: clearedConvs } = await supabase
-        .from("cleared_conversations")
-        .select("other_user_id")
-        .eq("user_id", user.id);
-
-      const clearedUserIds = new Set(clearedConvs?.map((c) => c.other_user_id) || []);
-
       const allMessages = [...(sent || []), ...(received || [])];
       const uniqueUsers = new Map();
 
       for (const msg of allMessages) {
         const otherUserId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
-        
-        // Skip if this conversation is cleared by current user
-        if (clearedUserIds.has(otherUserId)) {
-          continue;
-        }
 
         if (!uniqueUsers.has(otherUserId)) {
           const { data: profile } = await supabase
@@ -159,19 +146,6 @@ export default function MessagesPage() {
         },
         (payload) => {
           console.log("Message deleted:", payload.old);
-          loadConversations();
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "cleared_conversations",
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          console.log("Conversation cleared:", payload.new);
           loadConversations();
         }
       )
