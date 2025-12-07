@@ -362,11 +362,12 @@ export default function ChatPage() {
             console.log("User has already rated this task");
             setHasRated(true);
           } else {
+            console.log("User hasn't rated this task yet");
             setHasRated(false);
             // Auto-show rating modal if task is completed and user hasn't rated yet
             if (data.status === "completed") {
-              console.log("Task completed, showing rating modal");
-              setTimeout(() => setShowRatingModal(true), 500);
+              console.log("Task is completed and user hasn't rated, showing modal");
+              setTimeout(() => setShowRatingModal(true), 800);
             }
           }
         }
@@ -391,13 +392,36 @@ export default function ChatPage() {
         },
         (payload) => {
           console.log("Task updated:", payload.new);
+          console.log("Current hasRated state:", hasRated);
           setTaskStatus(payload.new.status);
           setTaskPosterId(payload.new.poster_id);
           
           // Auto-show rating modal when task becomes completed
-          if (payload.new.status === "completed" && !hasRated) {
-            console.log("Task just completed, showing rating modal");
-            setTimeout(() => setShowRatingModal(true), 500);
+          if (payload.new.status === "completed") {
+            console.log("Task just completed! Checking if user already rated...");
+            // Check if current user has already rated this task
+            const checkRating = async () => {
+              try {
+                const { data: existingRating } = await supabase
+                  .from("ratings")
+                  .select("id")
+                  .eq("rater_id", user.id)
+                  .eq("rated_user_id", otherUserId)
+                  .eq("task_id", taskId)
+                  .single();
+                
+                if (!existingRating) {
+                  console.log("User hasn't rated yet, showing modal");
+                  setShowRatingModal(true);
+                } else {
+                  console.log("User already rated this task");
+                }
+              } catch (err) {
+                console.log("Rating check error (expected if no rating):", err);
+                setShowRatingModal(true);
+              }
+            };
+            checkRating();
           }
         }
       )
