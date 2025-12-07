@@ -312,19 +312,24 @@ export default function ChatPage() {
           setTaskPosterId(data.poster_id);
           
           // Check if current user already rated this task
-          const { data: existingRatings } = await supabase
-            .from("ratings")
-            .select("id")
-            .eq("rater_id", user.id)
-            .eq("rated_user_id", otherUser?.id)
-            .eq("task_id", taskId);
+          let hasRatedTask = false;
+          if (otherUser?.id) {
+            const { data: existingRatings } = await supabase
+              .from("ratings")
+              .select("id")
+              .eq("rater_id", user.id)
+              .eq("rated_user_id", otherUser.id)
+              .eq("task_id", taskId);
 
-          const hasRated = existingRatings && existingRatings.length > 0;
-          setHasRatedThisTask(hasRated);
-          console.log("User has rated this task:", hasRated);
+            hasRatedTask = existingRatings && existingRatings.length > 0;
+            setHasRatedThisTask(hasRatedTask);
+            console.log("User has rated this task:", hasRatedTask);
+          } else {
+            console.log("otherUser not loaded yet, skipping rating check");
+          }
           
           // Auto-show rating modal if task is completed and user hasn't rated yet
-          if (data.status === "completed" && !hasRated) {
+          if (data.status === "completed" && !hasRatedTask) {
             console.log("Task is completed and user hasn't rated, showing rating modal");
             setTimeout(() => setShowRatingModal(true), 800);
           }
