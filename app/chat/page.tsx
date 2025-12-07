@@ -619,18 +619,36 @@ export default function ChatPage() {
   };
 
   const submitRating = async (stars: number, comment: string) => {
-    if (!user?.id || !otherUser?.id || !taskId) return;
+    if (!user?.id || !otherUser?.id || !taskId) {
+      console.error("Missing required data:", { userId: user?.id, otherUserId: otherUser?.id, taskId });
+      return;
+    }
 
     setRatingLoading(true);
     try {
       // Determine rating_type: if current user is the task poster, they're rating a freelancer
-      const { data: task } = await supabase
+      const { data: task, error: taskError } = await supabase
         .from("tasks")
         .select("poster_id")
         .eq("id", taskId)
         .single();
 
+      if (taskError) {
+        console.error("❌ Error fetching task:", taskError);
+        setError("Failed to fetch task");
+        setRatingLoading(false);
+        return;
+      }
+
       const ratingType = task?.poster_id === user.id ? "freelancer" : "tasker";
+      console.log("📝 Submitting rating:", {
+        rater: user.id,
+        rated: otherUser.id,
+        task: taskId,
+        type: ratingType,
+        stars,
+        comment,
+      });
 
       // Check if user already rated this task
       const { data: existingRatings } = await supabase
@@ -668,12 +686,12 @@ export default function ChatPage() {
           },
         ]);
         ratingError = insertError;
-        console.log("✅ Rating submitted successfully as", ratingType);
+        console.log("✅ Rating submitted successfully as", ratingType, "Error:", insertError);
       }
 
       if (ratingError) {
         console.error("❌ Rating error:", ratingError);
-        setError("Failed to submit rating");
+        setError("Failed to submit rating: " + ratingError.message);
         setRatingLoading(false);
         return;
       }
