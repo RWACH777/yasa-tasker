@@ -43,7 +43,6 @@ export default function ChatPage() {
   const [hasRated, setHasRated] = useState(false);
   const [taskStatus, setTaskStatus] = useState<string | null>(null);
   const [taskPosterId, setTaskPosterId] = useState<string | null>(null);
-  const [isApproved, setIsApproved] = useState<boolean | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -82,39 +81,6 @@ export default function ChatPage() {
     };
   }, [user?.id]);
 
-  // Check if application is approved (if taskId is provided)
-  useEffect(() => {
-    if (!taskId || !user?.id || !otherUserId) {
-      setIsApproved(true); // Allow chat if no task (direct message)
-      return;
-    }
-
-    const checkApproval = async () => {
-      try {
-        // Check if there's an approved application for this task
-        // It could be either direction: current user is applicant or current user is task poster
-        const { data, error } = await supabase
-          .from("applications")
-          .select("status")
-          .eq("task_id", taskId)
-          .or(`applicant_id.eq.${otherUserId},applicant_id.eq.${user.id}`)
-          .single();
-
-        if (error || !data) {
-          console.error("Application not found:", error);
-          setIsApproved(false);
-          return;
-        }
-
-        setIsApproved(data.status === "approved");
-      } catch (err) {
-        console.error("Error checking approval:", err);
-        setIsApproved(false);
-      }
-    };
-
-    checkApproval();
-  }, [taskId, user?.id, otherUserId]);
 
   // Load other user info and check online status
   useEffect(() => {
@@ -647,24 +613,10 @@ export default function ChatPage() {
     }
   };
 
-  if (loading || !user || isApproved === null) {
+  if (loading || !user) {
     return (
       <div className="min-h-screen bg-[#000222] text-white flex items-center justify-center">
         <p>Loading chat...</p>
-      </div>
-    );
-  }
-
-  if (isApproved === false) {
-    return (
-      <div className="min-h-screen bg-[#000222] text-white flex items-center justify-center flex-col gap-4">
-        <p>❌ Chat is only available after application is approved</p>
-        <button
-          onClick={() => router.push("/messages")}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg"
-        >
-          Back to Messages
-        </button>
       </div>
     );
   }
