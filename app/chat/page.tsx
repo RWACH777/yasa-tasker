@@ -374,7 +374,7 @@ export default function ChatPage() {
           filter: `id=eq.${taskId}`,
         },
         (payload) => {
-          console.log("Task updated:", payload.new);
+          console.log("✅ Real-time task update received:", payload.new);
           setTaskStatus(payload.new.status);
           setTaskPosterId(payload.new.poster_id);
           
@@ -385,12 +385,35 @@ export default function ChatPage() {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("Subscription status:", status);
+      });
+
+    // Polling fallback - check task status every 2 seconds
+    const pollInterval = setInterval(async () => {
+      try {
+        const { data } = await supabase
+          .from("tasks")
+          .select("status, poster_id")
+          .eq("id", taskId)
+          .single();
+
+        if (data && data.status === "completed" && taskStatus !== "completed") {
+          console.log("📊 Polling detected task completion!");
+          setTaskStatus(data.status);
+          setTaskPosterId(data.poster_id);
+          setTimeout(() => setShowRatingModal(true), 500);
+        }
+      } catch (err) {
+        // Silent fail for polling
+      }
+    }, 2000);
 
     return () => {
       subscription.unsubscribe();
+      clearInterval(pollInterval);
     };
-  }, [taskId, user?.id, otherUserId]);
+  }, [taskId, user?.id, otherUserId, taskStatus]);
 
   const sendMessage = async (fileUrl?: string, voiceUrl?: string) => {
     if ((!newMessage.trim() && !fileUrl && !voiceUrl) || !user?.id || !otherUserId) {
