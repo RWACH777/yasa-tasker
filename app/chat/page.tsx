@@ -192,6 +192,30 @@ export default function ChatPage() {
 
     markMessagesAsRead();
 
+    // Poll for new messages every 1 second as fallback (in case subscription is slow)
+    const pollInterval = setInterval(async () => {
+      const { data } = await supabase
+        .from("messages")
+        .select("*")
+        .or(
+          `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
+        )
+        .order("created_at", { ascending: true });
+
+      const filteredMessages = (data || []).filter(
+        (msg) => msg.cleared_by_user_id !== user.id
+      );
+
+      // Only update if there are new messages
+      setMessages((prev) => {
+        if (prev.length < filteredMessages.length) {
+          console.log("Polling detected new messages");
+          return filteredMessages;
+        }
+        return prev;
+      });
+    }, 1000);
+
     // Subscribe to new messages and updates
     const subscription = supabase
       .channel(`chat:${user.id}:${otherUserId}`)
@@ -278,6 +302,7 @@ export default function ChatPage() {
 
     return () => {
       subscription.unsubscribe();
+      clearInterval(pollInterval);
     };
   }, [user?.id, otherUserId]);
 
