@@ -348,6 +348,19 @@ export default function ChatPage() {
           console.log("Task loaded:", { status: data.status, poster_id: data.poster_id, current_user: user?.id });
           setTaskStatus(data.status);
           setTaskPosterId(data.poster_id);
+          
+          // Check if current user has already rated
+          const { data: existingRating } = await supabase
+            .from("ratings")
+            .select("id")
+            .eq("rater_id", user.id)
+            .eq("rated_user_id", otherUserId)
+            .single();
+          
+          if (existingRating) {
+            console.log("User has already rated");
+            setHasRated(true);
+          }
         }
       } catch (err) {
         console.error("Exception loading task status:", err);
@@ -379,7 +392,7 @@ export default function ChatPage() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [taskId, user?.id]);
+  }, [taskId, user?.id, otherUserId]);
 
   const sendMessage = async (fileUrl?: string, voiceUrl?: string) => {
     if ((!newMessage.trim() && !fileUrl && !voiceUrl) || !user?.id || !otherUserId) {
@@ -814,7 +827,7 @@ export default function ChatPage() {
                 className="px-2 md:px-4 py-1 md:py-2 bg-green-600 hover:bg-green-700 rounded-lg transition text-xs md:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 title={hasRated ? "You've already rated this task" : "Rate this task"}
               >
-                {hasRated ? "✓" : "⭐"}
+                {hasRated ? "✓" : "⭐"} Rate
               </button>
             )}
             <button
