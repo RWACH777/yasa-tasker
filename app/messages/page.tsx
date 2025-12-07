@@ -67,7 +67,11 @@ export default function MessagesPage() {
         .eq("receiver_id", user.id)
         .order("created_at", { ascending: false });
 
-      const allMessages = [...(sent || []), ...(received || [])];
+      // Filter out messages cleared by current user
+      const filteredSent = (sent || []).filter((m) => m.cleared_by_user_id !== user.id);
+      const filteredReceived = (received || []).filter((m) => m.cleared_by_user_id !== user.id);
+
+      const allMessages = [...filteredSent, ...filteredReceived];
       const uniqueUsers = new Map();
 
       for (const msg of allMessages) {
@@ -79,13 +83,13 @@ export default function MessagesPage() {
             .eq("id", otherUserId)
             .single();
 
-          // Count only unread messages from this user (messages received from them with read=false)
-          const unreadMessages = (received || []).filter(
+          // Count only unread messages from this user (messages received from them with read=false and not cleared)
+          const unreadMessages = filteredReceived.filter(
             (m) => m.sender_id === otherUserId && m.read === false
           );
 
           console.log(`Conversation with ${profile?.username}:`, {
-            totalReceived: (received || []).filter((m) => m.sender_id === otherUserId).length,
+            totalReceived: filteredReceived.filter((m) => m.sender_id === otherUserId).length,
             unreadCount: unreadMessages.length,
             unreadMessages: unreadMessages.map((m) => ({ id: m.id, read: m.read, text: m.text?.substring(0, 20) })),
           });
@@ -130,8 +134,12 @@ export default function MessagesPage() {
           table: "messages",
         },
         (payload) => {
-          console.log("Message updated (read status):", payload.new);
-          loadConversations();
+          console.log("Message updated:", payload.new);
+          // Only reload if cleared_by_user_id was set (conversation should be hidden)
+          if (payload.new.cleared_by_user_id) {
+            console.log("Message cleared, reloading conversations");
+            loadConversations();
+          }
         }
       )
       .on(
