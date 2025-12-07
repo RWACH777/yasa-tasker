@@ -263,5 +263,12 @@ CREATE INDEX IF NOT EXISTS idx_cleared_conversations_user ON cleared_conversatio
 ALTER TABLE ratings
   ADD COLUMN IF NOT EXISTS rating_type VARCHAR(20) DEFAULT 'freelancer';
 
+-- 24.5. Add task_id to ratings table to allow multiple ratings per user (one per task)
+ALTER TABLE ratings
+  ADD COLUMN IF NOT EXISTS task_id UUID;
+
 -- 25. Create index for rating_type queries
 CREATE INDEX IF NOT EXISTS idx_ratings_type ON ratings(rating_type, rated_user_id);
+
+-- 25.5. Create index for task_id queries
+CREATE INDEX IF NOT EXISTS idx_ratings_task ON ratings(task_id, rater_id, rated_user_id);
