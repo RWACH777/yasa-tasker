@@ -113,31 +113,33 @@ export default function ChatPage() {
 
     loadOtherUser();
 
-    // Poll for online status changes every 1 second for real-time feel
+    // Subscribe to presence changes using postgres_changes for real-time updates
+    const presenceChannel = supabase
+      .channel(`presence:${otherUserId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "presence",
+          filter: `user_id=eq.${otherUserId}`,
+        },
+        (payload: any) => {
+          console.log("Presence update for", otherUserId, ":", payload.new);
+          setOtherUserOnline(payload.new?.is_online || false);
+        }
+      )
+      .subscribe();
+
+    // Also poll every 3 seconds as fallback
     const pollInterval = setInterval(async () => {
       const status = await getUserOnlineStatus(otherUserId);
       setOtherUserOnline(status.is_online || false);
-    }, 1000);
-
-    // Also subscribe to presence changes
-    const presenceChannel = supabase
-      .channel(`presence:${otherUserId}`)
-      .on('presence', { event: 'sync' }, () => {
-        getUserOnlineStatus(otherUserId).then((status) => {
-          setOtherUserOnline(status.is_online || false);
-        });
-      })
-      .on('presence', { event: 'join' }, () => {
-        setOtherUserOnline(true);
-      })
-      .on('presence', { event: 'leave' }, () => {
-        setOtherUserOnline(false);
-      })
-      .subscribe();
+    }, 3000);
 
     return () => {
-      clearInterval(pollInterval);
       presenceChannel.unsubscribe();
+      clearInterval(pollInterval);
     };
   }, [otherUserId, user?.id]);
 
@@ -203,9 +205,13 @@ export default function ChatPage() {
         },
         (payload) => {
           console.log("New message received:", payload.new);
-          // Only add if not cleared by current user
+          // Only add if not cleared by current user and not already in list (avoid duplicates)
           if (payload.new.cleared_by_user_id !== user.id) {
-            setMessages((prev) => [...prev, payload.new as Message]);
+            setMessages((prev) => {
+              const exists = prev.some((m) => m.id === payload.new.id);
+              if (exists) return prev; // Already in list, don't add again
+              return [...prev, payload.new as Message];
+            });
             setTimeout(() => {
               messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
             }, 0);
