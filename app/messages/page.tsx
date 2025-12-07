@@ -76,7 +76,15 @@ export default function MessagesPage() {
 
       for (const msg of allMessages) {
         const otherUserId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
-        if (!uniqueUsers.has(otherUserId)) {
+        
+        // Check if there are any visible messages with this user
+        const visibleWithUser = allMessages.filter((m) => {
+          const msgOtherId = m.sender_id === user.id ? m.receiver_id : m.sender_id;
+          return msgOtherId === otherUserId;
+        });
+
+        // Only add conversation if there are visible messages
+        if (visibleWithUser.length > 0 && !uniqueUsers.has(otherUserId)) {
           const { data: profile } = await supabase
             .from("profiles")
             .select("username, avatar_url")
@@ -91,7 +99,7 @@ export default function MessagesPage() {
           console.log(`Conversation with ${profile?.username}:`, {
             totalReceived: filteredReceived.filter((m) => m.sender_id === otherUserId).length,
             unreadCount: unreadMessages.length,
-            unreadMessages: unreadMessages.map((m) => ({ id: m.id, read: m.read, text: m.text?.substring(0, 20) })),
+            visibleMessages: visibleWithUser.length,
           });
 
           uniqueUsers.set(otherUserId, {
