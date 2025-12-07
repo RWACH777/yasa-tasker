@@ -307,11 +307,11 @@ export default function DashboardPage() {
         console.log("Subscription status:", status);
       });
 
-    // Polling fallback every 5 seconds as backup
+    // Polling fallback every 2 seconds as backup (since realtime might not be working)
     const pollInterval = setInterval(() => {
-      console.log("Polling tasks...");
+      console.log("Polling tasks for updates...");
       fetchTasks();
-    }, 5000);
+    }, 2000);
 
     return () => {
       subscription.unsubscribe();
