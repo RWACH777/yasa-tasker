@@ -67,39 +67,39 @@ export default function MessagesPage() {
         .eq("receiver_id", user.id)
         .order("created_at", { ascending: false });
 
-      // Filter out messages cleared by current user
-      const filteredSent = (sent || []).filter((m) => m.cleared_by_user_id !== user.id);
-      const filteredReceived = (received || []).filter((m) => m.cleared_by_user_id !== user.id);
+      // Get cleared conversations for current user
+      const { data: clearedConvs } = await supabase
+        .from("cleared_conversations")
+        .select("other_user_id")
+        .eq("user_id", user.id);
 
-      const allMessages = [...filteredSent, ...filteredReceived];
+      const clearedUserIds = new Set(clearedConvs?.map((c) => c.other_user_id) || []);
+
+      const allMessages = [...(sent || []), ...(received || [])];
       const uniqueUsers = new Map();
 
       for (const msg of allMessages) {
         const otherUserId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
         
-        // Check if there are any visible messages with this user
-        const visibleWithUser = allMessages.filter((m) => {
-          const msgOtherId = m.sender_id === user.id ? m.receiver_id : m.sender_id;
-          return msgOtherId === otherUserId;
-        });
+        // Skip if this conversation is cleared by current user
+        if (clearedUserIds.has(otherUserId)) {
+          continue;
+        }
 
-        // Only add conversation if there are visible messages
-        if (visibleWithUser.length > 0 && !uniqueUsers.has(otherUserId)) {
+        if (!uniqueUsers.has(otherUserId)) {
           const { data: profile } = await supabase
             .from("profiles")
             .select("username, avatar_url")
             .eq("id", otherUserId)
             .single();
 
-          // Count only unread messages from this user (messages received from them with read=false and not cleared)
-          const unreadMessages = filteredReceived.filter(
+          // Count only unread messages from this user (messages received from them with read=false)
+          const unreadMessages = (received || []).filter(
             (m) => m.sender_id === otherUserId && m.read === false
           );
 
           console.log(`Conversation with ${profile?.username}:`, {
-            totalReceived: filteredReceived.filter((m) => m.sender_id === otherUserId).length,
             unreadCount: unreadMessages.length,
-            visibleMessages: visibleWithUser.length,
           });
 
           uniqueUsers.set(otherUserId, {
@@ -162,6 +162,19 @@ export default function MessagesPage() {
           loadConversations();
         }
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "cleared_conversations",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log("Conversation cleared:", payload.new);
+          loadConversations();
+        }
+      )
       .subscribe();
 
     // Also poll every 3 seconds as backup to ensure badges update
@@ -191,13 +204,15 @@ export default function MessagesPage() {
 
   const deleteConversation = async (otherUserId: string) => {
     try {
-      // Mark all messages as cleared by current user instead of deleting
+      // Add to cleared_conversations table
       const { error } = await supabase
-        .from("messages")
-        .update({ cleared_by_user_id: user.id })
-        .or(
-          `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
-        );
+        .from("cleared_conversations")
+        .insert([
+          {
+            user_id: user.id,
+            other_user_id: otherUserId,
+          }
+        ]);
 
       if (error) {
         console.error("Error deleting conversation:", error);

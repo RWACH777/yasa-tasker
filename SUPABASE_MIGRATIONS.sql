@@ -239,3 +239,22 @@ ALTER TABLE messages
 
 -- 20. Create index for faster queries on cleared messages
 CREATE INDEX IF NOT EXISTS idx_messages_cleared_by ON messages(cleared_by_user_id);
+
+-- 21. Create table to track cleared conversations (for each user independently)
+CREATE TABLE IF NOT EXISTS cleared_conversations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  other_user_id UUID NOT NULL,
+  cleared_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  UNIQUE(user_id, other_user_id)
+);
+
+-- 22. Create RLS policies for cleared_conversations
+ALTER TABLE cleared_conversations ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can manage their cleared conversations" ON cleared_conversations;
+CREATE POLICY "Users can manage their cleared conversations" ON cleared_conversations
+  FOR ALL USING (auth.uid() = user_id);
+
+-- 23. Create index for faster queries
+CREATE INDEX IF NOT EXISTS idx_cleared_conversations_user ON cleared_conversations(user_id, other_user_id);
