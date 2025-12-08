@@ -363,23 +363,36 @@ export default function ChatPage() {
             console.log("Task just completed! Checking if user has rated...");
             
             // Check if current user already rated
-            if (otherUser?.id) {
-              const { data: existingRatings } = await supabase
-                .from("ratings")
-                .select("id")
-                .eq("rater_id", user.id)
-                .eq("rated_user_id", otherUser.id)
-                .eq("task_id", taskId);
+            if (otherUser?.id && user?.id) {
+              try {
+                const { data: existingRatings, error } = await supabase
+                  .from("ratings")
+                  .select("id")
+                  .eq("rater_id", user.id)
+                  .eq("rated_user_id", otherUser.id)
+                  .eq("task_id", taskId);
 
-              const hasRated = existingRatings && existingRatings.length > 0;
-              console.log("User has already rated:", hasRated);
-              
-              if (!hasRated) {
-                console.log("Showing rating modal for user");
+                if (error) {
+                  console.error("Error checking existing ratings:", error);
+                  // Show modal anyway if we can't check
+                  setTimeout(() => setShowRatingModal(true), 500);
+                  return;
+                }
+
+                const hasRated = existingRatings && existingRatings.length > 0;
+                console.log("User has already rated:", hasRated);
+                
+                if (!hasRated) {
+                  console.log("Showing rating modal for user");
+                  setTimeout(() => setShowRatingModal(true), 500);
+                }
+              } catch (err) {
+                console.error("Exception checking ratings:", err);
+                // Show modal anyway if there's an error
                 setTimeout(() => setShowRatingModal(true), 500);
               }
             } else {
-              console.log("otherUser not loaded, showing modal anyway");
+              console.log("otherUser or user not loaded, showing modal anyway");
               setTimeout(() => setShowRatingModal(true), 500);
             }
           }
