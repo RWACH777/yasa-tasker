@@ -312,25 +312,30 @@ export default function ChatPage() {
           setTaskPosterId(data.poster_id);
           
           // Check if current user already rated this task
-          let hasRatedTask = false;
-          if (otherUser?.id) {
-            const { data: existingRatings } = await supabase
-              .from("ratings")
-              .select("id")
-              .eq("rater_id", user.id)
-              .eq("rated_user_id", otherUser.id)
-              .eq("task_id", taskId);
+          if (user?.id && otherUser?.id && taskId) {
+            try {
+              const { data: existingRatings, error } = await supabase
+                .from("ratings")
+                .select("id")
+                .eq("rater_id", user.id)
+                .eq("rated_user_id", otherUser.id)
+                .eq("task_id", taskId);
 
-            hasRatedTask = existingRatings && existingRatings.length > 0;
-            setHasRatedThisTask(hasRatedTask);
-            console.log("User has rated this task:", hasRatedTask);
-          } else {
-            console.log("otherUser not loaded yet, skipping rating check");
+              if (error) {
+                console.error("Error checking existing ratings:", error);
+              } else {
+                const hasRatedTask = existingRatings && existingRatings.length > 0;
+                setHasRatedThisTask(hasRatedTask);
+                console.log("User has rated this task:", hasRatedTask);
+              }
+            } catch (err) {
+              console.error("Exception checking ratings:", err);
+            }
           }
           
-          // Auto-show rating modal if task is completed and user hasn't rated yet
-          if (data.status === "completed" && !hasRatedTask) {
-            console.log("Task is completed and user hasn't rated, showing rating modal");
+          // Auto-show rating modal if task is completed
+          if (data.status === "completed") {
+            console.log("Task is completed, showing rating modal");
             setTimeout(() => setShowRatingModal(true), 800);
           }
         }
@@ -360,10 +365,10 @@ export default function ChatPage() {
           
           // Auto-show rating modal when task becomes completed
           if (payload.new.status === "completed") {
-            console.log("Task just completed! Checking if user has rated...");
+            console.log("Task just completed! Showing rating modal");
             
             // Check if current user already rated
-            if (otherUser?.id && user?.id) {
+            if (user?.id && otherUser?.id && taskId) {
               try {
                 const { data: existingRatings, error } = await supabase
                   .from("ratings")
@@ -374,27 +379,18 @@ export default function ChatPage() {
 
                 if (error) {
                   console.error("Error checking existing ratings:", error);
-                  // Show modal anyway if we can't check
-                  setTimeout(() => setShowRatingModal(true), 500);
-                  return;
-                }
-
-                const hasRated = existingRatings && existingRatings.length > 0;
-                console.log("User has already rated:", hasRated);
-                
-                if (!hasRated) {
-                  console.log("Showing rating modal for user");
-                  setTimeout(() => setShowRatingModal(true), 500);
+                } else {
+                  const hasRated = existingRatings && existingRatings.length > 0;
+                  console.log("User has already rated:", hasRated);
+                  setHasRatedThisTask(hasRated);
                 }
               } catch (err) {
                 console.error("Exception checking ratings:", err);
-                // Show modal anyway if there's an error
-                setTimeout(() => setShowRatingModal(true), 500);
               }
-            } else {
-              console.log("otherUser or user not loaded, showing modal anyway");
-              setTimeout(() => setShowRatingModal(true), 500);
             }
+            
+            // Always show modal when task is completed
+            setTimeout(() => setShowRatingModal(true), 500);
           }
         }
       )
