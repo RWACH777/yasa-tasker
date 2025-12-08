@@ -148,6 +148,20 @@ export default function ChatPage() {
     if (!user?.id || !otherUserId) return;
 
     const loadMessages = async () => {
+      // Check if conversation is cleared for current user
+      const { data: clearedConv } = await supabase
+        .from("cleared_conversations")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("other_user_id", otherUserId)
+        .single();
+
+      if (clearedConv) {
+        console.log("Conversation is cleared for current user, showing empty chat");
+        setMessages([]);
+        return;
+      }
+
       const { data } = await supabase
         .from("messages")
         .select("*")
@@ -283,8 +297,30 @@ export default function ChatPage() {
       )
       .subscribe();
 
+    // Subscribe to cleared_conversations changes
+    const clearedConvSubscription = supabase
+      .channel(`cleared:${user.id}:${otherUserId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "cleared_conversations",
+          filter: `or(and(user_id=eq.${user.id},other_user_id=eq.${otherUserId}),and(user_id=eq.${otherUserId},other_user_id=eq.${user.id}))`,
+        },
+        (payload) => {
+          console.log("Conversation cleared by other user:", payload.new);
+          // If other user cleared the conversation, clear messages for current user too
+          if (payload.new.user_id === otherUserId) {
+            setMessages([]);
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       subscription.unsubscribe();
+      clearedConvSubscription.unsubscribe();
       clearInterval(pollInterval);
     };
   }, [user?.id, otherUserId]);

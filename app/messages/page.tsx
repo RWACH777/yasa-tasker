@@ -55,6 +55,14 @@ export default function MessagesPage() {
     if (!user?.id) return;
 
     const loadConversations = async () => {
+      // Get cleared conversations for current user
+      const { data: clearedConvs } = await supabase
+        .from("cleared_conversations")
+        .select("other_user_id")
+        .eq("user_id", user.id);
+
+      const clearedUserIds = new Set(clearedConvs?.map((c) => c.other_user_id) || []);
+
       const { data: sent } = await supabase
         .from("messages")
         .select("*")
@@ -72,6 +80,12 @@ export default function MessagesPage() {
 
       for (const msg of allMessages) {
         const otherUserId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
+
+        // Skip if conversation is cleared for current user
+        if (clearedUserIds.has(otherUserId)) {
+          console.log(`Skipping cleared conversation with ${otherUserId}`);
+          continue;
+        }
 
         if (!uniqueUsers.has(otherUserId)) {
           const { data: profile } = await supabase
@@ -130,11 +144,7 @@ export default function MessagesPage() {
         },
         (payload) => {
           console.log("Message updated:", payload.new);
-          // Only reload if cleared_by_user_id was set (conversation should be hidden)
-          if (payload.new.cleared_by_user_id) {
-            console.log("Message cleared, reloading conversations");
-            loadConversations();
-          }
+          loadConversations();
         }
       )
       .on(
@@ -151,6 +161,24 @@ export default function MessagesPage() {
       )
       .subscribe();
 
+    // Subscribe to cleared_conversations updates
+    const clearedConvSubscription = supabase
+      .channel("cleared_conversations")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "cleared_conversations",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log("Conversation cleared:", payload.new);
+          loadConversations();
+        }
+      )
+      .subscribe();
+
     // Also poll every 3 seconds as backup to ensure badges update
     const pollInterval = setInterval(() => {
       loadConversations();
@@ -158,6 +186,7 @@ export default function MessagesPage() {
 
     return () => {
       subscription.unsubscribe();
+      clearedConvSubscription.unsubscribe();
       clearInterval(pollInterval);
     };
   }, [user?.id]);
@@ -178,32 +207,28 @@ export default function MessagesPage() {
 
   const deleteConversation = async (otherUserId: string) => {
     try {
-      // Get all messages in this conversation
-      const { data: allMessages } = await supabase
-        .from("messages")
-        .select("id")
-        .or(
-          `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
-        );
+      // Add to cleared_conversations table for soft-delete
+      const { error: clearError } = await supabase
+        .from("cleared_conversations")
+        .upsert([
+          {
+            user_id: user.id,
+            other_user_id: otherUserId,
+          }
+        ], {
+          onConflict: "user_id,other_user_id"
+        });
 
-      if (allMessages && allMessages.length > 0) {
-        // Delete all messages
-        const { error: deleteError } = await supabase
-          .from("messages")
-          .delete()
-          .in("id", allMessages.map(m => m.id));
-        
-        if (deleteError) {
-          console.error("Error deleting messages:", deleteError);
-          alert(`❌ Failed to delete conversation: ${deleteError.message}`);
-          return;
-        }
+      if (clearError) {
+        console.error("Error clearing conversation:", clearError);
+        alert(`❌ Failed to delete conversation: ${clearError.message}`);
+        return;
       }
 
       // Remove from UI immediately
       setConversations(conversations.filter((c) => c.userId !== otherUserId));
       setLongPressedConvId(null);
-      console.log("✅ Conversation deleted (messages deleted for current user)");
+      console.log("✅ Conversation cleared for current user");
     } catch (err) {
       console.error("Exception deleting conversation:", err);
       alert(`❌ Error deleting conversation: ${err}`);

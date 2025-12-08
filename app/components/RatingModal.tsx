@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface RatingModalProps {
   isOpen: boolean;
@@ -21,12 +21,19 @@ export default function RatingModal({
   const [comment, setComment] = useState("");
   const [hoverStars, setHoverStars] = useState(0);
 
+  // Reset form when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setStars(5);
+      setComment("");
+      setHoverStars(0);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleSubmit = () => {
     onSubmit(stars, comment);
-    setStars(5);
-    setComment("");
   };
 
   return (

@@ -1115,28 +1115,28 @@ const handleUpdateFreelancerUsername = async () => {
             {/* Ratings Section - Show only relevant rating type based on view */}
             <div className="mt-8 pt-6 border-t border-white/10">
               {profileView === "tasker" ? (
-                // TASKER VIEW - Show only tasker ratings
+                // TASKER VIEW - Show ratings user received as a tasker (from freelancers) = rating_type "freelancer"
                 <div>
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold">⭐ Tasker Ratings</h3>
+                    <h3 className="text-lg font-semibold">⭐ Ratings as Tasker</h3>
                     {(() => {
-                      const taskerRatings = userRatings.filter((r) => r.rating_type === "tasker");
-                      return taskerRatings.length > 0 ? (
+                      const taskerReceivedRatings = userRatings.filter((r) => r.rating_type === "freelancer");
+                      return taskerReceivedRatings.length > 0 ? (
                         <button
                           onClick={() => setShowRatingsPage(true)}
                           className="text-xs text-blue-400 hover:text-blue-300 transition"
                         >
-                          View All ({taskerRatings.length})
+                          View All ({taskerReceivedRatings.length})
                         </button>
                       ) : null;
                     })()}
                   </div>
                   {(() => {
-                    const taskerRatings = userRatings.filter((r) => r.rating_type === "tasker");
-                    if (taskerRatings.length === 0) {
-                      return <p className="text-sm text-gray-400">No tasker ratings yet. Complete tasks to receive ratings!</p>;
+                    const taskerReceivedRatings = userRatings.filter((r) => r.rating_type === "freelancer");
+                    if (taskerReceivedRatings.length === 0) {
+                      return <p className="text-sm text-gray-400">No ratings yet as a tasker. Complete tasks to receive ratings!</p>;
                     }
-                    const rating = taskerRatings[0];
+                    const rating = taskerReceivedRatings[0];
                     return (
                       <div className="bg-white/5 border border-white/10 rounded-lg p-4">
                         <div className="flex items-center gap-2 mb-2">
@@ -1154,28 +1154,28 @@ const handleUpdateFreelancerUsername = async () => {
                   })()}
                 </div>
               ) : (
-                // FREELANCER VIEW - Show only freelancer ratings
+                // FREELANCER VIEW - Show ratings user received as a freelancer (from taskers) = rating_type "tasker"
                 <div>
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold">⭐ Freelancer Ratings</h3>
+                    <h3 className="text-lg font-semibold">⭐ Ratings as Freelancer</h3>
                     {(() => {
-                      const freelancerRatings = userRatings.filter((r) => r.rating_type === "freelancer");
-                      return freelancerRatings.length > 0 ? (
+                      const freelancerReceivedRatings = userRatings.filter((r) => r.rating_type === "tasker");
+                      return freelancerReceivedRatings.length > 0 ? (
                         <button
                           onClick={() => setShowRatingsPage(true)}
                           className="text-xs text-blue-400 hover:text-blue-300 transition"
                         >
-                          View All ({freelancerRatings.length})
+                          View All ({freelancerReceivedRatings.length})
                         </button>
                       ) : null;
                     })()}
                   </div>
                   {(() => {
-                    const freelancerRatings = userRatings.filter((r) => r.rating_type === "freelancer");
-                    if (freelancerRatings.length === 0) {
-                      return <p className="text-sm text-gray-400">No freelancer ratings yet. Complete tasks to receive ratings!</p>;
+                    const freelancerReceivedRatings = userRatings.filter((r) => r.rating_type === "tasker");
+                    if (freelancerReceivedRatings.length === 0) {
+                      return <p className="text-sm text-gray-400">No ratings yet as a freelancer. Complete tasks to receive ratings!</p>;
                     }
-                    const rating = freelancerRatings[0];
+                    const rating = freelancerReceivedRatings[0];
                     return (
                       <div className="bg-white/5 border border-white/10 rounded-lg p-4">
                         <div className="flex items-center gap-2 mb-2">
