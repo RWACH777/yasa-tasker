@@ -1222,7 +1222,9 @@ const handleUpdateFreelancerUsername = async () => {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="w-full max-w-2xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold">All Ratings ({userRatings.length})</h2>
+              <h2 className="text-2xl font-bold">
+                {profileView === "tasker" ? "👤 Ratings as Tasker" : "💼 Ratings as Freelancer"}
+              </h2>
               <button
                 onClick={() => setShowRatingsPage(false)}
                 className="text-gray-400 hover:text-white text-2xl"
@@ -1233,91 +1235,93 @@ const handleUpdateFreelancerUsername = async () => {
 
             {userRatings && userRatings.length > 0 ? (
               <div className="space-y-6">
-                {/* Tasker Ratings Section */}
-                <div>
-                  <h3 className="text-lg font-semibold text-purple-400 mb-4">👤 Tasker Ratings</h3>
-                  {(() => {
-                    const taskerRatings = userRatings.filter((r) => r.rating_type === "tasker");
-                    if (taskerRatings.length === 0) {
-                      return <p className="text-sm text-gray-500">No tasker ratings yet</p>;
-                    }
-                    return (
-                      <div className="space-y-3">
-                        {taskerRatings.map((rating, index) => (
-                          <div key={index} className="bg-white/5 border border-white/10 rounded-lg p-4">
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex items-center gap-3">
-                                <img
-                                  src={
-                                    rating.rater?.avatar_url ||
-                                    `https://api.dicebear.com/8.x/thumbs/svg?seed=${rating.rater?.username || "user"}`
-                                  }
-                                  alt={rating.rater?.username}
-                                  className="w-10 h-10 rounded-full object-cover"
-                                />
-                                <div>
-                                  <p className="font-semibold text-sm">{rating.rater?.username || "Anonymous"}</p>
-                                  <p className="text-xs text-gray-500">
-                                    {new Date(rating.created_at).toLocaleDateString()}
-                                  </p>
+                {profileView === "tasker" ? (
+                  // TASKER VIEW - Show only ratings FROM freelancers (rating_type = "freelancer")
+                  <div>
+                    <h3 className="text-lg font-semibold text-green-400 mb-4">💼 Freelancer Ratings</h3>
+                    {(() => {
+                      const taskerReceivedRatings = userRatings.filter((r) => r.rating_type === "freelancer");
+                      if (taskerReceivedRatings.length === 0) {
+                        return <p className="text-sm text-gray-500">No ratings yet as a tasker</p>;
+                      }
+                      return (
+                        <div className="space-y-3">
+                          {taskerReceivedRatings.map((rating, index) => (
+                            <div key={index} className="bg-white/5 border border-white/10 rounded-lg p-4">
+                              <div className="flex items-start justify-between mb-3">
+                                <div className="flex items-center gap-3">
+                                  <img
+                                    src={
+                                      rating.rater?.avatar_url ||
+                                      `https://api.dicebear.com/8.x/thumbs/svg?seed=${rating.rater?.username || "user"}`
+                                    }
+                                    alt={rating.rater?.username}
+                                    className="w-10 h-10 rounded-full object-cover"
+                                  />
+                                  <div>
+                                    <p className="font-semibold text-sm">{rating.rater?.username || "Anonymous"}</p>
+                                    <p className="text-xs text-gray-500">
+                                      {new Date(rating.created_at).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="text-yellow-400 text-lg">
+                                  {"⭐".repeat(rating.rating || 0)}
                                 </div>
                               </div>
-                              <div className="text-yellow-400 text-lg">
-                                {"⭐".repeat(rating.rating || 0)}
-                              </div>
+                              {rating.comment && (
+                                <p className="text-sm text-gray-300 italic">"{rating.comment}"</p>
+                              )}
                             </div>
-                            {rating.comment && (
-                              <p className="text-sm text-gray-300 italic">"{rating.comment}"</p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                {/* Freelancer Ratings Section */}
-                <div>
-                  <h3 className="text-lg font-semibold text-green-400 mb-4">💼 Freelancer Ratings</h3>
-                  {(() => {
-                    const freelancerRatings = userRatings.filter((r) => r.rating_type === "freelancer");
-                    if (freelancerRatings.length === 0) {
-                      return <p className="text-sm text-gray-500">No freelancer ratings yet</p>;
-                    }
-                    return (
-                      <div className="space-y-3">
-                        {freelancerRatings.map((rating, index) => (
-                          <div key={index} className="bg-white/5 border border-white/10 rounded-lg p-4">
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex items-center gap-3">
-                                <img
-                                  src={
-                                    rating.rater?.avatar_url ||
-                                    `https://api.dicebear.com/8.x/thumbs/svg?seed=${rating.rater?.username || "user"}`
-                                  }
-                                  alt={rating.rater?.username}
-                                  className="w-10 h-10 rounded-full object-cover"
-                                />
-                                <div>
-                                  <p className="font-semibold text-sm">{rating.rater?.username || "Anonymous"}</p>
-                                  <p className="text-xs text-gray-500">
-                                    {new Date(rating.created_at).toLocaleDateString()}
-                                  </p>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  // FREELANCER VIEW - Show only ratings FROM taskers (rating_type = "tasker")
+                  <div>
+                    <h3 className="text-lg font-semibold text-purple-400 mb-4">👤 Tasker Ratings</h3>
+                    {(() => {
+                      const freelancerReceivedRatings = userRatings.filter((r) => r.rating_type === "tasker");
+                      if (freelancerReceivedRatings.length === 0) {
+                        return <p className="text-sm text-gray-500">No ratings yet as a freelancer</p>;
+                      }
+                      return (
+                        <div className="space-y-3">
+                          {freelancerReceivedRatings.map((rating, index) => (
+                            <div key={index} className="bg-white/5 border border-white/10 rounded-lg p-4">
+                              <div className="flex items-start justify-between mb-3">
+                                <div className="flex items-center gap-3">
+                                  <img
+                                    src={
+                                      rating.rater?.avatar_url ||
+                                      `https://api.dicebear.com/8.x/thumbs/svg?seed=${rating.rater?.username || "user"}`
+                                    }
+                                    alt={rating.rater?.username}
+                                    className="w-10 h-10 rounded-full object-cover"
+                                  />
+                                  <div>
+                                    <p className="font-semibold text-sm">{rating.rater?.username || "Anonymous"}</p>
+                                    <p className="text-xs text-gray-500">
+                                      {new Date(rating.created_at).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="text-yellow-400 text-lg">
+                                  {"⭐".repeat(rating.rating || 0)}
                                 </div>
                               </div>
-                              <div className="text-yellow-400 text-lg">
-                                {"⭐".repeat(rating.rating || 0)}
-                              </div>
+                              {rating.comment && (
+                                <p className="text-sm text-gray-300 italic">"{rating.comment}"</p>
+                              )}
                             </div>
-                            {rating.comment && (
-                              <p className="text-sm text-gray-300 italic">"{rating.comment}"</p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })()}
-                </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
             ) : (
               <p className="text-center text-gray-400">No ratings yet</p>

@@ -396,12 +396,14 @@ export default function ChatPage() {
         },
         async (payload) => {
           console.log("✅ Real-time task update received:", payload.new);
+          console.log("Current state - user:", user?.id, "otherUser:", otherUser?.id, "taskId:", taskId);
           setTaskStatus(payload.new.status);
           setTaskPosterId(payload.new.poster_id);
           
           // Auto-show rating modal when task becomes completed
           if (payload.new.status === "completed") {
-            console.log("Task just completed! Showing rating modal");
+            console.log("🎯 Task just completed! Attempting to show rating modal");
+            console.log("Checking if user has already rated...");
             
             // Check if current user already rated
             if (user?.id && otherUser?.id && taskId) {
@@ -414,19 +416,22 @@ export default function ChatPage() {
                   .eq("task_id", taskId);
 
                 if (error) {
-                  console.error("Error checking existing ratings:", error);
+                  console.error("❌ Error checking existing ratings:", error);
                 } else {
                   const hasRated = existingRatings && existingRatings.length > 0;
-                  console.log("User has already rated:", hasRated);
+                  console.log("✅ User has already rated:", hasRated);
                   setHasRatedThisTask(hasRated);
                 }
               } catch (err) {
-                console.error("Exception checking ratings:", err);
+                console.error("❌ Exception checking ratings:", err);
               }
+            } else {
+              console.warn("⚠️ Cannot check ratings - missing data:", { userId: user?.id, otherUserId: otherUser?.id, taskId });
             }
             
             // Always show modal when task is completed
-            setTimeout(() => setShowRatingModal(true), 500);
+            console.log("📢 Showing rating modal now");
+            setShowRatingModal(true);
           }
         }
       )
