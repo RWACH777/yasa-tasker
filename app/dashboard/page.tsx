@@ -554,9 +554,13 @@ export default function DashboardPage() {
 
   // Load user ratings
   const loadUserRatings = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.log("No user ID, skipping loadUserRatings");
+      return;
+    }
 
     try {
+      console.log("Loading ratings for user:", user.id);
       const { data: ratings, error } = await supabase
         .from("ratings")
         .select("id, rating, comment, rating_type, created_at, rater_id, task_id")
@@ -568,13 +572,21 @@ export default function DashboardPage() {
         return;
       }
 
+      console.log("Ratings fetched:", ratings?.length || 0);
+
       if (ratings && ratings.length > 0) {
         // Fetch rater profiles separately
         const raterIds = [...new Set(ratings.map((r) => r.rater_id))];
-        const { data: raterProfiles } = await supabase
+        console.log("Fetching profiles for rater IDs:", raterIds);
+        
+        const { data: raterProfiles, error: profileError } = await supabase
           .from("profiles")
           .select("id, username, avatar_url")
           .in("id", raterIds);
+
+        if (profileError) {
+          console.error("❌ Error loading rater profiles:", profileError);
+        }
 
         // Merge rater info into ratings
         const enrichedRatings = ratings.map((rating) => ({
@@ -601,7 +613,7 @@ export default function DashboardPage() {
         
         console.log("📊 Rating breakdown:", { taskerAvg, freelancerAvg, overallAvg, taskerCount: taskerRatings.length, freelancerCount: freelancerRatings.length });
       } else {
-        console.log("No ratings found");
+        console.log("No ratings found for user", user.id);
         setUserRatings([]);
       }
     } catch (err) {
