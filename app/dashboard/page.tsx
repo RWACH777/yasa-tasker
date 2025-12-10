@@ -621,9 +621,17 @@ export default function DashboardPage() {
     }
   };
 
+  // Load ratings when profile modal opens
+  useEffect(() => {
+    if (showProfileModal && user?.id) {
+      console.log("Profile modal opened, loading ratings");
+      loadUserRatings();
+    }
+  }, [showProfileModal, user?.id]);
+
   // Subscribe to rating changes
   useEffect(() => {
-    if (!user?.id || !showProfileModal) return;
+    if (!user?.id) return;
 
     const subscription = supabase
       .channel(`ratings:${user.id}`)
@@ -636,7 +644,22 @@ export default function DashboardPage() {
           filter: `rated_user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log("New rating received:", payload.new);
+          console.log("✅ New rating received:", payload.new);
+          loadUserRatings();
+          // Also reload profile to get updated average_rating and total_ratings
+          loadProfile(user.id);
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "ratings",
+          filter: `rated_user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log("✅ Rating updated:", payload.new);
           loadUserRatings();
           // Also reload profile to get updated average_rating and total_ratings
           loadProfile(user.id);
@@ -647,7 +670,7 @@ export default function DashboardPage() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [user?.id, showProfileModal]);
+  }, [user?.id]);
 
   // Open application modal
   const handleApplyToTask = (taskId: string) => {
