@@ -791,15 +791,6 @@ export default function DashboardPage() {
       );
     }
 
-    // Clear any previous cleared_conversations entries so chat appears fresh
-    if (user?.id && applicantId) {
-      console.log("🗑️ Clearing previous conversation records for new approval");
-      await supabase
-        .from("cleared_conversations")
-        .delete()
-        .or(`and(user_id.eq.${user.id},other_user_id.eq.${applicantId}),and(user_id.eq.${applicantId},other_user_id.eq.${user.id})`);
-    }
-
     // Send system message to chat
     if (user?.id && taskId) {
       const systemMessage = {

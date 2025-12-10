@@ -55,14 +55,6 @@ export default function MessagesPage() {
     if (!user?.id) return;
 
     const loadConversations = async () => {
-      // Get cleared conversations for current user
-      const { data: clearedConvs } = await supabase
-        .from("cleared_conversations")
-        .select("other_user_id")
-        .eq("user_id", user.id);
-
-      const clearedUserIds = new Set(clearedConvs?.map((c) => c.other_user_id) || []);
-
       const { data: sent } = await supabase
         .from("messages")
         .select("*")
@@ -80,12 +72,6 @@ export default function MessagesPage() {
 
       for (const msg of allMessages) {
         const otherUserId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
-
-        // Skip if conversation is cleared for current user
-        if (clearedUserIds.has(otherUserId)) {
-          console.log(`Skipping cleared conversation with ${otherUserId}`);
-          continue;
-        }
 
         if (!uniqueUsers.has(otherUserId)) {
           const { data: profile } = await supabase
@@ -161,37 +147,6 @@ export default function MessagesPage() {
       )
       .subscribe();
 
-    // Subscribe to cleared_conversations updates
-    const clearedConvSubscription = supabase
-      .channel("cleared_conversations")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "cleared_conversations",
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          console.log("Conversation cleared:", payload.new);
-          loadConversations();
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "DELETE",
-          schema: "public",
-          table: "cleared_conversations",
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          console.log("Cleared conversation deleted (new approval):", payload.old);
-          loadConversations();
-        }
-      )
-      .subscribe();
-
     // Also poll every 3 seconds as backup to ensure badges update
     const pollInterval = setInterval(() => {
       loadConversations();
@@ -199,7 +154,6 @@ export default function MessagesPage() {
 
     return () => {
       subscription.unsubscribe();
-      clearedConvSubscription.unsubscribe();
       clearInterval(pollInterval);
     };
   }, [user?.id]);
