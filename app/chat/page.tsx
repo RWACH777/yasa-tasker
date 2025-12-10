@@ -316,6 +316,20 @@ export default function ChatPage() {
           }
         }
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "cleared_conversations",
+          filter: `or(and(user_id=eq.${user.id},other_user_id=eq.${otherUserId}),and(user_id=eq.${otherUserId},other_user_id=eq.${user.id}))`,
+        },
+        (payload) => {
+          console.log("Cleared conversation deleted (new approval):", payload.old);
+          // Reload messages when cleared_conversations entry is deleted
+          loadMessages();
+        }
+      )
       .subscribe();
 
     return () => {
@@ -402,10 +416,9 @@ export default function ChatPage() {
           
           // Auto-show rating modal when task becomes completed
           if (payload.new.status === "completed") {
-            console.log("🎯 Task just completed! Attempting to show rating modal");
-            console.log("Checking if user has already rated...");
+            console.log("🎯 Task just completed! Showing rating modal for both users");
             
-            // Check if current user already rated
+            // Check if current user already rated (if otherUser is loaded)
             if (user?.id && otherUser?.id && taskId) {
               try {
                 const { data: existingRatings, error } = await supabase
@@ -426,10 +439,10 @@ export default function ChatPage() {
                 console.error("❌ Exception checking ratings:", err);
               }
             } else {
-              console.warn("⚠️ Cannot check ratings - missing data:", { userId: user?.id, otherUserId: otherUser?.id, taskId });
+              console.warn("⚠️ otherUser not loaded yet, will check ratings when modal opens");
             }
             
-            // Always show modal when task is completed
+            // Always show modal when task is completed (for both tasker and freelancer)
             console.log("📢 Showing rating modal now");
             setShowRatingModal(true);
           }

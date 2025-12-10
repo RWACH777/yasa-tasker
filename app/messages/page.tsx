@@ -177,6 +177,19 @@ export default function MessagesPage() {
           loadConversations();
         }
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "cleared_conversations",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log("Cleared conversation deleted (new approval):", payload.old);
+          loadConversations();
+        }
+      )
       .subscribe();
 
     // Also poll every 3 seconds as backup to ensure badges update
