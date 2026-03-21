@@ -87,12 +87,16 @@ export async function POST(req: Request) {
     console.log("✅ Auth user:", authUser.id);
 
     // 4️⃣ Generate a magic link and immediately use it to create a session
+    console.log("🔗 Generating magic link for:", email);
     const { data: linkData, error: linkErr } = await adminClient.auth.admin.generateLink({
       type: "magiclink",
       email,
     });
 
-    if (linkErr) throw linkErr;
+    if (linkErr) {
+      console.error("❌ Magic link generation error:", linkErr);
+      throw linkErr;
+    }
 
     console.log("📋 Magic link generated");
 
@@ -101,9 +105,11 @@ export async function POST(req: Request) {
     if (!hashedToken) throw new Error("No hashed token in magic link response");
 
     console.log("🔐 Using hashed token to create session");
+    const verifyUrl = `${supabaseUrl}/auth/v1/verify`;
+    console.log("🌐 Calling verify endpoint:", verifyUrl);
 
     // 5️⃣ Use the hashed token to create a session via the REST API
-    const sessionResponse = await fetch(`${supabaseUrl}/auth/v1/verify`, {
+    const sessionResponse = await fetch(verifyUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -116,6 +122,11 @@ export async function POST(req: Request) {
     });
 
     const sessionData = await sessionResponse.json();
+    console.log("📦 Session verification result:", { 
+      status: sessionResponse.status, 
+      ok: sessionResponse.ok,
+      hasAccessToken: !!(sessionData.access_token || sessionData.session?.access_token)
+    });
 
     if (!sessionResponse.ok) {
       console.error("❌ Session verification failed:", sessionData);
@@ -140,8 +151,7 @@ export async function POST(req: Request) {
         username,
         pi_uid,
         email,
-      },
-      { onConflict: "pi_uid" }
+      }
     );
 
     if (profileErr) {

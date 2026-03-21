@@ -34,6 +34,18 @@ export default function Home() {
           const check = setInterval(() => {
             if ((window as any).Pi) {
               console.log("✅ Pi SDK found after delay");
+              
+              // Initialize Pi SDK immediately when found
+              try {
+                (window as any).Pi.init({
+                  version: "2.0",
+                  sandbox: false,
+                });
+                console.log("✅ Pi SDK initialized successfully");
+              } catch (initError) {
+                console.error("❌ Pi SDK initialization failed:", initError);
+              }
+              
               setPiReady(true);
               clearInterval(check);
             }
@@ -63,6 +75,7 @@ export default function Home() {
 
     try {
       setIsLoading(true);
+      console.log("🔵 handlePiLogin started");
 
       // 🔧 LOCALHOST: Use fake Pi user
       const isLocal = window.location.hostname === "localhost";
@@ -82,11 +95,6 @@ export default function Home() {
           return;
         }
 
-        Pi.init({
-          version: "2.0",
-          sandbox: false,
-        });
-
         console.log("✅ Pi SDK initialized");
 
         const scopes = ["username", "payments"];
@@ -99,20 +107,58 @@ export default function Home() {
         avatar_url = authResult?.user?.photo ?? null;
       }
 
+      console.log("🔵 Calling /api/login with:", { pi_uid, username });
+      
+      // Test API connectivity first
+      try {
+        const testResponse = await fetch("/api/test");
+        const testResult = await testResponse.json();
+        console.log("✅ API connectivity test passed:", testResult);
+      } catch (testError) {
+        console.error("❌ API connectivity test failed:", testError);
+        throw new Error("API server is not responding");
+      }
+      
       // ✅ Send user data to API route (works for both localhost and production)
-      const response = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pi_uid, username, avatar_url }),
-      });
-
-      const result = await response.json();
+      let response, result;
+      try {
+        response = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pi_uid, username, avatar_url }),
+        });
+        result = await response.json();
+        console.log("🔵 /api/login response:", { ok: response.ok, status: response.status, result });
+      } catch (fetchError) {
+        console.error("❌ Network error calling /api/login:", fetchError);
+        throw new Error("Network error: Could not reach login server");
+      }
 
       if (!response.ok) {
         throw new Error(result.error || "Failed to save user");
       }
 
       console.log("✅ User synced with Supabase:", result);
+
+      // Set the session in Supabase client to actually log the user in
+      if (result.access_token && result.refresh_token) {
+        console.log("🔵 Setting Supabase session...");
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: result.access_token,
+          refresh_token: result.refresh_token,
+        });
+        
+        if (sessionError) {
+          console.error("❌ Error setting session:", sessionError);
+          throw new Error("Failed to set user session: " + sessionError.message);
+        }
+        
+        console.log("✅ Session set successfully");
+      } else {
+        console.error("❌ Missing tokens in result:", result);
+        throw new Error("No tokens received from server");
+      }
+
       alert("🎉 Welcome " + username + "!");
 
       router.push("/dashboard");
