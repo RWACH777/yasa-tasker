@@ -18,16 +18,20 @@ export default function Home() {
   useEffect(() => {
     const loadPi = () => {
       try {
-        const isLocal = typeof window !== "undefined" && window.location.hostname === "localhost";
-        
-        if (isLocal) {
-          console.log("🔧 Local mode: Pi SDK not required");
-          setPiReady(true);
-          return;
-        }
-
         if (typeof window !== "undefined" && (window as any).Pi) {
-          console.log("✅ Pi SDK initialized (already present)");
+          console.log("✅ Pi SDK found, initializing...");
+          
+          // Initialize Pi SDK immediately when found
+          try {
+            (window as any).Pi.init({
+              version: "2.0",
+              sandbox: false,
+            });
+            console.log("✅ Pi SDK initialized successfully");
+          } catch (initError) {
+            console.error("❌ Pi SDK initialization failed:", initError);
+          }
+          
           setPiReady(true);
         } else {
           console.log("⚙️ Waiting for Pi SDK...");
@@ -77,35 +81,25 @@ export default function Home() {
       setIsLoading(true);
       console.log("🔵 handlePiLogin started");
 
-      // 🔧 LOCALHOST: Use fake Pi user
-      const isLocal = window.location.hostname === "localhost";
-      let username, pi_uid, avatar_url;
-
-      if (isLocal) {
-        console.log("🔧 Local mode: Using fake Pi user");
-        username = "LocalUser";
-        pi_uid = "local_user_123";
-        avatar_url = null;
-      } else {
-        // 🌐 PRODUCTION: Use real Pi SDK
-        const Pi = (window as any).Pi;
-        if (!Pi) {
-          alert("⚠️ Pi SDK not loaded yet.");
-          setIsLoading(false);
-          return;
-        }
-
-        console.log("✅ Pi SDK initialized");
-
-        const scopes = ["username", "payments"];
-        const authResult = await Pi.authenticate(scopes, (payment: any) => {
-          console.log("🪙 Incomplete payment:", payment);
-        });
-
-        username = authResult?.user?.username ?? "Unknown";
-        pi_uid = authResult?.user?.uid ?? "";
-        avatar_url = authResult?.user?.photo ?? null;
+      // 🔧 PI BROWSER: Use real Pi SDK
+      const Pi = (window as any).Pi;
+      if (!Pi) {
+        alert("⚠️ Pi SDK not loaded yet.");
+        setIsLoading(false);
+        return;
       }
+
+      console.log("✅ Pi SDK ready for authentication");
+
+      const scopes = ["username", "payments"];
+      const authResult = await Pi.authenticate(scopes, (payment: any) => {
+        console.log("🪙 Incomplete payment:", payment);
+      });
+
+      let username, pi_uid, avatar_url;
+      username = authResult?.user?.username ?? "Unknown";
+      pi_uid = authResult?.user?.uid ?? "";
+      avatar_url = authResult?.user?.photo ?? null;
 
       console.log("🔵 Calling /api/login with:", { pi_uid, username });
       
