@@ -61,8 +61,29 @@ export async function POST(req: Request) {
       throw new Error(`Failed to list users: ${listError.message}`);
     }
     
+    // Search for existing user by email or check profiles table for pi_uid
     let existingUser = userList.users.find((u) => u.email === email);
-    console.log("👤 Existing user found:", !!existingUser);
+    console.log("👤 Existing user found by email:", !!existingUser);
+    
+    // If not found by email, check profiles table for pi_uid
+    if (!existingUser) {
+      console.log("🔍 Checking profiles table for pi_uid:", pi_uid);
+      const { data: profileData, error: profileError } = await adminClient
+        .from("profiles")
+        .select("id")
+        .eq("pi_uid", pi_uid)
+        .single();
+      
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error("❌ Error checking profiles:", profileError);
+      }
+      
+      if (profileData) {
+        console.log("👤 Found user by pi_uid, searching by ID:", profileData.id);
+        existingUser = userList.users.find((u) => u.id === profileData.id);
+        console.log("👤 Existing user found by pi_uid:", !!existingUser);
+      }
+    }
 
     // If user exists, authenticate them directly instead of creating a new one
     if (existingUser) {
