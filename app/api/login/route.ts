@@ -104,11 +104,10 @@ export async function POST(req: Request) {
     const hashedToken = linkData?.properties?.hashed_token;
     if (!hashedToken) throw new Error("No hashed token in magic link response");
 
-    console.log("🔐 Using hashed token to create session");
+    console.log("🔐 Using hashed token to create a session via REST API");
     const verifyUrl = `${supabaseUrl}/auth/v1/verify`;
     console.log("🌐 Calling verify endpoint:", verifyUrl);
-
-    // 5️⃣ Use the hashed token to create a session via the REST API
+    console.log("🔑 Using anonKey:", anonKey?.substring(0, 10) + "...");
     const sessionResponse = await fetch(verifyUrl, {
       method: "POST",
       headers: {
@@ -122,7 +121,8 @@ export async function POST(req: Request) {
     });
 
     const sessionData = await sessionResponse.json();
-    console.log("📦 Session verification result:", { 
+    console.log("📦 Full session verification response:", sessionData);
+    console.log("📦 Session verification status:", { 
       status: sessionResponse.status, 
       ok: sessionResponse.ok,
       hasAccessToken: !!(sessionData.access_token || sessionData.session?.access_token)
