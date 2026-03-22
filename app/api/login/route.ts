@@ -79,9 +79,15 @@ export async function POST(req: Request) {
       }
       
       if (profileData) {
-        console.log("👤 Found user by pi_uid, searching by ID:", profileData.id);
-        existingUser = userList.users.find((u) => u.id === profileData.id);
-        console.log("👤 Existing user found by pi_uid:", !!existingUser);
+        console.log("👤 Found user by pi_uid, ID:", profileData.id);
+        // Get user directly by ID instead of searching through list
+        const { data: userData, error: userError } = await adminClient.auth.admin.getUserById(profileData.id);
+        if (userError) {
+          console.error("❌ Error getting user by ID:", userError);
+        } else if (userData && userData.user) {
+          existingUser = userData.user;
+          console.log("👤 Existing user found by ID:", !!existingUser);
+        }
       }
     }
 
