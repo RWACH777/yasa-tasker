@@ -61,122 +61,13 @@ export async function POST(req: Request) {
       throw new Error(`Failed to list users: ${listError.message}`);
     }
     
-    // Search for existing user by email or check profiles table for pi_uid
     let existingUser = userList.users.find((u) => u.email === email);
-    console.log("👤 Existing user found by email:", !!existingUser);
-    
-    // If not found by email, check profiles table for pi_uid
-    if (!existingUser) {
-      console.log("🔍 Checking profiles table for pi_uid:", pi_uid);
-      const { data: profileData, error: profileError } = await adminClient
-        .from("profiles")
-        .select("id")
-        .eq("pi_uid", pi_uid)
-        .single();
-      
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error("❌ Error checking profiles:", profileError);
-      }
-      
-      if (profileData) {
-        console.log("👤 Found user by pi_uid, ID:", profileData.id);
-        // Get user directly by ID instead of searching through list
-        const { data: userData, error: userError } = await adminClient.auth.admin.getUserById(profileData.id);
-        if (userError) {
-          console.error("❌ Error getting user by ID:", userError);
-        } else if (userData && userData.user) {
-          existingUser = userData.user;
-          console.log("👤 Existing user found by ID:", !!existingUser);
-        }
-      }
-    }
+    console.log("👤 Existing user found:", !!existingUser);
 
-    // If user exists, authenticate them directly instead of creating a new one
-    if (existingUser) {
-      console.log("🔄 User exists, authenticating existing user");
-      
-      // Generate magic link for existing user
-      const { data: linkData, error: linkErr } = await adminClient.auth.admin.generateLink({
-        type: "magiclink",
-        email,
-      });
-      
-      if (linkErr) {
-        console.error("❌ Magic link generation error:", linkErr);
-        throw new Error(`Magic link generation failed: ${linkErr.message}`);
-      }
-      
-      console.log("📋 Magic link generated for existing user");
-      
-      // Use the existing user's ID directly
-      const hashedToken = linkData?.properties?.hashed_token;
-      if (!hashedToken) throw new Error("No hashed token in magic link response");
-      
-      console.log("🔐 Using hashed token to create session for existing user");
-      const verifyUrl = `${supabaseUrl}/auth/v1/verify`;
-      const sessionResponse = await fetch(verifyUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": anonKey,
-        },
-        body: JSON.stringify({
-          token_hash: hashedToken,
-          type: "magiclink",
-        }),
-      });
-      
-      const sessionData = await sessionResponse.json();
-      console.log("📦 Session verification result for existing user:", { 
-        status: sessionResponse.status, 
-        ok: sessionResponse.ok,
-        hasAccessToken: !!(sessionData.access_token || sessionData.session?.access_token)
-      });
-      
-      if (!sessionResponse.ok) {
-        console.error("❌ Session verification failed:", sessionData);
-        throw new Error(`Session verification failed: ${sessionData.error_description || sessionData.error}`);
-      }
-      
-      const access_token = sessionData.access_token || sessionData.session?.access_token;
-      const refresh_token = sessionData.refresh_token || sessionData.session?.refresh_token;
-      
-      if (!access_token || !refresh_token) {
-        console.error("❌ No tokens in session response:", sessionData);
-        throw new Error("Failed to extract tokens from session");
-      }
-      
-      console.log("✅ Existing user authenticated successfully");
-      
-      // Update profile with Pi data
-      const { error: profileErr } = await adminClient.from("profiles").upsert(
-        {
-          id: existingUser.id,
-          username,
-          pi_uid,
-          email,
-        }
-      );
-      
-      if (profileErr) {
-        console.error("❌ Profile update error:", profileErr);
-        throw profileErr;
-      }
-      
-      console.log("✅ Profile updated for existing user");
-      
-      return NextResponse.json({
-        success: true,
-        user: {
-          id: existingUser.id,
-          username,
-          email,
-        },
-        access_token,
-        refresh_token,
-      });
-    } else {
-      // 3️⃣ Create user if missing
+    // 3️⃣ Create user if missing
+    let newUser = null;
+
+    if (!existingUser) {
       console.log("➕ Creating new user with email:", email);
       const { data, error } = await adminClient.auth.admin.createUser({
         email,
@@ -188,99 +79,99 @@ export async function POST(req: Request) {
         console.error("❌ Error creating user:", error);
         throw new Error(`Failed to create user: ${error.message}`);
       }
-      const newUser = data.user;
+      newUser = data.user;
       console.log("✅ New user created:", newUser.id);
-
-      const authUser = newUser;
-      console.log("✅ Auth user:", authUser.id);
-
-      // 4️⃣ Generate a magic link and immediately use it to create a session
-      console.log("🔗 Generating magic link for:", email);
-      const { data: linkData, error: linkErr } = await adminClient.auth.admin.generateLink({
-        type: "magiclink",
-        email,
-      });
-
-      if (linkErr) {
-        console.error("❌ Magic link generation error:", linkErr);
-        throw linkErr;
-      }
-
-      console.log("📋 Magic link generated");
-
-      // Extract the hashed token directly from the response
-      const hashedToken = linkData?.properties?.hashed_token;
-      if (!hashedToken) throw new Error("No hashed token in magic link response");
-
-      console.log("🔐 Using hashed token to create a session via REST API");
-      const verifyUrl = `${supabaseUrl}/auth/v1/verify`;
-      console.log("🌐 Calling verify endpoint:", verifyUrl);
-      console.log("🔑 Using anonKey:", anonKey?.substring(0, 10) + "...");
-      const sessionResponse = await fetch(verifyUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": anonKey,
-        },
-        body: JSON.stringify({
-          token_hash: hashedToken,
-          type: "magiclink",
-        }),
-      });
-
-      const sessionData = await sessionResponse.json();
-      console.log("📦 Full session verification response:", sessionData);
-      console.log("📦 Session verification status:", { 
-        status: sessionResponse.status, 
-        ok: sessionResponse.ok,
-        hasAccessToken: !!(sessionData.access_token || sessionData.session?.access_token)
-      });
-
-      if (!sessionResponse.ok) {
-        console.error("❌ Session verification failed:", sessionData);
-        throw new Error(`Session verification failed: ${sessionData.error_description || sessionData.error}`);
-      }
-
-      // Tokens can be at top level or in session object
-      const access_token = sessionData.access_token || sessionData.session?.access_token;
-      const refresh_token = sessionData.refresh_token || sessionData.session?.refresh_token;
-
-      if (!access_token || !refresh_token) {
-        console.error("❌ No tokens in session response:", sessionData);
-        throw new Error("Failed to extract tokens from session");
-      }
-
-      console.log("✅ Session tokens obtained successfully");
-
-      // 6️⃣ Update or insert profile
-      const { error: profileErr } = await adminClient.from("profiles").upsert(
-        {
-          id: authUser.id,
-          username,
-          pi_uid,
-          email,
-        }
-      );
-
-      if (profileErr) {
-        console.error("❌ Profile upsert error:", profileErr);
-        throw profileErr;
-      }
-
-      console.log("✅ Profile upserted successfully");
-
-      // 7️⃣ Success response
-      return NextResponse.json({
-        success: true,
-        user: {
-          id: authUser.id,
-          username,
-          email,
-        },
-        access_token,
-        refresh_token,
-      });
     }
+
+    const authUser = existingUser || newUser;
+    console.log("✅ Auth user:", authUser.id);
+
+    // 4️⃣ Generate a magic link and immediately use it to create a session
+    console.log("🔗 Generating magic link for:", email);
+    const { data: linkData, error: linkErr } = await adminClient.auth.admin.generateLink({
+      type: "magiclink",
+      email,
+    });
+
+    if (linkErr) {
+      console.error("❌ Magic link generation error:", linkErr);
+      throw linkErr;
+    }
+
+    console.log("📋 Magic link generated");
+
+    // Extract the hashed token directly from the response
+    const hashedToken = linkData?.properties?.hashed_token;
+    if (!hashedToken) throw new Error("No hashed token in magic link response");
+
+    console.log("🔐 Using hashed token to create session");
+    const verifyUrl = `${supabaseUrl}/auth/v1/verify`;
+    console.log("🌐 Calling verify endpoint:", verifyUrl);
+
+    // 5️⃣ Use the hashed token to create a session via the REST API
+    const sessionResponse = await fetch(verifyUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": anonKey,
+      },
+      body: JSON.stringify({
+        token_hash: hashedToken,
+        type: "magiclink",
+      }),
+    });
+
+    const sessionData = await sessionResponse.json();
+    console.log("📦 Session verification result:", { 
+      status: sessionResponse.status, 
+      ok: sessionResponse.ok,
+      hasAccessToken: !!(sessionData.access_token || sessionData.session?.access_token)
+    });
+
+    if (!sessionResponse.ok) {
+      console.error("❌ Session verification failed:", sessionData);
+      throw new Error(`Session verification failed: ${sessionData.error_description || sessionData.error}`);
+    }
+
+    // Tokens can be at top level or in session object
+    const access_token = sessionData.access_token || sessionData.session?.access_token;
+    const refresh_token = sessionData.refresh_token || sessionData.session?.refresh_token;
+
+    if (!access_token || !refresh_token) {
+      console.error("❌ No tokens in session response:", sessionData);
+      throw new Error("Failed to extract tokens from session");
+    }
+
+    console.log("✅ Session tokens obtained successfully");
+
+    // 6️⃣ Update or insert profile
+    const { error: profileErr } = await adminClient.from("profiles").upsert(
+      {
+        id: authUser.id,
+        username,
+        pi_uid,
+        email,
+      }
+    );
+
+    if (profileErr) {
+      console.error("❌ Profile upsert error:", profileErr);
+      throw profileErr;
+    }
+
+    console.log("✅ Profile upserted successfully");
+
+    // 7️⃣ Success response
+    return NextResponse.json({
+      success: true,
+      user: {
+        id: authUser.id,
+        username,
+        email,
+      },
+      access_token,
+      refresh_token,
+    });
   } catch (error) {
     console.error("❌ Login error:", error);
     return NextResponse.json(
