@@ -801,22 +801,22 @@ export default function ChatPage() {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen bg-[#000222] text-white flex items-center justify-center">
-        <p>Loading chat...</p>
+      <div className="min-h-screen text-white flex items-center justify-center">
+        <p className="glass-text">Loading chat...</p>
       </div>
     );
   }
 
   return (
-    <div className="h-screen bg-[#000222] text-white flex flex-col">
+    <div className="h-screen text-white flex flex-col">
       {/* Error Banner */}
       {error && (
-        <div className="bg-red-900/50 border-b border-red-600 p-3 text-sm text-red-200">
+        <div className="glass-button-danger border-b border-red-500/50 p-3 text-sm">
           <div className="max-w-4xl mx-auto flex justify-between items-center">
-            <span>{error}</span>
+            <span className="text-red-200">{error}</span>
             <button
               onClick={() => setError(null)}
-              className="text-red-300 hover:text-red-100 font-bold"
+              className="glass-close w-8 h-8 text-red-300 hover:text-red-100"
             >
               ✕
             </button>
@@ -825,7 +825,7 @@ export default function ChatPage() {
       )}
 
       {/* Header - FIXED */}
-      <div className="sticky top-0 z-10 bg-white/10 backdrop-blur-lg border-b border-white/20 p-4">
+      <div className="sticky top-0 z-10 glass-nav border-b border-white/20 p-4">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
             {otherUser ? (
@@ -836,25 +836,25 @@ export default function ChatPage() {
                     `https://api.dicebear.com/8.x/thumbs/svg?seed=${otherUser.username}`
                   }
                   alt={otherUser.username}
-                  className="w-10 h-10 rounded-full border border-white/30"
+                  className="w-10 h-10 glass-avatar"
                 />
                 <div>
                   <div className="flex items-center gap-2">
-                    <h1 className="text-xl font-bold">{otherUser.username}</h1>
+                    <h1 className="text-xl font-bold glass-text">{otherUser.username}</h1>
                     <span
                       className={`w-3 h-3 rounded-full ${
-                        otherUserOnline ? "bg-blue-500" : "bg-gray-400"
+                        otherUserOnline ? "glass-status-online" : "glass-status-offline"
                       }`}
                       title={otherUserOnline ? "Online" : "Offline"}
                     />
                   </div>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs glass-text-muted">
                     {otherUserOnline ? "Online" : "Offline"}
                   </p>
                 </div>
               </>
             ) : (
-              <div className="text-gray-400">Loading user...</div>
+              <div className="glass-text-muted">Loading user...</div>
             )}
           </div>
           <div className="flex gap-1 md:gap-2">
@@ -872,7 +872,7 @@ export default function ChatPage() {
                     setTaskPosterId(data.poster_id);
                   }
                 }}
-                className="px-2 md:px-4 py-1 md:py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg transition text-xs md:text-sm"
+                className="glass-button px-2 md:px-4 py-1 md:py-2 text-xs md:text-sm"
                 title="Reload task status"
               >
                 🔄 Reload
@@ -892,7 +892,7 @@ export default function ChatPage() {
                     alert(`❌ Failed to complete task: ${error.message}`);
                   }
                 }}
-                className="px-2 md:px-4 py-1 md:py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition text-xs md:text-sm"
+                className="glass-button glass-button-primary px-2 md:px-4 py-1 md:py-2 text-xs md:text-sm"
                 title="Mark this task as completed"
               >
                 ✓ Complete
@@ -904,8 +904,8 @@ export default function ChatPage() {
                 disabled={hasRatedThisTask}
                 className={`px-2 md:px-4 py-1 md:py-2 rounded-lg transition text-xs md:text-sm ${
                   hasRatedThisTask
-                    ? "bg-gray-600 cursor-not-allowed opacity-50"
-                    : "bg-green-600 hover:bg-green-700 animate-pulse"
+                    ? "glass-button opacity-50 cursor-not-allowed"
+                    : "glass-button glass-button-success animate-pulse"
                 }`}
                 title={hasRatedThisTask ? "You have already rated this task" : "Rate this task and comment"}
               >
@@ -914,7 +914,7 @@ export default function ChatPage() {
             )}
             <Link
               href="/messages"
-              className="px-3 md:px-5 py-2 md:py-2.5 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm md:text-base"
+              className="glass-button glass-button-primary px-3 md:px-5 py-2 md:py-2.5 text-sm md:text-base"
               title="Back to messages list"
             >
               ←
@@ -937,8 +937,8 @@ export default function ChatPage() {
       >
         <div className="max-w-2xl mx-auto space-y-3">
           {messages.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-gray-400">
-              <p style={{ wordBreak: 'break-word' }}>No messages yet. Start the conversation!</p>
+            <div className="flex items-center justify-center h-full">
+              <p className="glass-text-muted" style={{ wordBreak: 'break-word' }}>No messages yet. Start the conversation!</p>
             </div>
           ) : (
             messages.map((msg) => (
@@ -955,21 +955,21 @@ export default function ChatPage() {
                 }}
               >
                 <div
-                  className={`relative max-w-xs lg:max-w-md px-4 py-2 rounded-lg transition ${
+                  className={`relative max-w-xs lg:max-w-md px-4 py-2 transition ${
                     msg.sender_id === user.id
-                      ? "bg-blue-600 text-white"
-                      : "bg-white/10 border border-white/20 text-gray-100"
+                      ? "glass-message-sent"
+                      : "glass-message-received"
                   } ${selectedMessageId === msg.id ? "ring-2 ring-yellow-400" : ""}`}
                 >
                   {selectedMessageId === msg.id && (
-                    <div className="absolute -left-20 top-0 flex gap-2 bg-black/80 rounded-lg p-2 z-50">
+                    <div className="absolute -left-20 top-0 flex gap-2 glass-overlay rounded-lg p-2 z-50">
                       {msg.sender_id === user.id && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             deleteMessage(msg.id);
                           }}
-                          className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-xs font-semibold whitespace-nowrap"
+                          className="glass-button glass-button-danger px-3 py-1 text-xs font-semibold whitespace-nowrap"
                           title="Delete message"
                         >
                           🗑️ Delete
@@ -978,24 +978,22 @@ export default function ChatPage() {
                     </div>
                   )}
                   {msg.reply_to_id && messages.find(m => m.id === msg.reply_to_id) && (
-                    <div className="text-xs bg-white/20 rounded p-2 mb-2 border-l-2 border-blue-400 mb-2">
-                      <p className="font-semibold text-blue-300">Replying to:</p>
-                      <p className="text-gray-300 truncate">{messages.find(m => m.id === msg.reply_to_id)?.text}</p>
+                    <div className="text-xs glass-panel rounded p-2 mb-2 border-l-2 border-blue-400">
+                      <p className="font-semibold glass-text-accent">Replying to:</p>
+                      <p className="glass-text-muted truncate">{messages.find(m => m.id === msg.reply_to_id)?.text}</p>
                     </div>
                   )}
                   {replyingTo?.id === msg.id && (
-                    <div className="text-xs bg-white/10 rounded p-1 mb-2 border-l-2 border-yellow-400">
+                    <div className="text-xs glass-panel rounded p-1 mb-2 border-l-2 border-yellow-400">
                       <p className="font-semibold text-yellow-300">Replying to:</p>
-                      <p className="text-gray-300 truncate">{replyingTo.text}</p>
+                      <p className="glass-text-muted truncate">{replyingTo.text}</p>
                     </div>
                   )}
-                  <p className="text-sm break-words">{msg.text}</p>
+                  <p className="text-sm break-words glass-text">{msg.text}</p>
                   {msg.file_url && (
                     <button
                       onClick={() => setMediaView({ url: msg.file_url!, type: msg.file_url!.includes('.pdf') ? 'application/pdf' : 'file' })}
-                      className={`text-xs mt-2 block break-all text-left ${
-                        msg.sender_id === user.id ? "text-blue-100 hover:text-white" : "text-blue-300 hover:text-blue-200"
-                      }`}
+                      className={`text-xs mt-2 block break-all text-left glass-text-accent hover:underline`}
                     >
                       📎 View File
                     </button>
@@ -1003,12 +1001,12 @@ export default function ChatPage() {
                   {msg.voice_url && (
                     <audio
                       controls
-                      className="w-full mt-2 h-6"
+                      className="w-full mt-2 h-6 opacity-80"
                       src={msg.voice_url}
                     />
                   )}
-                  <p className={`text-xs mt-1 ${
-                    msg.sender_id === user.id ? "text-blue-100" : "text-gray-400"
+                  <p className={`text-xs mt-1 glass-text-muted ${
+                    msg.sender_id === user.id ? "text-right" : ""
                   }`}>
                     {new Date(msg.created_at).toLocaleTimeString()}
                   </p>
@@ -1022,22 +1020,22 @@ export default function ChatPage() {
 
       {/* File Preview */}
       {filePreview && (
-        <div className="bg-white/5 border-t border-white/20 p-4 w-full">
+        <div className="glass-nav border-t border-white/20 p-4 w-full">
           <div className="w-full px-4 flex items-center gap-3">
             {filePreview.type.startsWith("image/") ? (
-              <img src={filePreview.url} alt="preview" className="w-16 h-16 object-cover rounded" />
+              <img src={filePreview.url} alt="preview" className="w-16 h-16 object-cover rounded-lg glass-avatar" />
             ) : (
-              <div className="w-16 h-16 bg-white/10 rounded flex items-center justify-center">
+              <div className="w-16 h-16 glass-panel rounded-lg flex items-center justify-center">
                 <span className="text-2xl">📄</span>
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate">{filePreview.name}</p>
-              <p className="text-xs text-gray-400">{filePreview.type}</p>
+              <p className="text-sm font-semibold glass-text truncate">{filePreview.name}</p>
+              <p className="text-xs glass-text-muted">{filePreview.type}</p>
             </div>
             <button
               onClick={() => setFilePreview(null)}
-              className="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded text-sm"
+              className="glass-button px-3 py-1 text-sm"
               title="Back to chat"
             >
               ← Back
@@ -1045,7 +1043,7 @@ export default function ChatPage() {
             <button
               onClick={uploadAndSendFile}
               disabled={uploading}
-              className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-sm disabled:opacity-50"
+              className="glass-button glass-button-success px-3 py-1 text-sm disabled:opacity-50"
             >
               ✓ Send
             </button>
@@ -1054,17 +1052,17 @@ export default function ChatPage() {
       )}
 
       {/* Input Area - FIXED */}
-      <div className="sticky bottom-0 z-10 bg-white/10 backdrop-blur-lg border-t border-white/20 p-3 w-full">
+      <div className="sticky bottom-0 z-10 glass-nav border-t border-white/20 p-3 w-full">
         {/* Reply Context */}
         {replyingTo && (
-          <div className="mb-2 bg-blue-600/30 border-l-4 border-blue-500 rounded p-2 flex justify-between items-center">
+          <div className="mb-2 glass-message-sent border-l-4 border-blue-400 rounded p-2 flex justify-between items-center">
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-blue-300">Replying to:</p>
-              <p className="text-sm text-gray-200 truncate">{replyingTo.text}</p>
+              <p className="text-xs font-semibold glass-text-accent">Replying to:</p>
+              <p className="text-sm glass-text truncate">{replyingTo.text}</p>
             </div>
             <button
               onClick={() => setReplyingTo(null)}
-              className="ml-2 px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs font-semibold"
+              className="ml-2 glass-close text-xs font-semibold"
               title="Cancel reply"
             >
               ✕
@@ -1085,10 +1083,10 @@ export default function ChatPage() {
               autoFocus
               autoComplete="off"
               disabled={!otherUser}
-              className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 caret-white pointer-events-auto disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full glass-input px-4 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             />
             {/* Attach button below textbox */}
-            <label className="px-3 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition cursor-pointer text-sm flex items-center gap-2 w-fit" title="Upload files">
+            <label className="glass-button px-3 py-2 text-sm flex items-center gap-2 w-fit cursor-pointer" title="Upload files">
               📎
               <input
                 type="file"
@@ -1106,7 +1104,7 @@ export default function ChatPage() {
           <button
             onClick={() => sendMessage()}
             disabled={uploading || !newMessage.trim()}
-            className="px-3 py-2 rounded-lg transition flex items-center justify-center h-10 w-10 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="glass-button glass-button-primary h-10 w-10 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
             title="Send message"
           >
             {/* Telegram send icon */}
@@ -1119,11 +1117,11 @@ export default function ChatPage() {
 
       {/* Fullscreen Media View */}
       {mediaView && (
-        <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 glass-overlay flex items-center justify-center z-50 p-4">
           <div className="w-full h-full flex flex-col items-center justify-center">
             <button
               onClick={() => setMediaView(null)}
-              className="absolute top-4 left-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm"
+              className="absolute top-4 left-4 glass-button glass-button-primary px-4 py-2 text-sm"
               title="Back to chat"
             >
               ← Back
@@ -1131,14 +1129,14 @@ export default function ChatPage() {
             {mediaView.type === 'application/pdf' ? (
               <iframe
                 src={mediaView.url}
-                className="w-full h-full"
+                className="w-full h-full glass-modal"
                 title="PDF Viewer"
               />
             ) : (
               <img
                 src={mediaView.url}
                 alt="Media"
-                className="max-w-full max-h-full object-contain"
+                className="max-w-full max-h-full object-contain glass-modal"
               />
             )}
           </div>

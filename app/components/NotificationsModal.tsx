@@ -81,45 +81,45 @@ function ApplicationDetailView({
   }, [notification.related_application_id]);
 
   if (loading) {
-    return <p className="text-gray-400">Loading application details...</p>;
+    return <p className="glass-text-muted">Loading application details...</p>;
   }
 
   if (!application) {
-    return <p className="text-gray-400">Application details not found</p>;
+    return <p className="glass-text-muted">Application details not found</p>;
   }
 
   return (
     <div className="space-y-4 mt-4">
-      <div className="bg-white/10 rounded-lg p-4 space-y-4">
+      <div className="glass-panel p-4 space-y-4">
         {/* Freelancer Name */}
         <div>
-          <p className="text-xs text-gray-400 mb-1">Freelancer Name</p>
-          <p className="text-lg font-semibold text-blue-400">{application.applicant_name}</p>
+          <p className="text-xs glass-text-muted mb-1">Freelancer Name</p>
+          <p className="text-lg font-semibold glass-text-accent">{application.applicant_name}</p>
         </div>
 
         {/* Skills */}
         <div>
-          <p className="text-xs text-gray-400 mb-1">Skills</p>
-          <p className="text-sm text-gray-200">{application.applicant_skills}</p>
+          <p className="text-xs glass-text-muted mb-1">Skills</p>
+          <p className="text-sm glass-text">{application.applicant_skills}</p>
         </div>
 
         {/* Experience */}
         <div>
-          <p className="text-xs text-gray-400 mb-1">Experience</p>
-          <p className="text-sm text-gray-200">{application.applicant_experience}</p>
+          <p className="text-xs glass-text-muted mb-1">Experience</p>
+          <p className="text-sm glass-text">{application.applicant_experience}</p>
         </div>
 
         {/* Application Description */}
         <div>
-          <p className="text-xs text-gray-400 mb-1">Application Message</p>
-          <p className="text-sm text-gray-200 bg-white/5 rounded p-3 border border-white/10">
+          <p className="text-xs glass-text-muted mb-1">Application Message</p>
+          <p className="text-sm glass-text glass-list-item p-3">
             {application.applicant_description}
           </p>
         </div>
 
         {/* Applied Date */}
         <div>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs glass-text-muted">
             Applied on {new Date(application.created_at).toLocaleDateString()}
           </p>
         </div>
@@ -136,7 +136,7 @@ function ApplicationDetailView({
                   onApprove(application.id, application.applicant_id);
                 }
               }}
-              className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 rounded-lg transition text-sm font-semibold"
+              className="flex-1 glass-button glass-button-success px-4 py-3 text-sm font-semibold"
             >
               ✅ Approve
             </button>
@@ -149,7 +149,7 @@ function ApplicationDetailView({
                   onDeny(application.id);
                 }
               }}
-              className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm font-semibold"
+              className="flex-1 glass-button glass-button-danger px-4 py-3 text-sm font-semibold"
             >
               ❌ Deny
             </button>
@@ -221,23 +221,23 @@ export default function NotificationsModal({
   if (!isOpen) return null;
 
   return (
-    <div className="w-full max-w-2xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 mx-auto my-4">
+    <div className="w-full max-w-2xl glass-modal p-6 mx-auto my-4">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold">
+          <h2 className="text-2xl font-bold glass-text">
             {userRole === "tasker" ? "📬 Applications" : "✅ Notifications"}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white text-2xl"
+            className="glass-close"
           >
             ✕
           </button>
         </div>
 
         {loading ? (
-          <p className="text-gray-400 text-center py-8">Loading...</p>
+          <p className="glass-text-muted text-center py-8">Loading...</p>
         ) : notifications.length === 0 ? (
-          <p className="text-gray-400 text-center py-8">
+          <p className="glass-text-muted text-center py-8">
             {userRole === "tasker"
               ? "No pending applications"
               : "No notifications yet"}
@@ -249,7 +249,7 @@ export default function NotificationsModal({
               onClick={() => {
                 setSelectedNotification(null);
               }}
-              className="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded text-sm"
+              className="glass-button px-3 py-1 text-sm"
             >
               ← Back
             </button>
@@ -264,14 +264,14 @@ export default function NotificationsModal({
               />
             ) : (
               // Freelancer notification view
-              <div className="bg-white/5 border border-white/10 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-green-400 mb-3">
+              <div className="glass-panel p-4">
+                <h3 className="text-lg font-semibold glass-text-accent mb-3">
                   {selectedNotification.type === "application_approved" ? "✅ Approved" : "❌ Denied"}
                 </h3>
-                <p className="text-sm text-gray-300 mb-4">
+                <p className="text-sm glass-text-muted mb-4">
                   {selectedNotification.message}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs glass-text-muted opacity-70">
                   {new Date(selectedNotification.created_at).toLocaleString()}
                 </p>
                 
@@ -291,7 +291,7 @@ export default function NotificationsModal({
                         }
                       }
                     }}
-                    className="w-full mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm font-semibold"
+                    className="w-full mt-4 glass-button glass-button-primary px-4 py-2 text-sm font-semibold"
                   >
                     💬 Open Chat
                   </button>
@@ -309,27 +309,29 @@ export default function NotificationsModal({
                   setSelectedNotification(notif);
                   markAsRead(notif.id);
                 }}
-                className={`w-full text-left rounded-lg p-4 hover:bg-white/10 transition ${
-                  notif.read ? "bg-white/5 border border-white/10" : "bg-blue-900/30 border border-blue-500/50"
+                className={`w-full text-left transition ${
+                  notif.read 
+                    ? "glass-list-item p-4" 
+                    : "glass-list-item p-4 border-blue-400/50 bg-gradient-to-r from-blue-500/20 to-transparent"
                 }`}
               >
                 {userRole === "tasker" ? (
                   <>
-                    <p className="font-semibold text-blue-400">
+                    <p className="font-semibold glass-text-accent">
                       {notif.type === "application_received" ? "📋 New Application" : "Other"}
                     </p>
-                    <p className="text-sm text-gray-300 mt-1 line-clamp-2">{notif.message}</p>
-                    <p className="text-xs text-gray-500 mt-2">
+                    <p className="text-sm glass-text-muted mt-1 line-clamp-2">{notif.message}</p>
+                    <p className="text-xs glass-text-muted opacity-60 mt-2">
                       {new Date(notif.created_at).toLocaleDateString()}
                     </p>
                   </>
                 ) : (
                   <>
-                    <p className="font-semibold text-green-400">
+                    <p className="font-semibold glass-text-accent">
                       {notif.type === "application_approved" ? "✅ Approved" : "❌ Denied"}
                     </p>
-                    <p className="text-sm text-gray-300 mt-1 line-clamp-2">{notif.message}</p>
-                    <p className="text-xs text-gray-500 mt-2">
+                    <p className="text-sm glass-text-muted mt-1 line-clamp-2">{notif.message}</p>
+                    <p className="text-xs glass-text-muted opacity-60 mt-2">
                       {new Date(notif.created_at).toLocaleDateString()}
                     </p>
                   </>

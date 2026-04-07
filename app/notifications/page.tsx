@@ -227,14 +227,14 @@ export default function NotificationsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#000222] text-white flex items-center justify-center">
-        <p>Loading notifications...</p>
+      <div className="min-h-screen text-white flex items-center justify-center">
+        <p className="glass-text">Loading notifications...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#000222] text-white flex flex-col items-center px-4 py-10">
+    <div className="min-h-screen text-white flex flex-col items-center px-4 py-10">
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -245,21 +245,21 @@ export default function NotificationsPage() {
       <div className="w-full max-w-3xl mb-4 flex justify-between items-center gap-4">
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="px-4 py-2 bg-gray-600/80 hover:bg-gray-700 rounded-lg transition text-sm"
+          className="glass-button px-4 py-2 text-sm"
         >
           ☰ Menu
         </button>
-        <h1 className="text-2xl font-bold">📬 Notifications</h1>
+        <h1 className="text-2xl font-bold glass-text">📬 Notifications</h1>
         <button
           onClick={() => router.push("/dashboard")}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm"
+          className="glass-button glass-button-primary px-4 py-2 text-sm"
         >
           ← Dashboard
         </button>
       </div>
 
       {/* Notifications List or Detail View */}
-      <div className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
+      <div className="w-full max-w-3xl glass-modal p-6">
         {selectedNotification ? (
           // Detail View
           <div className="space-y-4">
@@ -268,7 +268,7 @@ export default function NotificationsPage() {
                 setSelectedNotification(null);
                 setSelectedApplication(null);
               }}
-              className="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded text-sm"
+              className="glass-button px-3 py-1 text-sm"
             >
               ← Back
             </button>
@@ -276,36 +276,36 @@ export default function NotificationsPage() {
             {selectedNotification.type === "application_received" && selectedApplication ? (
               // Application Details for Tasker
               <div className="space-y-4 mt-4">
-                <div className="bg-white/10 rounded-lg p-4 space-y-4">
+                <div className="glass-panel p-4 space-y-4">
                   {/* Freelancer Name */}
                   <div>
-                    <p className="text-xs text-gray-400 mb-1">Freelancer Name</p>
-                    <p className="text-lg font-semibold text-blue-400">{selectedApplication.applicant_name}</p>
+                    <p className="text-xs glass-text-muted mb-1">Freelancer Name</p>
+                    <p className="text-lg font-semibold glass-text-accent">{selectedApplication.applicant_name}</p>
                   </div>
 
                   {/* Skills */}
                   <div>
-                    <p className="text-xs text-gray-400 mb-1">Skills</p>
-                    <p className="text-sm text-gray-200">{selectedApplication.applicant_skills}</p>
+                    <p className="text-xs glass-text-muted mb-1">Skills</p>
+                    <p className="text-sm glass-text">{selectedApplication.applicant_skills}</p>
                   </div>
 
                   {/* Experience */}
                   <div>
-                    <p className="text-xs text-gray-400 mb-1">Experience</p>
-                    <p className="text-sm text-gray-200">{selectedApplication.applicant_experience}</p>
+                    <p className="text-xs glass-text-muted mb-1">Experience</p>
+                    <p className="text-sm glass-text">{selectedApplication.applicant_experience}</p>
                   </div>
 
                   {/* Application Description */}
                   <div>
-                    <p className="text-xs text-gray-400 mb-1">Application Message</p>
-                    <p className="text-sm text-gray-200 bg-white/5 rounded p-3 border border-white/10">
+                    <p className="text-xs glass-text-muted mb-1">Application Message</p>
+                    <p className="text-sm glass-text-muted glass-list-item p-3">
                       {selectedApplication.applicant_description}
                     </p>
                   </div>
 
                   {/* Applied Date */}
                   <div>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs glass-text-muted">
                       Applied on {new Date(selectedApplication.created_at).toLocaleDateString()}
                     </p>
                   </div>
@@ -315,13 +315,13 @@ export default function NotificationsPage() {
                 <div className="flex gap-3 pt-4">
                   <button
                     onClick={() => handleApproveApplication(selectedApplication.id, selectedApplication.applicant_id)}
-                    className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 rounded-lg transition text-sm font-semibold"
+                    className="flex-1 glass-button glass-button-success px-4 py-3 text-sm font-semibold"
                   >
                     ✅ Approve
                   </button>
                   <button
                     onClick={() => handleDenyApplication(selectedApplication.id)}
-                    className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 rounded-lg transition text-sm font-semibold"
+                    className="flex-1 glass-button glass-button-danger px-4 py-3 text-sm font-semibold"
                   >
                     ❌ Deny
                   </button>
@@ -329,21 +329,21 @@ export default function NotificationsPage() {
               </div>
             ) : (
               // Freelancer Notification View
-              <div className="bg-white/5 border border-white/10 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-green-400 mb-3">
+              <div className="glass-panel p-4">
+                <h3 className="text-lg font-semibold glass-text-accent mb-3">
                   {selectedNotification.type === "application_approved" ? "✅ Approved" : "❌ Denied"}
                 </h3>
-                <p className="text-sm text-gray-300 mb-4">
+                <p className="text-sm glass-text-muted mb-4">
                   {selectedNotification.message}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs glass-text-muted opacity-60">
                   {new Date(selectedNotification.created_at).toLocaleString()}
                 </p>
 
                 {selectedNotification.type === "application_approved" && (
                   <button
                     onClick={() => handleOpenChat(selectedNotification)}
-                    className="w-full mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm font-semibold"
+                    className="w-full mt-4 glass-button glass-button-primary px-4 py-2 text-sm font-semibold"
                   >
                     💬 Open Chat
                   </button>
@@ -355,16 +355,16 @@ export default function NotificationsPage() {
           // List View
           <>
             {notifications.length === 0 ? (
-              <p className="text-gray-400 text-center py-8">No notifications yet</p>
+              <p className="glass-text-muted text-center py-8">No notifications yet</p>
             ) : (
               <div className="space-y-3">
                 {notifications.map((notif) => (
                   <div
                     key={notif.id}
-                    className={`p-4 rounded-lg border transition ${
+                    className={`p-4 rounded-xl border transition ${
                       notif.read
-                        ? "bg-white/5 border-white/10"
-                        : "bg-blue-500/10 border-blue-400/50"
+                        ? "glass-list-item"
+                        : "glass-list-item border-blue-400/50 bg-gradient-to-r from-blue-500/20 to-transparent"
                     }`}
                   >
                     <div className="flex justify-between items-start gap-4">
@@ -372,14 +372,14 @@ export default function NotificationsPage() {
                         onClick={() => handleNotificationClick(notif)}
                         className="flex-1 text-left hover:opacity-80 transition"
                       >
-                        <p className="text-sm text-gray-300">{notif.message}</p>
-                        <p className="text-xs text-gray-500 mt-2">
+                        <p className="text-sm glass-text">{notif.message}</p>
+                        <p className="text-xs glass-text-muted opacity-60 mt-2">
                           {new Date(notif.created_at).toLocaleString()}
                         </p>
                       </button>
                       <button
                         onClick={() => deleteNotification(notif.id)}
-                        className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-xs font-semibold transition flex-shrink-0"
+                        className="glass-close text-xs font-semibold flex-shrink-0"
                       >
                         ✕
                       </button>

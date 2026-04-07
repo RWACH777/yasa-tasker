@@ -37,10 +37,10 @@ export default function RatingModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="w-full max-w-md bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
-        <h2 className="text-2xl font-bold mb-4">Rate {otherUserName}</h2>
-        <p className="text-gray-300 text-sm mb-6">How was your experience working together?</p>
+    <div className="fixed inset-0 glass-overlay flex items-center justify-center z-50 p-4">
+      <div className="w-full max-w-md glass-modal p-6">
+        <h2 className="text-2xl font-bold mb-4 glass-text">Rate {otherUserName}</h2>
+        <p className="glass-text-muted text-sm mb-6">How was your experience working together?</p>
 
         {/* Star Rating */}
         <div className="flex justify-center gap-2 mb-6">
@@ -50,7 +50,7 @@ export default function RatingModal({
               onMouseEnter={() => setHoverStars(star)}
               onMouseLeave={() => setHoverStars(0)}
               onClick={() => setStars(star)}
-              className="text-3xl transition transform hover:scale-110"
+              className="text-3xl transition transform hover:scale-110 glass-text-accent"
               title={`${star} star${star !== 1 ? 's' : ''}`}
             >
               {star <= (hoverStars || stars) ? "⭐" : "☆"}
@@ -60,12 +60,12 @@ export default function RatingModal({
 
         {/* Comment */}
         <div className="mb-6">
-          <label className="text-xs text-gray-400 block mb-2">Optional Comment</label>
+          <label className="text-xs glass-text-muted block mb-2">Optional Comment</label>
           <textarea
             placeholder="Share your feedback (optional)"
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            className="w-full bg-white/10 border-2 border-white/30 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 caret-white"
+            className="w-full glass-input px-4 py-2 text-sm"
             rows={3}
           />
         </div>
@@ -75,14 +75,14 @@ export default function RatingModal({
           <button
             onClick={onClose}
             disabled={loading}
-            className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition text-sm disabled:opacity-50"
+            className="flex-1 glass-button px-4 py-2 text-sm disabled:opacity-50"
           >
             Skip
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm font-semibold disabled:opacity-50"
+            className="flex-1 glass-button glass-button-primary px-4 py-2 text-sm font-semibold disabled:opacity-50"
           >
             {loading ? "Submitting..." : "Submit Rating"}
           </button>

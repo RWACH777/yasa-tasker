@@ -53,17 +53,17 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-[#0a0a1a] to-[#0a0a2a] text-white">
-      <div className="backdrop-blur-lg bg-white/5 p-8 rounded-2xl shadow-2xl w-[90%] max-w-md text-center">
-        <h1 className="text-3xl font-bold mb-6">Welcome to Tasker</h1>
-        <p className="text-gray-300 mb-8">
+    <div className="flex items-center justify-center min-h-screen text-white">
+      <div className="glass-modal p-8 w-[90%] max-w-md text-center">
+        <h1 className="text-3xl font-bold mb-6 glass-text">Welcome to Tasker</h1>
+        <p className="glass-text-muted mb-8">
           Manage your tasks efficiently while connected to Pi Network.
         </p>
 
         <button
           onClick={handlePiLogin}
           disabled={loading}
-          className="w-full bg-[#0057ff] hover:bg-[#0040cc] transition-colors text-white py-3 rounded-xl font-semibold text-lg shadow-md"
+          className="w-full glass-button glass-button-primary py-3 font-semibold text-lg disabled:opacity-50"
         >
           {loading ? "Connecting..." : "Login with Pi"}
         </button>

@@ -205,29 +205,29 @@ export default function MessagesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#000222] text-white flex items-center justify-center">
-        <p>Loading messages...</p>
+      <div className="min-h-screen text-white flex items-center justify-center">
+        <p className="glass-text">Loading messages...</p>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#000222] text-white flex items-center justify-center">
-        <p>Please log in to view messages.</p>
+      <div className="min-h-screen text-white flex items-center justify-center">
+        <p className="glass-text">Please log in to view messages.</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#000222] text-white flex flex-col">
+    <div className="min-h-screen text-white flex flex-col">
       {/* Header */}
-      <div className="bg-white/10 backdrop-blur-lg border-b border-white/20 p-4">
+      <div className="glass-nav border-b border-white/20 p-4">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Messages</h1>
+          <h1 className="text-2xl font-bold glass-text">Messages</h1>
           <Link
             href="/dashboard"
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition"
+            className="glass-button glass-button-primary px-4 py-2 text-sm"
           >
             Back to Dashboard
           </Link>
@@ -236,17 +236,17 @@ export default function MessagesPage() {
 
       {/* Conversations List */}
       <div className="flex-1 max-w-4xl mx-auto w-full p-4">
-        <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
-          <h2 className="text-lg font-semibold mb-4">Your Conversations</h2>
+        <div className="glass-panel p-6">
+          <h2 className="text-lg font-semibold mb-4 glass-text">Your Conversations</h2>
           {conversations.length === 0 ? (
-            <p className="text-gray-400 text-sm">No conversations yet. Click "Contact Tasker" on a task to start!</p>
+            <p className="glass-text-muted text-sm">No conversations yet. Click "Contact Tasker" on a task to start!</p>
           ) : (
             <div className="space-y-2">
               {conversations.map((conv) => (
                 <div
                   key={conv.userId}
-                  className={`flex items-center justify-between bg-white/5 border border-white/10 rounded-lg p-3 hover:bg-white/10 transition relative group ${
-                    longPressedConvId === conv.userId ? "ring-2 ring-red-500" : ""
+                  className={`flex items-center justify-between glass-list-item p-3 relative group ${
+                    longPressedConvId === conv.userId ? "ring-2 ring-red-400" : ""
                   }`}
                   onMouseDown={() => handleConvMouseDown(conv.userId)}
                   onMouseUp={handleConvMouseUp}
@@ -264,12 +264,12 @@ export default function MessagesPage() {
                           `https://api.dicebear.com/8.x/thumbs/svg?seed=${conv.username}`
                         }
                         alt={conv.username}
-                        className="w-12 h-12 rounded-full border border-white/30 object-cover"
+                        className="w-12 h-12 glass-avatar object-cover"
                       />
                       {/* Online Status Indicator */}
                       <div
                         className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#000222] ${
-                          conv.isOnline ? "bg-blue-500" : "bg-gray-500"
+                          conv.isOnline ? "glass-status-online" : "glass-status-offline"
                         }`}
                         title={conv.isOnline ? "Online" : "Offline"}
                       />
@@ -278,22 +278,22 @@ export default function MessagesPage() {
                     {/* Message Info */}
                     <div className="flex-1 min-w-0 overflow-hidden">
                       <div className="flex items-center gap-2">
-                        <p className="font-semibold text-sm truncate">{conv.username}</p>
+                        <p className="font-semibold text-sm glass-text truncate">{conv.username}</p>
                         {conv.unreadCount > 0 && (
-                          <span className="bg-red-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
+                          <span className="glass-badge text-white text-xs font-bold w-5 h-5 flex items-center justify-center flex-shrink-0">
                             {conv.unreadCount > 9 ? "9+" : conv.unreadCount}
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-400 break-words line-clamp-2">{conv.lastMessage}</p>
-                      <p className="text-xs text-gray-500 truncate">
+                      <p className="text-xs glass-text-muted break-words line-clamp-2">{conv.lastMessage}</p>
+                      <p className="text-xs glass-text-muted opacity-60 truncate">
                         {new Date(conv.lastMessageTime).toLocaleDateString()}
                       </p>
                     </div>
                   </button>
                   <button
                     onClick={() => deleteConversation(conv.userId)}
-                    className="ml-2 px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-semibold opacity-0 group-hover:opacity-100 transition"
+                    className="ml-2 px-3 py-1 glass-button glass-button-danger text-xs font-semibold opacity-0 group-hover:opacity-100 transition"
                     title="Delete conversation"
                   >
                     🗑️ Delete

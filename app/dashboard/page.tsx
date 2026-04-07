@@ -936,7 +936,7 @@ const handleUpdateFreelancerUsername = async () => {
 
   // ⭐️ UI WITH SIDEBAR
   return (
-    <div className="min-h-screen bg-[#000222] text-white flex flex-col items-center px-4 py-10">
+    <div className="min-h-screen text-white flex flex-col items-center px-4 py-10">
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -948,11 +948,11 @@ const handleUpdateFreelancerUsername = async () => {
       <div className="w-full max-w-3xl mb-4 flex justify-between items-center">
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="relative px-4 py-2 bg-gray-600/80 hover:bg-gray-700 rounded-lg transition text-sm"
+          className="relative glass-button px-4 py-2 text-sm"
         >
           ☰ Menu
           {notificationCount > 0 && (
-            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+            <span className="absolute -top-2 -right-2 glass-badge text-white text-xs font-bold w-6 h-6 flex items-center justify-center">
               {notificationCount}
             </span>
           )}
@@ -966,10 +966,10 @@ const handleUpdateFreelancerUsername = async () => {
             setShowProfileModal(true);
           }
         }}
-        className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 text-center mb-6 cursor-pointer hover:bg-white/20 transition"
+        className="w-full max-w-3xl glass-profile p-6 text-center mb-6"
       >
         {loading ? (
-          <p>Loading profile...</p>
+          <p className="glass-text">Loading profile...</p>
         ) : user ? (
           <div className="flex flex-col items-center space-y-2">
             <img
@@ -978,28 +978,28 @@ const handleUpdateFreelancerUsername = async () => {
                 `https://api.dicebear.com/8.x/thumbs/svg?seed=${user.username}`
               }
               alt="Avatar"
-              className="w-20 h-20 rounded-full border border-white/30 object-cover"
+              className="w-20 h-20 glass-avatar object-cover"
             />
-            <h2 className="text-xl font-semibold">{user.username}</h2>
-            <p className="text-sm text-gray-300">
+            <h2 className="text-xl font-semibold glass-text">{user.username}</h2>
+            <p className="text-sm glass-text-muted">
               ⭐️ {user.rating || 0} • {user.completed_tasks || 0} Tasks Completed
             </p>
-            <p className="text-xs text-gray-400">Click to view profile details</p>
+            <p className="text-xs glass-text-muted opacity-60">Click to view profile details</p>
           </div>
         ) : (
-          <p>⚠️ Please log in with Pi to view your profile.</p>
+          <p className="glass-text">⚠️ Please log in with Pi to view your profile.</p>
         )}
       </div>
 
       {/* PROFILE MODAL */}
       {showProfileModal && user && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-2xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 glass-overlay flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-2xl glass-modal p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold">{user.username}'s Profile</h2>
+              <h2 className="text-2xl font-bold glass-text">{user.username}'s Profile</h2>
               <button
                 onClick={() => setShowProfileModal(false)}
-                className="text-gray-400 hover:text-white text-2xl"
+                className="glass-close"
               >
                 ✕
               </button>
@@ -1017,36 +1017,36 @@ const handleUpdateFreelancerUsername = async () => {
                     `https://api.dicebear.com/8.x/thumbs/svg?seed=${user.username}`
                   }
                   alt="Avatar"
-                  className="w-24 h-24 rounded-full border border-white/30 object-cover group-hover:opacity-70 transition"
+                  className="w-24 h-24 glass-avatar object-cover group-hover:opacity-70 transition"
                 />
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition rounded-full bg-black/50">
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition rounded-full glass-overlay">
                   <span className="text-white text-xs font-semibold">View</span>
                 </div>
               </button>
               <div className="flex flex-col gap-3 w-full">
                 <div>
-                  <label className="text-xs text-gray-400 block mb-1">Freelancer Username (what others see)</label>
+                  <label className="text-xs glass-text-muted block mb-1">Freelancer Username (what others see)</label>
                   <div className="flex gap-2 flex-wrap">
                     <input
                       type="text"
                       placeholder="Your freelancer username"
                       value={freelancerUsername || user.freelancer_username || ""}
                       onChange={(e) => setFreelancerUsername(e.target.value)}
-                      className="flex-1 min-w-0 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 caret-white pointer-events-auto"
+                      className="flex-1 min-w-0 glass-input px-3 py-2 text-sm"
                     />
                     <button
                       onClick={handleUpdateFreelancerUsername}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm flex-shrink-0 whitespace-nowrap"
+                      className="glass-button glass-button-primary px-4 py-2 text-sm flex-shrink-0 whitespace-nowrap"
                     >
                       Update
                     </button>
                   </div>
                   {user.freelancer_username && (
-                    <p className="text-xs text-green-400 mt-1">✓ Current: {user.freelancer_username}</p>
+                    <p className="text-xs glass-text-accent mt-1">✓ Current: {user.freelancer_username}</p>
                   )}
                 </div>
               </div>
-              <p className="text-xs text-gray-400 mt-3">
+              <p className="text-xs glass-text-muted mt-3">
                 ⭐️ Rating: {user.average_rating && user.average_rating > 0 ? `${user.average_rating}/5 (${user.total_ratings || 0} ratings)` : "No ratings yet"} • Completed: {user.completed_tasks || 0}
               </p>
             </div>
@@ -1057,8 +1057,8 @@ const handleUpdateFreelancerUsername = async () => {
                 onClick={() => setProfileView("tasker")}
                 className={`px-4 py-2 font-semibold transition ${
                   profileView === "tasker"
-                    ? "text-blue-400 border-b-2 border-blue-400"
-                    : "text-gray-400 hover:text-white"
+                    ? "glass-tab-active"
+                    : "glass-tab"
                 }`}
               >
                 👤 Tasker View
@@ -1067,8 +1067,8 @@ const handleUpdateFreelancerUsername = async () => {
                 onClick={() => setProfileView("freelancer")}
                 className={`px-4 py-2 font-semibold transition ${
                   profileView === "freelancer"
-                    ? "text-green-400 border-b-2 border-green-400"
-                    : "text-gray-400 hover:text-white"
+                    ? "glass-tab-active border-green-400"
+                    : "glass-tab"
                 }`}
               >
                 💼 Freelancer View
@@ -1079,15 +1079,15 @@ const handleUpdateFreelancerUsername = async () => {
             <div className="space-y-6">
               {/* Active Tasks */}
               <div>
-                <h3 className="text-lg font-semibold mb-3 text-green-400">Active Tasks ({profileTasks.active.length})</h3>
+                <h3 className="text-lg font-semibold mb-3 glass-text-accent">Active Tasks ({profileTasks.active.length})</h3>
                 {profileTasks.active.length === 0 ? (
-                  <p className="text-gray-400 text-sm">No active tasks</p>
+                  <p className="glass-text-muted text-sm">No active tasks</p>
                 ) : (
                   <div className="space-y-2">
                     {profileTasks.active.map((task) => (
-                      <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-3">
-                        <p className="font-semibold text-sm">{task.title}</p>
-                        <p className="text-xs text-gray-400">
+                      <div key={task.id} className="glass-list-item p-3">
+                        <p className="font-semibold text-sm glass-text">{task.title}</p>
+                        <p className="text-xs glass-text-muted">
                           Budget: {task.budget} π
                         </p>
                       </div>
@@ -1098,15 +1098,15 @@ const handleUpdateFreelancerUsername = async () => {
 
               {/* Pending Tasks */}
               <div>
-                <h3 className="text-lg font-semibold mb-3 text-yellow-400">Pending Tasks ({profileTasks.pending.length})</h3>
+                <h3 className="text-lg font-semibold mb-3 text-yellow-300">Pending Tasks ({profileTasks.pending.length})</h3>
                 {profileTasks.pending.length === 0 ? (
-                  <p className="text-gray-400 text-sm">No pending tasks</p>
+                  <p className="glass-text-muted text-sm">No pending tasks</p>
                 ) : (
                   <div className="space-y-2">
                     {profileTasks.pending.map((task) => (
-                      <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-3">
-                        <p className="font-semibold text-sm">{task.title}</p>
-                        <p className="text-xs text-gray-400">
+                      <div key={task.id} className="glass-list-item p-3">
+                        <p className="font-semibold text-sm glass-text">{task.title}</p>
+                        <p className="text-xs glass-text-muted">
                           Budget: {task.budget} π
                         </p>
                       </div>
@@ -1117,15 +1117,15 @@ const handleUpdateFreelancerUsername = async () => {
 
               {/* Completed Tasks */}
               <div>
-                <h3 className="text-lg font-semibold mb-3 text-blue-400">Completed Tasks ({profileTasks.completed.length})</h3>
+                <h3 className="text-lg font-semibold mb-3 glass-text-accent">Completed Tasks ({profileTasks.completed.length})</h3>
                 {profileTasks.completed.length === 0 ? (
-                  <p className="text-gray-400 text-sm">No completed tasks</p>
+                  <p className="glass-text-muted text-sm">No completed tasks</p>
                 ) : (
                   <div className="space-y-2">
                     {profileTasks.completed.map((task) => (
-                      <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-3">
-                        <p className="font-semibold text-sm">{task.title}</p>
-                        <p className="text-xs text-gray-400">
+                      <div key={task.id} className="glass-list-item p-3">
+                        <p className="font-semibold text-sm glass-text">{task.title}</p>
+                        <p className="text-xs glass-text-muted">
                           Budget: {task.budget} π
                         </p>
                       </div>
@@ -1141,13 +1141,13 @@ const handleUpdateFreelancerUsername = async () => {
                 // TASKER VIEW - Show ratings that TASKER received (from freelancers) = rating_type "tasker"
                 <div>
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold">⭐ Tasker Ratings</h3>
+                    <h3 className="text-lg font-semibold glass-text">⭐ Tasker Ratings</h3>
                     {(() => {
                       const taskerRatings = userRatings.filter((r) => r.rating_type === "tasker");
                       return taskerRatings.length > 0 ? (
                         <button
                           onClick={() => setShowRatingsPage(true)}
-                          className="text-xs text-blue-400 hover:text-blue-300 transition"
+                          className="text-xs glass-text-accent hover:underline transition"
                         >
                           View All ({taskerRatings.length})
                         </button>
@@ -1157,19 +1157,19 @@ const handleUpdateFreelancerUsername = async () => {
                   {(() => {
                     const taskerRatings = userRatings.filter((r) => r.rating_type === "tasker");
                     if (taskerRatings.length === 0) {
-                      return <p className="text-sm text-gray-400">No tasker ratings yet. Complete tasks to receive ratings!</p>;
+                      return <p className="text-sm glass-text-muted">No tasker ratings yet. Complete tasks to receive ratings!</p>;
                     }
                     const rating = taskerRatings[0];
                     return (
-                      <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                      <div className="glass-list-item p-4">
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-yellow-400">{"⭐".repeat(rating.rating || 0)}</span>
-                          <span className="text-sm font-semibold">{rating.rater?.username || "Anonymous"}</span>
+                          <span className="text-yellow-300">{"⭐".repeat(rating.rating || 0)}</span>
+                          <span className="text-sm font-semibold glass-text">{rating.rater?.username || "Anonymous"}</span>
                         </div>
                         {rating.comment && (
-                          <p className="text-sm text-gray-300 italic">"{rating.comment}"</p>
+                          <p className="text-sm glass-text-muted italic">"{rating.comment}"</p>
                         )}
-                        <p className="text-xs text-gray-500 mt-2">
+                        <p className="text-xs glass-text-muted opacity-60 mt-2">
                           {new Date(rating.created_at).toLocaleDateString()}
                         </p>
                       </div>
@@ -1180,13 +1180,13 @@ const handleUpdateFreelancerUsername = async () => {
                 // FREELANCER VIEW - Show ratings that FREELANCER received (from taskers) = rating_type "freelancer"
                 <div>
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold">⭐ Freelancer Ratings</h3>
+                    <h3 className="text-lg font-semibold glass-text">⭐ Freelancer Ratings</h3>
                     {(() => {
                       const freelancerRatings = userRatings.filter((r) => r.rating_type === "freelancer");
                       return freelancerRatings.length > 0 ? (
                         <button
                           onClick={() => setShowRatingsPage(true)}
-                          className="text-xs text-blue-400 hover:text-blue-300 transition"
+                          className="text-xs glass-text-accent hover:underline transition"
                         >
                           View All ({freelancerRatings.length})
                         </button>
@@ -1196,19 +1196,19 @@ const handleUpdateFreelancerUsername = async () => {
                   {(() => {
                     const freelancerRatings = userRatings.filter((r) => r.rating_type === "freelancer");
                     if (freelancerRatings.length === 0) {
-                      return <p className="text-sm text-gray-400">No freelancer ratings yet. Complete tasks to receive ratings!</p>;
+                      return <p className="text-sm glass-text-muted">No freelancer ratings yet. Complete tasks to receive ratings!</p>;
                     }
                     const rating = freelancerRatings[0];
                     return (
-                      <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                      <div className="glass-list-item p-4">
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-yellow-400">{"⭐".repeat(rating.rating || 0)}</span>
-                          <span className="text-sm font-semibold">{rating.rater?.username || "Anonymous"}</span>
+                          <span className="text-yellow-300">{"⭐".repeat(rating.rating || 0)}</span>
+                          <span className="text-sm font-semibold glass-text">{rating.rater?.username || "Anonymous"}</span>
                         </div>
                         {rating.comment && (
-                          <p className="text-sm text-gray-300 italic">"{rating.comment}"</p>
+                          <p className="text-sm glass-text-muted italic">"{rating.comment}"</p>
                         )}
-                        <p className="text-xs text-gray-500 mt-2">
+                        <p className="text-xs glass-text-muted opacity-60 mt-2">
                           {new Date(rating.created_at).toLocaleDateString()}
                         </p>
                       </div>
@@ -1242,15 +1242,15 @@ const handleUpdateFreelancerUsername = async () => {
 
       {/* RATINGS PAGE MODAL */}
       {showRatingsPage && user && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-2xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 glass-overlay flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-2xl glass-modal p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold">
+              <h2 className="text-2xl font-bold glass-text">
                 {profileView === "tasker" ? "👤 Ratings as Tasker" : "💼 Ratings as Freelancer"}
               </h2>
               <button
                 onClick={() => setShowRatingsPage(false)}
-                className="text-gray-400 hover:text-white text-2xl"
+                className="glass-close"
               >
                 ✕
               </button>
@@ -1261,16 +1261,16 @@ const handleUpdateFreelancerUsername = async () => {
                 {profileView === "tasker" ? (
                   // TASKER VIEW - Show only ratings that TASKER received (rating_type = "tasker")
                   <div>
-                    <h3 className="text-lg font-semibold text-purple-400 mb-4">👤 Tasker Ratings</h3>
+                    <h3 className="text-lg font-semibold glass-text-accent mb-4">👤 Tasker Ratings</h3>
                     {(() => {
                       const taskerRatings = userRatings.filter((r) => r.rating_type === "tasker");
                       if (taskerRatings.length === 0) {
-                        return <p className="text-sm text-gray-500">No tasker ratings yet</p>;
+                        return <p className="text-sm glass-text-muted">No tasker ratings yet</p>;
                       }
                       return (
                         <div className="space-y-3">
                           {taskerRatings.map((rating, index) => (
-                            <div key={index} className="bg-white/5 border border-white/10 rounded-lg p-4">
+                            <div key={index} className="glass-list-item p-4">
                               <div className="flex items-start justify-between mb-3">
                                 <div className="flex items-center gap-3">
                                   <img
@@ -1279,21 +1279,21 @@ const handleUpdateFreelancerUsername = async () => {
                                       `https://api.dicebear.com/8.x/thumbs/svg?seed=${rating.rater?.username || "user"}`
                                     }
                                     alt={rating.rater?.username}
-                                    className="w-10 h-10 rounded-full object-cover"
+                                    className="w-10 h-10 glass-avatar object-cover"
                                   />
                                   <div>
-                                    <p className="font-semibold text-sm">{rating.rater?.username || "Anonymous"}</p>
-                                    <p className="text-xs text-gray-500">
+                                    <p className="font-semibold text-sm glass-text">{rating.rater?.username || "Anonymous"}</p>
+                                    <p className="text-xs glass-text-muted">
                                       {new Date(rating.created_at).toLocaleDateString()}
                                     </p>
                                   </div>
                                 </div>
-                                <div className="text-yellow-400 text-lg">
+                                <div className="text-yellow-300 text-lg">
                                   {"⭐".repeat(rating.rating || 0)}
                                 </div>
                               </div>
                               {rating.comment && (
-                                <p className="text-sm text-gray-300 italic">"{rating.comment}"</p>
+                                <p className="text-sm glass-text-muted italic">"{rating.comment}"</p>
                               )}
                             </div>
                           ))}
@@ -1304,16 +1304,16 @@ const handleUpdateFreelancerUsername = async () => {
                 ) : (
                   // FREELANCER VIEW - Show only ratings that FREELANCER received (rating_type = "freelancer")
                   <div>
-                    <h3 className="text-lg font-semibold text-green-400 mb-4">💼 Freelancer Ratings</h3>
+                    <h3 className="text-lg font-semibold glass-text-accent mb-4">💼 Freelancer Ratings</h3>
                     {(() => {
                       const freelancerRatings = userRatings.filter((r) => r.rating_type === "freelancer");
                       if (freelancerRatings.length === 0) {
-                        return <p className="text-sm text-gray-500">No freelancer ratings yet</p>;
+                        return <p className="text-sm glass-text-muted">No freelancer ratings yet</p>;
                       }
                       return (
                         <div className="space-y-3">
                           {freelancerRatings.map((rating, index) => (
-                            <div key={index} className="bg-white/5 border border-white/10 rounded-lg p-4">
+                            <div key={index} className="glass-list-item p-4">
                               <div className="flex items-start justify-between mb-3">
                                 <div className="flex items-center gap-3">
                                   <img
@@ -1322,21 +1322,21 @@ const handleUpdateFreelancerUsername = async () => {
                                       `https://api.dicebear.com/8.x/thumbs/svg?seed=${rating.rater?.username || "user"}`
                                     }
                                     alt={rating.rater?.username}
-                                    className="w-10 h-10 rounded-full object-cover"
+                                    className="w-10 h-10 glass-avatar object-cover"
                                   />
                                   <div>
-                                    <p className="font-semibold text-sm">{rating.rater?.username || "Anonymous"}</p>
-                                    <p className="text-xs text-gray-500">
+                                    <p className="font-semibold text-sm glass-text">{rating.rater?.username || "Anonymous"}</p>
+                                    <p className="text-xs glass-text-muted">
                                       {new Date(rating.created_at).toLocaleDateString()}
                                     </p>
                                   </div>
                                 </div>
-                                <div className="text-yellow-400 text-lg">
+                                <div className="text-yellow-300 text-lg">
                                   {"⭐".repeat(rating.rating || 0)}
                                 </div>
                               </div>
                               {rating.comment && (
-                                <p className="text-sm text-gray-300 italic">"{rating.comment}"</p>
+                                <p className="text-sm glass-text-muted italic">"{rating.comment}"</p>
                               )}
                             </div>
                           ))}
@@ -1347,7 +1347,7 @@ const handleUpdateFreelancerUsername = async () => {
                 )}
               </div>
             ) : (
-              <p className="text-center text-gray-400">No ratings yet</p>
+              <p className="text-center glass-text-muted">No ratings yet</p>
             )}
           </div>
         </div>
@@ -1357,11 +1357,11 @@ const handleUpdateFreelancerUsername = async () => {
       {/* (I DID NOT TOUCH YOUR UI) */}
 
       {/* POST TASK FORM */}
-      <div className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 mb-8">
-        <h2 className="text-lg font-semibold mb-4">
+      <div className="w-full max-w-3xl glass-panel p-6 mb-8">
+        <h2 className="text-lg font-semibold mb-4 glass-text">
           {form.id ? "Edit Task" : "Post a Task"}
         </h2>
-        {message && <p className="text-sm text-gray-300 mb-3">{message}</p>}
+        {message && <p className="text-sm glass-text-muted mb-3">{message}</p>}
         <form
           onSubmit={handleSubmit}
           className="space-y-3 relative z-10 pointer-events-auto"
@@ -1374,7 +1374,7 @@ const handleUpdateFreelancerUsername = async () => {
               setForm({ ...form, title: e.target.value })
             }
             autoComplete="off"
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 caret-white pointer-events-auto"
+            className="w-full glass-input px-4 py-2 text-sm"
           />
           <textarea
             placeholder="Task description"
@@ -1382,7 +1382,7 @@ const handleUpdateFreelancerUsername = async () => {
             onChange={(e) =>
               setForm({ ...form, description: e.target.value })
             }
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 caret-white pointer-events-auto"
+            className="w-full glass-input px-4 py-2 text-sm"
             rows={3}
           />
           <select
@@ -1390,7 +1390,7 @@ const handleUpdateFreelancerUsername = async () => {
             onChange={(e) =>
               setForm({ ...form, category: e.target.value })
             }
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pointer-events-auto"
+            className="w-full glass-select px-4 py-2 text-sm"
           >
             <option value="">Select a category</option>
             {categories.filter(cat => cat !== "all").map((cat) => (
@@ -1406,7 +1406,7 @@ const handleUpdateFreelancerUsername = async () => {
             onChange={(e) =>
               setForm({ ...form, budget: e.target.value ? parseFloat(e.target.value) : "" })
             }
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 caret-white pointer-events-auto"
+            className="w-full glass-input px-4 py-2 text-sm"
           />
           <input
             type="date"
@@ -1414,26 +1414,26 @@ const handleUpdateFreelancerUsername = async () => {
             onChange={(e) =>
               setForm({ ...form, deadline: e.target.value })
             }
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pointer-events-auto"
+            className="w-full glass-input px-4 py-2 text-sm"
           />
 
           <button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded-lg transition"
+            className="w-full glass-button glass-button-primary py-2"
           >
             {form.id ? "Update Task" : "Post Task"}
           </button>
         </form>
       </div>
 
-      {/* TASK LIST — unchanged */}
-      <div className="w-full max-w-3xl bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
+      {/* TASK LIST */}
+      <div className="w-full max-w-3xl glass-panel p-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold">Available Tasks</h2>
+          <h2 className="text-lg font-semibold glass-text">Available Tasks</h2>
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="bg-white/10 border border-white/20 rounded-lg px-3 py-1 text-sm"
+            className="glass-select px-3 py-1 text-sm"
           >
             {categories.map((cat) => (
               <option key={cat} value={cat}>
@@ -1444,20 +1444,20 @@ const handleUpdateFreelancerUsername = async () => {
         </div>
 
         {tasks.length === 0 ? (
-          <p className="text-gray-400 text-sm">No tasks found.</p>
+          <p className="glass-text-muted text-sm">No tasks found.</p>
         ) : (
           <div className="space-y-4">
             {tasks.map((task) => (
               <div
                 key={task.id}
-                className="bg-white/5 border border-white/10 rounded-lg p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center"
+                className="glass-list-item p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center"
               >
                 <div className="flex-1">
-                  <h3 className="font-semibold">{task.title}</h3>
-                  <p className="text-gray-300 text-sm mb-2">
+                  <h3 className="font-semibold glass-text">{task.title}</h3>
+                  <p className="glass-text-muted text-sm mb-2">
                     {task.description}
                   </p>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs glass-text-muted">
                     Category: {task.category} • Budget: {task.budget} π •
                     Deadline:{" "}
                     {new Date(task.deadline).toLocaleDateString()}
@@ -1469,13 +1469,13 @@ const handleUpdateFreelancerUsername = async () => {
                     <>
                       <button
                         onClick={() => handleEdit(task)}
-                        className="px-3 py-1 bg-blue-500/80 rounded-md text-sm hover:bg-blue-600 transition"
+                        className="glass-button glass-button-primary px-3 py-1 text-sm"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete(task.id)}
-                        className="px-3 py-1 bg-red-500/80 rounded-md text-sm hover:bg-red-600 transition"
+                        className="glass-button glass-button-danger px-3 py-1 text-sm"
                       >
                         Delete
                       </button>
@@ -1483,7 +1483,7 @@ const handleUpdateFreelancerUsername = async () => {
                   ) : (
                     <button
                       onClick={() => handleApplyToTask(task.id)}
-                      className="px-3 py-1 bg-green-600/80 rounded-md text-sm hover:bg-green-700 transition"
+                      className="glass-button glass-button-success px-3 py-1 text-sm"
                     >
                       Apply
                     </button>
@@ -1497,15 +1497,15 @@ const handleUpdateFreelancerUsername = async () => {
 
       {/* PICTURE MODAL */}
       {showPictureModal && user && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-md bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 flex flex-col items-center">
+        <div className="fixed inset-0 glass-overlay flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-md glass-modal p-6 flex flex-col items-center relative">
             <button
               onClick={() => {
                 setShowPictureModal(false);
                 setPictureToEdit(null);
                 setCropMode(false);
               }}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl"
+              className="absolute top-4 right-4 glass-close"
             >
               ✕
             </button>
@@ -1519,11 +1519,11 @@ const handleUpdateFreelancerUsername = async () => {
                     `https://api.dicebear.com/8.x/thumbs/svg?seed=${user.username}`
                   }
                   alt="Profile Picture"
-                  className="w-48 h-48 rounded-full border-2 border-white/30 mb-6 object-cover"
+                  className="w-48 h-48 glass-avatar mb-6 object-cover"
                 />
                 <button
                   onClick={() => pictureInputRef.current?.click()}
-                  className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm font-semibold mb-3"
+                  className="w-full glass-button glass-button-primary px-4 py-2 text-sm font-semibold mb-3"
                 >
                   Change Profile Picture
                 </button>
@@ -1546,8 +1546,8 @@ const handleUpdateFreelancerUsername = async () => {
               </>
             ) : (
               <>
-                <h3 className="text-lg font-semibold mb-4">Crop Your Picture</h3>
-                <div className="relative w-48 h-48 bg-black/20 rounded-full overflow-hidden mb-4 border-2 border-white/30">
+                <h3 className="text-lg font-semibold mb-4 glass-text">Crop Your Picture</h3>
+                <div className="relative w-48 h-48 glass-panel rounded-full overflow-hidden mb-4">
                   <img
                     src={pictureToEdit || ""}
                     alt="Crop preview"
@@ -1560,7 +1560,7 @@ const handleUpdateFreelancerUsername = async () => {
 
                 <div className="w-full space-y-3 mb-4">
                   <div>
-                    <label className="text-xs text-gray-400">Zoom</label>
+                    <label className="text-xs glass-text-muted">Zoom</label>
                     <input
                       type="range"
                       min="1"
@@ -1568,29 +1568,29 @@ const handleUpdateFreelancerUsername = async () => {
                       step="0.1"
                       value={cropScale}
                       onChange={(e) => setCropScale(parseFloat(e.target.value))}
-                      className="w-full"
+                      className="w-full glass-input"
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-gray-400">X Position</label>
+                    <label className="text-xs glass-text-muted">X Position</label>
                     <input
                       type="range"
                       min="-100"
                       max="100"
                       value={cropX}
                       onChange={(e) => setCropX(parseInt(e.target.value))}
-                      className="w-full"
+                      className="w-full glass-input"
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-gray-400">Y Position</label>
+                    <label className="text-xs glass-text-muted">Y Position</label>
                     <input
                       type="range"
                       min="-100"
                       max="100"
                       value={cropY}
                       onChange={(e) => setCropY(parseInt(e.target.value))}
-                      className="w-full"
+                      className="w-full glass-input"
                     />
                   </div>
                 </div>
@@ -1604,7 +1604,7 @@ const handleUpdateFreelancerUsername = async () => {
                       setCropX(0);
                       setCropY(0);
                     }}
-                    className="flex-1 px-3 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition text-sm"
+                    className="flex-1 glass-button px-3 py-2 text-sm"
                   >
                     Cancel
                   </button>
@@ -1670,7 +1670,7 @@ const handleUpdateFreelancerUsername = async () => {
                         setMessage("❌ Error: " + (err as any).message);
                       }
                     }}
-                    className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition text-sm font-semibold"
+                    className="flex-1 glass-button glass-button-primary px-3 py-2 text-sm font-semibold"
                   >
                     Approve
                   </button>
