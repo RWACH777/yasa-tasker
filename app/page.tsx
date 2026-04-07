@@ -201,7 +201,7 @@ export default function Home() {
             }}
           >
             <Image
-              src="/yasa-s-logo.png"
+              src="/yasa-tasker-logo.png"
               alt="YASA Logo"
               width={120}
               height={120}
