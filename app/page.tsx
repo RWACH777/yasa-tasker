@@ -14,7 +14,7 @@ export default function Home() {
   const [piReady, setPiReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // ✅ Initialize Pi SDK safely
+  // Initialize Pi SDK
   useEffect(() => {
     const loadPi = () => {
       try {
@@ -35,7 +35,6 @@ export default function Home() {
             if ((window as any).Pi) {
               console.log("✅ Pi SDK found after delay");
               
-              // Initialize Pi SDK immediately when found
               try {
                 (window as any).Pi.init({
                   version: "2.0",
@@ -51,7 +50,6 @@ export default function Home() {
             }
           }, 500);
 
-          // Timeout after 5 seconds
           setTimeout(() => {
             clearInterval(check);
             if (!((window as any).Pi)) {
@@ -62,14 +60,13 @@ export default function Home() {
         }
       } catch (err) {
         console.error("❌ Pi SDK initialization failed:", err);
-        setPiReady(true); // Allow login anyway
+        setPiReady(true);
       }
     };
 
     loadPi();
   }, []);
 
-  // ✅ Handle Pi login and sync user to Supabase
   const handlePiLogin = async () => {
     if (typeof window === "undefined") return;
 
@@ -77,7 +74,6 @@ export default function Home() {
       setIsLoading(true);
       console.log("🔵 handlePiLogin started");
 
-      // 🔧 LOCALHOST: Use fake Pi user
       const isLocal = window.location.hostname === "localhost";
       let username, pi_uid, avatar_url;
 
@@ -87,7 +83,6 @@ export default function Home() {
         pi_uid = "local_user_123";
         avatar_url = null;
       } else {
-        // 🌐 PRODUCTION: Use real Pi SDK
         const Pi = (window as any).Pi;
         if (!Pi) {
           alert("⚠️ Pi SDK not loaded yet.");
@@ -109,7 +104,6 @@ export default function Home() {
 
       console.log("🔵 Calling /api/login with:", { pi_uid, username });
       
-      // Test API connectivity first
       try {
         const testResponse = await fetch("/api/test");
         const testResult = await testResponse.json();
@@ -119,7 +113,6 @@ export default function Home() {
         throw new Error("API server is not responding");
       }
       
-      // ✅ Send user data to API route (works for both localhost and production)
       let response, result;
       try {
         response = await fetch("/api/login", {
@@ -140,7 +133,6 @@ export default function Home() {
 
       console.log("✅ User synced with Supabase:", result);
 
-      // Set the session in Supabase client to actually log the user in
       if (result.access_token && result.refresh_token) {
         console.log("🔵 Setting Supabase session...");
         const { error: sessionError } = await supabase.auth.setSession({
@@ -160,7 +152,6 @@ export default function Home() {
       }
 
       alert("🎉 Welcome " + username + "!");
-
       router.push("/dashboard");
     } catch (err: any) {
       console.error("❌ Pi login error:", err);
@@ -170,75 +161,151 @@ export default function Home() {
     }
   };
 
-  // ✅ Basic Supabase test (optional)
-  useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase.from("users").select("*").limit(1);
-      console.log("✅ Supabase test result:", data || error);
-    })();
-  }, []);
-
   return (
     <div
-      className="flex flex-col items-center justify-start min-h-screen text-white px-4 pt-12 pb-12"
-      style={{ backgroundColor: "#000222" }}
+      className="min-h-screen w-full flex items-center justify-center relative overflow-hidden"
+      style={{
+        backgroundImage: "url('/landing-bg.jpg')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
     >
-      {/* Logo and Title */}
-      <div className="flex flex-col items-center text-center space-y-10 mb-8">
-        <Image
-          src="/logo.png"
-          alt="Yasa TASKER"
-          width={420}
-          height={420}
-          priority
-          className="mb-4 w-[85vw] max-w-[420px] h-auto"
-        />
-        <h1 className="text-4xl font-bold">Welcome to YASA TASKER</h1>
-        <p className="text-lg text-gray-300 max-w-md">
-          Connect with talented freelancers, collaborate and get paid exclusively
-          in Pi cryptocurrency.
-        </p>
-      </div>
-
-      {/* Feature Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full mb-12">
-        <div className="glass p-6 rounded-2xl text-center">
-          <h2 className="text-2xl font-semibold mb-2">Post Tasks</h2>
-          <p className="text-gray-300 text-sm">
-            Create tasks and find skilled freelancers for your projects.
-          </p>
-        </div>
-        <div className="glass p-6 rounded-2xl text-center">
-          <h2 className="text-2xl font-semibold mb-2">Real-time Chat</h2>
-          <p className="text-gray-300 text-sm">
-            Instant communication with clients.
-          </p>
-        </div>
-        <div className="glass p-6 rounded-2xl text-center">
-          <h2 className="text-2xl font-semibold mb-2">Future Ready</h2>
-          <p className="text-gray-300 text-sm">
-            Built for the decentralized economy.
-          </p>
-        </div>
-      </div>
-
-      {/* Login Button */}
-      <div className="w-full flex items-center justify-center">
-        <button
-          onClick={handlePiLogin}
-          disabled={!piReady || isLoading}
-          className={`glass px-10 py-4 rounded-xl text-white text-lg font-semibold transition duration-300 backdrop-blur-lg shadow-lg border border-white/20 ${
-            isLoading
-              ? "bg-white/10 cursor-not-allowed"
-              : "hover:bg-white/20 active:scale-95 active:shadow-inner"
-          }`}
+      {/* Dark overlay for better contrast */}
+      <div className="absolute inset-0 bg-black/30" />
+      
+      {/* Main Glass Card - Pill/Capsule Shape */}
+      <div className="relative z-10 mx-4">
+        <div 
+          className="flex flex-col items-center text-center px-8 py-10 md:px-12 md:py-14"
+          style={{
+            background: "rgba(255, 255, 255, 0.15)",
+            backdropFilter: "blur(25px)",
+            WebkitBackdropFilter: "blur(25px)",
+            borderRadius: "80px",
+            border: "1px solid rgba(255, 255, 255, 0.3)",
+            boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+            minWidth: "320px",
+            maxWidth: "420px",
+          }}
         >
-          {isLoading
-            ? "Connecting..."
-            : piReady
-            ? "Login with Pi"
-            : "Loading Pi SDK..."}
-        </button>
+          {/* Circular Logo Image */}
+          <div 
+            className="mb-6 overflow-hidden"
+            style={{
+              width: "120px",
+              height: "120px",
+              borderRadius: "50%",
+              border: "3px solid rgba(255, 255, 255, 0.4)",
+              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3)",
+            }}
+          >
+            <Image
+              src="/yasa-s-logo.png"
+              alt="YASA Logo"
+              width={120}
+              height={120}
+              className="object-cover w-full h-full"
+              priority
+            />
+          </div>
+
+          {/* Text Content */}
+          <div className="space-y-1">
+            {/* Welcome to */}
+            <p 
+              className="text-sm tracking-widest uppercase"
+              style={{ 
+                color: "rgba(255, 255, 255, 0.7)",
+                textShadow: "0 1px 2px rgba(0,0,0,0.2)"
+              }}
+            >
+              Welcome to
+            </p>
+            
+            {/* YASA TASKER - Large */}
+            <h1 
+              className="text-3xl md:text-4xl font-light tracking-wide mb-4"
+              style={{ 
+                color: "rgba(255, 255, 255, 0.95)",
+                textShadow: "0 2px 10px rgba(0,0,0,0.3)",
+                letterSpacing: "0.05em"
+              }}
+            >
+              YASA TASKER
+            </h1>
+            
+            {/* Post tasks */}
+            <p 
+              className="text-base md:text-lg font-light"
+              style={{ 
+                color: "rgba(255, 255, 255, 0.85)",
+                textShadow: "0 1px 3px rgba(0,0,0,0.2)"
+              }}
+            >
+              Post tasks
+            </p>
+            
+            {/* Real time chat - minimal gap */}
+            <p 
+              className="text-sm md:text-base font-light leading-tight"
+              style={{ 
+                color: "rgba(255, 255, 255, 0.75)",
+                textShadow: "0 1px 2px rgba(0,0,0,0.2)",
+                marginTop: "2px"
+              }}
+            >
+              Real time chat
+            </p>
+            
+            {/* future ready - minimal gap */}
+            <p 
+              className="text-sm md:text-base font-light leading-tight"
+              style={{ 
+                color: "rgba(255, 255, 255, 0.75)",
+                textShadow: "0 1px 2px rgba(0,0,0,0.2)",
+                marginTop: "2px"
+              }}
+            >
+              future ready
+            </p>
+          </div>
+
+          {/* Login with Pi Button - White Background */}
+          <button
+            onClick={handlePiLogin}
+            disabled={!piReady || isLoading}
+            className="mt-8 px-8 py-3 rounded-full font-semibold text-sm transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{
+              background: "rgba(255, 255, 255, 0.95)",
+              color: "#000",
+              boxShadow: "0 4px 15px rgba(0, 0, 0, 0.2)",
+              border: "none",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(255, 255, 255, 1)";
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "0 6px 20px rgba(0, 0, 0, 0.25)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.95)";
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 4px 15px rgba(0, 0, 0, 0.2)";
+            }}
+            onMouseDown={(e) => {
+              e.currentTarget.style.transform = "translateY(0) scale(0.98)";
+            }}
+            onMouseUp={(e) => {
+              e.currentTarget.style.transform = "translateY(-2px) scale(1)";
+            }}
+          >
+            {isLoading
+              ? "Connecting..."
+              : piReady
+              ? "Login with Pi"
+              : "Loading Pi SDK..."}
+          </button>
+        </div>
       </div>
     </div>
   );
