@@ -52,22 +52,49 @@ export async function POST(req: Request) {
     const email = `${safe}@pi.mock`;
 
     step = "Checking existing user";
-    // 2️⃣ Check if user exists
+    // 2️⃣ Check if user exists by email OR by pi_uid in profiles
     console.log("📋 Checking for existing user with email:", email);
     const adminClient = getAdminClient();
     if (!adminClient) {
       throw new Error("Failed to initialize Supabase admin client at step: " + step);
     }
     
-    const { data: userList, error: listError } = await adminClient.auth.admin.listUsers();
+    // First, try to find user by checking profiles table for pi_uid
+    console.log("📋 Also checking profiles for pi_uid:", pi_uid);
+    const { data: existingProfile, error: profileLookupError } = await adminClient
+      .from("profiles")
+      .select("id, pi_uid, email")
+      .eq("pi_uid", pi_uid)
+      .maybeSingle();
     
-    if (listError) {
-      console.error("❌ Error listing users:", listError);
-      throw new Error(`Failed to list users: ${listError.message}`);
+    if (profileLookupError) {
+      console.error("❌ Error looking up profile by pi_uid:", profileLookupError);
     }
     
-    let existingUser = userList.users.find((u) => u.email === email);
-    console.log("👤 Existing user found:", !!existingUser);
+    let existingUser = null;
+    
+    if (existingProfile) {
+      console.log("✅ Found existing profile by pi_uid:", existingProfile.id);
+      // Get the auth user by ID from the profile
+      const { data: userList, error: listError } = await adminClient.auth.admin.listUsers();
+      if (!listError) {
+        existingUser = userList.users.find((u) => u.id === existingProfile.id);
+      }
+    }
+    
+    // If not found by profile, search by email
+    if (!existingUser) {
+      const { data: userList, error: listError } = await adminClient.auth.admin.listUsers();
+      
+      if (listError) {
+        console.error("❌ Error listing users:", listError);
+        throw new Error(`Failed to list users: ${listError.message}`);
+      }
+      
+      existingUser = userList.users.find((u) => u.email === email);
+    }
+    
+    console.log("👤 Existing user found:", !!existingUser, existingUser ? `(ID: ${existingUser.id})` : "");
 
     step = "Creating user if needed";
     // 3️⃣ Create user if missing
@@ -92,13 +119,28 @@ export async function POST(req: Request) {
         const errorMsg = createResult.error.message || "";
         if (errorMsg.includes("already been registered") || errorMsg.includes("already exists")) {
           console.log("⚠️ User already exists, fetching existing user...");
-          const { data: userList2, error: listError2 } = await adminClient.auth.admin.listUsers();
-          if (listError2) {
-            throw new Error(`Failed to list users after create conflict: ${listError2.message}`);
+          
+          // If we already found the profile earlier, use that ID
+          if (existingProfile) {
+            console.log("📋 Using existing profile ID from earlier lookup:", existingProfile.id);
+            const { data: userList2, error: listError2 } = await adminClient.auth.admin.listUsers();
+            if (listError2) {
+              throw new Error(`Failed to list users after create conflict: ${listError2.message}`);
+            }
+            existingUser = userList2.users.find((u) => u.id === existingProfile.id);
           }
-          existingUser = userList2.users.find((u) => u.email === email);
+          
+          // Fallback: search by email
           if (!existingUser) {
-            throw new Error("Could not find existing user after create conflict");
+            const { data: userList2, error: listError2 } = await adminClient.auth.admin.listUsers();
+            if (listError2) {
+              throw new Error(`Failed to list users after create conflict: ${listError2.message}`);
+            }
+            existingUser = userList2.users.find((u) => u.email === email);
+          }
+          
+          if (!existingUser) {
+            throw new Error("Could not find existing user after create conflict (tried profile ID and email)");
           }
           console.log("✅ Found existing user:", existingUser.id);
         } else {
