@@ -19,9 +19,12 @@ function getAdminClient() {
 }
 
 export async function POST(req: Request) {
+  let step = "Parsing request";
   try {
     const { username, pi_uid, avatar_url } = await req.json();
     console.log("🔵 LOGIN API:", { username, pi_uid });
+
+    step = "Checking env vars";
 
     // Check environment variables
     if (!supabaseUrl || !serviceRoleKey || !anonKey) {
@@ -38,20 +41,22 @@ export async function POST(req: Request) {
 
     if (!pi_uid || !username) {
       return NextResponse.json(
-        { error: "Missing Pi user data" },
+        { error: "Missing Pi user data", step },
         { status: 400 }
       );
     }
 
+    step = "Creating email";
     // 1️⃣ Deterministic email
     const safe = pi_uid.replace(/[^a-zA-Z0-9]/g, "").slice(-12);
     const email = `${safe}@pi.mock`;
 
+    step = "Checking existing user";
     // 2️⃣ Check if user exists
     console.log("📋 Checking for existing user with email:", email);
     const adminClient = getAdminClient();
     if (!adminClient) {
-      throw new Error("Failed to initialize Supabase admin client");
+      throw new Error("Failed to initialize Supabase admin client at step: " + step);
     }
     
     const { data: userList, error: listError } = await adminClient.auth.admin.listUsers();
@@ -64,6 +69,7 @@ export async function POST(req: Request) {
     let existingUser = userList.users.find((u) => u.email === email);
     console.log("👤 Existing user found:", !!existingUser);
 
+    step = "Creating user if needed";
     // 3️⃣ Create user if missing
     let newUser = null;
 
@@ -86,6 +92,7 @@ export async function POST(req: Request) {
     const authUser = existingUser || newUser;
     console.log("✅ Auth user:", authUser.id);
 
+    step = "Generating magic link";
     // 4️⃣ Generate a magic link and immediately use it to create a session
     console.log("🔗 Generating magic link for:", email);
     const { data: linkData, error: linkErr } = await adminClient.auth.admin.generateLink({
@@ -108,6 +115,7 @@ export async function POST(req: Request) {
     const verifyUrl = `${supabaseUrl}/auth/v1/verify`;
     console.log("🌐 Calling verify endpoint:", verifyUrl);
 
+    step = "Verifying session";
     // 5️⃣ Use the hashed token to create a session via the REST API
     const sessionResponse = await fetch(verifyUrl, {
       method: "POST",
@@ -130,7 +138,7 @@ export async function POST(req: Request) {
 
     if (!sessionResponse.ok) {
       console.error("❌ Session verification failed:", sessionData);
-      throw new Error(`Session verification failed: ${sessionData.error_description || sessionData.error}`);
+      throw new Error(`Session verification failed at step [${step}]: ${sessionData.error_description || sessionData.error}`);
     }
 
     // Tokens can be at top level or in session object
@@ -139,11 +147,12 @@ export async function POST(req: Request) {
 
     if (!access_token || !refresh_token) {
       console.error("❌ No tokens in session response:", sessionData);
-      throw new Error("Failed to extract tokens from session");
+      throw new Error(`Failed to extract tokens from session at step [${step}]`);
     }
 
     console.log("✅ Session tokens obtained successfully");
 
+    step = "Upserting profile";
     // 6️⃣ Update or insert profile
     const { error: profileErr } = await adminClient.from("profiles").upsert(
       {
@@ -156,7 +165,7 @@ export async function POST(req: Request) {
 
     if (profileErr) {
       console.error("❌ Profile upsert error:", profileErr);
-      throw profileErr;
+      throw new Error(`Profile upsert failed at step [${step}]: ${profileErr.message}`);
     }
 
     console.log("✅ Profile upserted successfully");
@@ -172,10 +181,10 @@ export async function POST(req: Request) {
       access_token,
       refresh_token,
     });
-  } catch (error) {
-    console.error("❌ Login error:", error);
+  } catch (error: any) {
+    console.error("❌ Login error at step [" + step + "]:", error);
     return NextResponse.json(
-      { error: "Login failed", details: String(error) },
+      { error: "Login failed at [" + step + "]", details: error?.message || String(error) },
       { status: 500 }
     );
   }
