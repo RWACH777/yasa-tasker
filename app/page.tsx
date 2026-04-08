@@ -13,6 +13,85 @@ export default function Home() {
 
   const [piReady, setPiReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAutoLoggingIn, setIsAutoLoggingIn] = useState(false);
+
+  // Check for auto-login on mount
+  useEffect(() => {
+    const checkAutoLogin = async () => {
+      if (typeof window === "undefined") return;
+      
+      // Check if user has logged in before
+      const hasLoggedInBefore = localStorage.getItem("yasa_has_logged_in") === "true";
+      
+      if (hasLoggedInBefore) {
+        console.log("🔄 User has logged in before, attempting auto-login...");
+        setIsAutoLoggingIn(true);
+        
+        // Try to restore session from Supabase
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (session) {
+          console.log("✅ Existing session found, redirecting to dashboard");
+          router.push("/dashboard");
+          return;
+        }
+        
+        // No session, need to re-authenticate with Pi
+        const Pi = (window as any).Pi;
+        if (Pi) {
+          try {
+            Pi.init({ version: "2.0", sandbox: false });
+            const authResult = await Pi.authenticate(["username", "payments", "wallet_address"], () => {});
+            if (authResult?.user) {
+              await handleAutoLogin(authResult.user);
+            }
+          } catch (err) {
+            console.error("Auto-login failed:", err);
+            setIsAutoLoggingIn(false);
+            setPiReady(true);
+          }
+        } else {
+          setIsAutoLoggingIn(false);
+          setPiReady(true);
+        }
+      }
+    };
+    
+    checkAutoLogin();
+  }, []);
+
+  // Auto-login handler
+  const handleAutoLogin = async (piUser: any) => {
+    try {
+      const username = piUser.username ?? "Unknown";
+      const pi_uid = piUser.uid ?? "";
+      const avatar_url = piUser.photo ?? null;
+      const wallet_address = (piUser as any).wallet_address ?? null;
+
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pi_uid, username, avatar_url, wallet_address }),
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.access_token && result.refresh_token) {
+        await supabase.auth.setSession({
+          access_token: result.access_token,
+          refresh_token: result.refresh_token,
+        });
+        router.push("/dashboard");
+      } else {
+        setIsAutoLoggingIn(false);
+        setPiReady(true);
+      }
+    } catch (err) {
+      console.error("Auto-login error:", err);
+      setIsAutoLoggingIn(false);
+      setPiReady(true);
+    }
+  };
 
   // Initialize Pi SDK
   useEffect(() => {
@@ -20,8 +99,8 @@ export default function Home() {
       try {
         const isLocal = typeof window !== "undefined" && window.location.hostname === "localhost";
         
-        if (isLocal) {
-          console.log("🔧 Local mode: Pi SDK not required");
+        if (isLocal || isAutoLoggingIn) {
+          console.log("🔧 Local mode or auto-logging in: Pi SDK init skipped");
           setPiReady(true);
           return;
         }
@@ -80,12 +159,13 @@ export default function Home() {
     if (typeof window === "undefined") return;
 
     let step = "Starting";
+    let authResult: any = null;
     try {
       setIsLoading(true);
       console.log("🔵 handlePiLogin started");
 
       const isLocal = window.location.hostname === "localhost";
-      let username, pi_uid, avatar_url;
+      let username, pi_uid, avatar_url, wallet_address;
 
       if (isLocal) {
         step = "Local mode";
@@ -93,6 +173,7 @@ export default function Home() {
         username = "LocalUser";
         pi_uid = "local_user_123";
         avatar_url = null;
+        wallet_address = null;
       } else {
         step = "Checking Pi SDK";
         const Pi = (window as any).Pi;
@@ -103,11 +184,10 @@ export default function Home() {
         }
 
         step = "Pi.authenticate";
-        console.log("✅ Pi SDK ready, calling authenticate...");
+        console.log("✅ Pi SDK ready, calling authenticate with wallet_address...");
 
-        let authResult;
         try {
-          const scopes = ["username", "payments"];
+          const scopes = ["username", "payments", "wallet_address"];
           authResult = await Pi.authenticate(scopes, (payment: any) => {
             console.log("🪙 Incomplete payment:", payment);
           });
@@ -127,6 +207,7 @@ export default function Home() {
         username = authResult.user.username ?? "Unknown";
         pi_uid = authResult.user.uid ?? "";
         avatar_url = authResult.user.photo ?? null;
+        wallet_address = (authResult.user as any).wallet_address ?? null;
       }
 
       step = "API test";
@@ -148,7 +229,7 @@ export default function Home() {
         response = await fetch("/api/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pi_uid, username, avatar_url }),
+          body: JSON.stringify({ pi_uid, username, avatar_url, wallet_address }),
         });
         result = await response.json();
         console.log("🔵 /api/login response:", { ok: response.ok, status: response.status, result });
@@ -160,7 +241,9 @@ export default function Home() {
 
       step = "Checking response";
       if (!response.ok) {
-        alert("Server error: " + (result.error || "Unknown"));
+        const errorMsg = result.error || "Unknown";
+        const errorDetails = result.details || "";
+        alert("Server error: " + errorMsg + (errorDetails ? " - " + errorDetails : ""));
         throw new Error(result.error || "Failed to save user");
       }
 
@@ -181,6 +264,10 @@ export default function Home() {
         }
         
         console.log("✅ Session set successfully");
+        
+        // Save flag that user has logged in before
+        localStorage.setItem("yasa_has_logged_in", "true");
+        console.log("✅ Saved yasa_has_logged_in flag");
       } else {
         console.error("❌ Missing tokens in result:", result);
         alert("No tokens from server");
