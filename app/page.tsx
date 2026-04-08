@@ -79,6 +79,7 @@ export default function Home() {
   const handlePiLogin = async () => {
     if (typeof window === "undefined") return;
 
+    let step = "Starting";
     try {
       setIsLoading(true);
       console.log("🔵 handlePiLogin started");
@@ -87,18 +88,21 @@ export default function Home() {
       let username, pi_uid, avatar_url;
 
       if (isLocal) {
+        step = "Local mode";
         console.log("🔧 Local mode: Using fake Pi user");
         username = "LocalUser";
         pi_uid = "local_user_123";
         avatar_url = null;
       } else {
+        step = "Checking Pi SDK";
         const Pi = (window as any).Pi;
         if (!Pi) {
-          alert("⚠️ Pi SDK not loaded yet.");
+          alert("⚠️ Pi SDK not loaded yet. Please wait a moment and try again.");
           setIsLoading(false);
           return;
         }
 
+        step = "Pi.authenticate";
         console.log("✅ Pi SDK ready, calling authenticate...");
 
         let authResult;
@@ -110,10 +114,13 @@ export default function Home() {
           console.log("✅ Pi authenticate success:", authResult);
         } catch (authError: any) {
           console.error("❌ Pi authenticate failed:", authError);
-          throw new Error("Pi authentication failed: " + (authError?.message || "Unknown error"));
+          alert("Pi auth failed: " + JSON.stringify(authError));
+          throw new Error("Pi authentication failed: " + (authError?.message || JSON.stringify(authError)));
         }
 
+        step = "Checking auth result";
         if (!authResult?.user) {
+          alert("No user data from Pi");
           throw new Error("Pi authentication returned no user data");
         }
 
@@ -122,17 +129,20 @@ export default function Home() {
         avatar_url = authResult.user.photo ?? null;
       }
 
+      step = "API test";
       console.log("🔵 Calling /api/login with:", { pi_uid, username });
       
       try {
         const testResponse = await fetch("/api/test");
         const testResult = await testResponse.json();
         console.log("✅ API connectivity test passed:", testResult);
-      } catch (testError) {
+      } catch (testError: any) {
         console.error("❌ API connectivity test failed:", testError);
+        alert("API test failed: " + testError.message);
         throw new Error("API server is not responding");
       }
       
+      step = "/api/login call";
       let response, result;
       try {
         response = await fetch("/api/login", {
@@ -142,15 +152,19 @@ export default function Home() {
         });
         result = await response.json();
         console.log("🔵 /api/login response:", { ok: response.ok, status: response.status, result });
-      } catch (fetchError) {
+      } catch (fetchError: any) {
         console.error("❌ Network error calling /api/login:", fetchError);
+        alert("Network error: " + fetchError.message);
         throw new Error("Network error: Could not reach login server");
       }
 
+      step = "Checking response";
       if (!response.ok) {
+        alert("Server error: " + (result.error || "Unknown"));
         throw new Error(result.error || "Failed to save user");
       }
 
+      step = "Setting session";
       console.log("✅ User synced with Supabase:", result);
 
       if (result.access_token && result.refresh_token) {
@@ -162,20 +176,22 @@ export default function Home() {
         
         if (sessionError) {
           console.error("❌ Error setting session:", sessionError);
+          alert("Session error: " + sessionError.message);
           throw new Error("Failed to set user session: " + sessionError.message);
         }
         
         console.log("✅ Session set successfully");
       } else {
         console.error("❌ Missing tokens in result:", result);
+        alert("No tokens from server");
         throw new Error("No tokens received from server");
       }
 
       alert("🎉 Welcome " + username + "!");
       router.push("/dashboard");
     } catch (err: any) {
-      console.error("❌ Pi login error:", err);
-      alert("Login failed: " + (err?.message || JSON.stringify(err)));
+      console.error("❌ Pi login error at step [" + step + "]:", err);
+      alert("Login failed at [" + step + "]: " + (err?.message || JSON.stringify(err)));
     } finally {
       setIsLoading(false);
     }
