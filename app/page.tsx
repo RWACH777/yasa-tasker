@@ -27,7 +27,16 @@ export default function Home() {
         }
 
         if (typeof window !== "undefined" && (window as any).Pi) {
-          console.log("✅ Pi SDK initialized (already present)");
+          console.log("✅ Pi SDK found, initializing...");
+          try {
+            (window as any).Pi.init({
+              version: "2.0",
+              sandbox: false,
+            });
+            console.log("✅ Pi SDK initialized successfully");
+          } catch (initError) {
+            console.error("❌ Pi SDK initialization failed:", initError);
+          }
           setPiReady(true);
         } else {
           console.log("⚙️ Waiting for Pi SDK...");
