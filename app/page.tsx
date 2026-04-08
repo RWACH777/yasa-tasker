@@ -99,16 +99,27 @@ export default function Home() {
           return;
         }
 
-        console.log("✅ Pi SDK initialized");
+        console.log("✅ Pi SDK ready, calling authenticate...");
 
-        const scopes = ["username", "payments"];
-        const authResult = await Pi.authenticate(scopes, (payment: any) => {
-          console.log("🪙 Incomplete payment:", payment);
-        });
+        let authResult;
+        try {
+          const scopes = ["username", "payments"];
+          authResult = await Pi.authenticate(scopes, (payment: any) => {
+            console.log("🪙 Incomplete payment:", payment);
+          });
+          console.log("✅ Pi authenticate success:", authResult);
+        } catch (authError: any) {
+          console.error("❌ Pi authenticate failed:", authError);
+          throw new Error("Pi authentication failed: " + (authError?.message || "Unknown error"));
+        }
 
-        username = authResult?.user?.username ?? "Unknown";
-        pi_uid = authResult?.user?.uid ?? "";
-        avatar_url = authResult?.user?.photo ?? null;
+        if (!authResult?.user) {
+          throw new Error("Pi authentication returned no user data");
+        }
+
+        username = authResult.user.username ?? "Unknown";
+        pi_uid = authResult.user.uid ?? "";
+        avatar_url = authResult.user.photo ?? null;
       }
 
       console.log("🔵 Calling /api/login with:", { pi_uid, username });
