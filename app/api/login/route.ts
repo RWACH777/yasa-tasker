@@ -88,14 +88,30 @@ export async function POST(req: Request) {
       }
 
       if (createResult.error) {
-        console.error("❌ Error creating user:", createResult.error);
-        throw new Error(`Failed to create user: ${createResult.error.message || JSON.stringify(createResult.error)}`);
+        // If user already exists, fetch them instead of failing
+        const errorMsg = createResult.error.message || "";
+        if (errorMsg.includes("already been registered") || errorMsg.includes("already exists")) {
+          console.log("⚠️ User already exists, fetching existing user...");
+          const { data: userList2, error: listError2 } = await adminClient.auth.admin.listUsers();
+          if (listError2) {
+            throw new Error(`Failed to list users after create conflict: ${listError2.message}`);
+          }
+          existingUser = userList2.users.find((u) => u.email === email);
+          if (!existingUser) {
+            throw new Error("Could not find existing user after create conflict");
+          }
+          console.log("✅ Found existing user:", existingUser.id);
+        } else {
+          console.error("❌ Error creating user:", createResult.error);
+          throw new Error(`Failed to create user: ${createResult.error.message || JSON.stringify(createResult.error)}`);
+        }
+      } else {
+        newUser = createResult.data?.user;
+        if (!newUser) {
+          throw new Error("createUser returned no user data");
+        }
+        console.log("✅ New user created:", newUser.id);
       }
-      newUser = createResult.data?.user;
-      if (!newUser) {
-        throw new Error("createUser returned no user data");
-      }
-      console.log("✅ New user created:", newUser.id);
     }
 
     const authUser = existingUser || newUser;
