@@ -505,6 +505,16 @@ body {
   background: rgba(255, 255, 255, 0.3);
 }
 
+/* Main App Background - Uses interface.jpg for dashboard and main pages */
+.app-background {
+  min-height: 100vh;
+  background-image: url('/interface.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
 /* Text readability enhancements */
 .glass-text {
   color: white;

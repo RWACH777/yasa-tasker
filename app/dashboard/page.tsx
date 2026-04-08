@@ -936,7 +936,7 @@ const handleUpdateFreelancerUsername = async () => {
 
   // ⭐️ UI WITH SIDEBAR
   return (
-    <div className="min-h-screen text-white flex flex-col items-center px-4 py-10">
+    <div className="app-background min-h-screen text-white flex flex-col items-center px-4 py-10">
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}

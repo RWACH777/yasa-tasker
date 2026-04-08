@@ -205,7 +205,7 @@ export default function MessagesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen text-white flex items-center justify-center">
+      <div className="app-background min-h-screen text-white flex items-center justify-center">
         <p className="glass-text">Loading messages...</p>
       </div>
     );
@@ -213,14 +213,14 @@ export default function MessagesPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen text-white flex items-center justify-center">
+      <div className="app-background min-h-screen text-white flex items-center justify-center">
         <p className="glass-text">Please log in to view messages.</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen text-white flex flex-col">
+    <div className="app-background min-h-screen text-white flex flex-col">
       {/* Header */}
       <div className="glass-nav border-b border-white/20 p-4">
         <div className="max-w-4xl mx-auto flex justify-between items-center">

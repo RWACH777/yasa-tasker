@@ -801,19 +801,25 @@ export default function ChatPage() {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen text-white flex items-center justify-center">
+      <div className="app-background min-h-screen text-white flex items-center justify-center">
         <p className="glass-text">Loading chat...</p>
       </div>
     );
   }
 
   return (
-    <div className="h-screen text-white flex flex-col">
+    <div className="app-background h-screen text-white flex flex-col">
       {/* Error Banner */}
       {error && (
         <div className="glass-button-danger border-b border-red-500/50 p-3 text-sm">
-          <div className="max-w-4xl mx-auto flex justify-between items-center">
-            <span className="text-red-200">{error}</span>
+        <div className="max-w-4xl mx-auto flex justify-between items-center">
+          <span className="text-red-200">{error}</span>
+          <button
+            onClick={() => setError(null)}
+            className="glass-button glass-close w-8 h-8 text-red-300 hover:text-red-100"
+          >
+            ✕
+          </button>
             <button
               onClick={() => setError(null)}
               className="glass-close w-8 h-8 text-red-300 hover:text-red-100"

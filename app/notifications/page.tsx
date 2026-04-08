@@ -227,14 +227,14 @@ export default function NotificationsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen text-white flex items-center justify-center">
+      <div className="app-background min-h-screen text-white flex items-center justify-center">
         <p className="glass-text">Loading notifications...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen text-white flex flex-col items-center px-4 py-10">
+    <div className="app-background min-h-screen text-white flex flex-col items-center px-4 py-10">
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
