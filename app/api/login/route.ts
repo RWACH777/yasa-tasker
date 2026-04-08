@@ -75,15 +75,23 @@ export async function POST(req: Request) {
     
     if (existingProfile) {
       console.log("✅ Found existing profile by pi_uid:", existingProfile.id);
-      // Get the auth user by ID from the profile
-      const { data: userList, error: listError } = await adminClient.auth.admin.listUsers();
-      if (!listError) {
-        existingUser = userList.users.find((u) => u.id === existingProfile.id);
+      // Get the auth user directly by ID
+      try {
+        const { data: userData, error: userError } = await adminClient.auth.admin.getUserById(existingProfile.id);
+        if (!userError && userData?.user) {
+          existingUser = userData.user;
+          console.log("✅ Found auth user by ID:", existingUser.id);
+        } else if (userError) {
+          console.error("❌ Error getting user by ID:", userError);
+        }
+      } catch (err) {
+        console.error("❌ Exception getting user by ID:", err);
       }
     }
     
-    // If not found by profile, search by email
+    // If not found by profile ID, search by email
     if (!existingUser) {
+      console.log("📋 Searching for user by email:", email);
       const { data: userList, error: listError } = await adminClient.auth.admin.listUsers();
       
       if (listError) {
@@ -92,9 +100,12 @@ export async function POST(req: Request) {
       }
       
       existingUser = userList.users.find((u) => u.email === email);
+      if (existingUser) {
+        console.log("✅ Found auth user by email:", existingUser.id);
+      }
     }
     
-    console.log("👤 Existing user found:", !!existingUser, existingUser ? `(ID: ${existingUser.id})` : "");
+    console.log("👤 Final existing user found:", !!existingUser, existingUser ? `(ID: ${existingUser.id}, Email: ${existingUser.email})` : "");
 
     step = "Creating user if needed";
     // 3️⃣ Create user if missing
@@ -120,14 +131,17 @@ export async function POST(req: Request) {
         if (errorMsg.includes("already been registered") || errorMsg.includes("already exists")) {
           console.log("⚠️ User already exists, fetching existing user...");
           
-          // If we already found the profile earlier, use that ID
+          // If we already found the profile earlier, use getUserById
           if (existingProfile) {
             console.log("📋 Using existing profile ID from earlier lookup:", existingProfile.id);
-            const { data: userList2, error: listError2 } = await adminClient.auth.admin.listUsers();
-            if (listError2) {
-              throw new Error(`Failed to list users after create conflict: ${listError2.message}`);
+            try {
+              const { data: userData2, error: userError2 } = await adminClient.auth.admin.getUserById(existingProfile.id);
+              if (!userError2 && userData2?.user) {
+                existingUser = userData2.user;
+              }
+            } catch (err) {
+              console.error("❌ Error in getUserById during conflict:", err);
             }
-            existingUser = userList2.users.find((u) => u.id === existingProfile.id);
           }
           
           // Fallback: search by email
@@ -140,7 +154,7 @@ export async function POST(req: Request) {
           }
           
           if (!existingUser) {
-            throw new Error("Could not find existing user after create conflict (tried profile ID and email)");
+            throw new Error("Could not find existing user after create conflict (tried profile ID and email). The user may exist with a different email format or the profile ID doesn't match any auth user.");
           }
           console.log("✅ Found existing user:", existingUser.id);
         } else {
