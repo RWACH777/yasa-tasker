@@ -75,17 +75,26 @@ export async function POST(req: Request) {
 
     if (!existingUser) {
       console.log("➕ Creating new user with email:", email);
-      const { data, error } = await adminClient.auth.admin.createUser({
-        email,
-        password: crypto.randomUUID(),
-        email_confirm: true,
-      });
-
-      if (error) {
-        console.error("❌ Error creating user:", error);
-        throw new Error(`Failed to create user: ${error.message}`);
+      let createResult;
+      try {
+        createResult = await adminClient.auth.admin.createUser({
+          email,
+          password: crypto.randomUUID(),
+          email_confirm: true,
+        });
+      } catch (createErr: any) {
+        console.error("❌ Exception creating user:", createErr);
+        throw new Error(`Exception creating user: ${createErr?.message || JSON.stringify(createErr)}`);
       }
-      newUser = data.user;
+
+      if (createResult.error) {
+        console.error("❌ Error creating user:", createResult.error);
+        throw new Error(`Failed to create user: ${createResult.error.message || JSON.stringify(createResult.error)}`);
+      }
+      newUser = createResult.data?.user;
+      if (!newUser) {
+        throw new Error("createUser returned no user data");
+      }
       console.log("✅ New user created:", newUser.id);
     }
 
