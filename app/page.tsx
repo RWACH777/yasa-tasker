@@ -20,11 +20,41 @@ export default function Home() {
     const checkAutoLogin = async () => {
       if (typeof window === "undefined") return;
       
-      // Check if user has logged in before
+      // Check if user has logged in before AND has wallet permission
       const hasLoggedInBefore = localStorage.getItem("yasa_has_logged_in") === "true";
+      const hasWalletPermission = localStorage.getItem("yasa_has_wallet") === "true";
       
-      if (hasLoggedInBefore) {
-        console.log("🔄 User has logged in before, attempting auto-login...");
+      // If they logged in before but don't have wallet permission, force re-auth
+      if (hasLoggedInBefore && !hasWalletPermission) {
+        console.log("🔄 User logged in before but missing wallet permission - forcing re-auth...");
+        setIsAutoLoggingIn(true);
+        
+        const Pi = (window as any).Pi;
+        if (Pi) {
+          try {
+            Pi.init({ version: "2.0", sandbox: false });
+            // This will prompt Pi to ask for wallet permission
+            const authResult = await Pi.authenticate(["username", "payments", "wallet_address"], () => {});
+            if (authResult?.user) {
+              // Save wallet permission flag
+              localStorage.setItem("yasa_has_wallet", "true");
+              await handleAutoLogin(authResult.user);
+            }
+          } catch (err) {
+            console.error("Re-auth for wallet failed:", err);
+            setIsAutoLoggingIn(false);
+            setPiReady(true);
+          }
+        } else {
+          setIsAutoLoggingIn(false);
+          setPiReady(true);
+        }
+        return;
+      }
+      
+      // Normal auto-login flow for users with wallet permission
+      if (hasLoggedInBefore && hasWalletPermission) {
+        console.log("🔄 User has logged in before with wallet, attempting auto-login...");
         setIsAutoLoggingIn(true);
         
         // Try to restore session from Supabase
@@ -258,26 +288,27 @@ export default function Home() {
         });
         
         if (sessionError) {
-          console.error("❌ Error setting session:", sessionError);
+          console.error(" Error setting session:", sessionError);
           alert("Session error: " + sessionError.message);
           throw new Error("Failed to set user session: " + sessionError.message);
         }
         
-        console.log("✅ Session set successfully");
+        console.log(" Session set successfully");
         
-        // Save flag that user has logged in before
+        // Save flags that user has logged in before and has wallet permission
         localStorage.setItem("yasa_has_logged_in", "true");
-        console.log("✅ Saved yasa_has_logged_in flag");
+        localStorage.setItem("yasa_has_wallet", "true");
+        console.log(" Saved yasa_has_logged_in and yasa_has_wallet flags");
       } else {
-        console.error("❌ Missing tokens in result:", result);
+        console.error(" Missing tokens in result:", result);
         alert("No tokens from server");
         throw new Error("No tokens received from server");
       }
 
-      alert("🎉 Welcome " + username + "!");
+      alert(" Welcome " + username + "!");
       router.push("/dashboard");
     } catch (err: any) {
-      console.error("❌ Pi login error at step [" + step + "]:", err);
+      console.error(" Pi login error at step [" + step + "]:", err);
       alert("Login failed at [" + step + "]: " + (err?.message || JSON.stringify(err)));
     } finally {
       setIsLoading(false);
