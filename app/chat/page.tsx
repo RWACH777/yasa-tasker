@@ -471,11 +471,19 @@ export default function ChatPage() {
     }
   };
 
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
   const handleFileUpload = async (files: FileList | null) => {
     if (!files || !user?.id || !otherUserId) return;
 
     const file = files[0];
     if (!file) return;
+
+    // Check file size before upload
+    if (file.size > MAX_FILE_SIZE) {
+      setError("❌ File too large. Maximum 5MB allowed.");
+      return;
+    }
 
     // Show preview
     const reader = new FileReader();
@@ -493,31 +501,42 @@ export default function ChatPage() {
     if (!filePreview || !user?.id || !otherUserId) return;
 
     setUploading(true);
+    setError("⏳ Uploading file...");
+    
     try {
-      const file = new File([filePreview.url], filePreview.name, { type: filePreview.type });
-      const fileName = `${user.id}/${otherUserId}/${Date.now()}_${filePreview.name}`;
-      
-      // Convert data URL to blob
+      // Convert data URL back to file blob
       const response = await fetch(filePreview.url);
       const blob = await response.blob();
-      
-      const { error: uploadError } = await supabase.storage
-        .from("message-files")
-        .upload(fileName, blob);
+      const file = new File([blob], filePreview.name, { type: filePreview.type });
 
-      if (!uploadError) {
-        const { data } = supabase.storage
-          .from("message-files")
-          .getPublicUrl(fileName);
-        await sendMessage(data.publicUrl);
-        setFilePreview(null);
-      } else {
-        setError(`❌ File upload failed: ${uploadError.message}`);
+      // Prepare form data for API
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("userId", user.id);
+      formData.append("chatId", `${user.id}_${otherUserId}`);
+
+      // Upload via API to Cloudflare R2
+      const uploadResponse = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const uploadResult = await uploadResponse.json();
+
+      if (!uploadResponse.ok) {
+        throw new Error(uploadResult.error || uploadResult.details || "Upload failed");
       }
-    } catch (err) {
+
+      // Send message with file URL
+      await sendMessage(uploadResult.url);
+      setFilePreview(null);
+      setError(null);
+    } catch (err: any) {
       console.error("File upload error:", err);
+      setError(`❌ File upload failed: ${err.message}`);
+    } finally {
+      setUploading(false);
     }
-    setUploading(false);
   };
 
   const handleVoiceRecord = async () => {
@@ -1049,9 +1068,19 @@ export default function ChatPage() {
             <button
               onClick={uploadAndSendFile}
               disabled={uploading}
-              className="glass-button glass-button-success px-3 py-1 text-sm disabled:opacity-50"
+              className="glass-button glass-button-success px-3 py-1 text-sm disabled:opacity-50 flex items-center gap-2"
             >
-              ✓ Send
+              {uploading ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                  </svg>
+                  Uploading...
+                </>
+              ) : (
+                "✓ Send"
+              )}
             </button>
           </div>
         </div>
