@@ -10,8 +10,8 @@ import RatingModal from "@/app/components/RatingModal";
 interface Message {
   id: string;
   sender_id: string;
-  recipient_id: string;
-  content: string;
+  receiver_id: string;
+  text: string;
   file_url?: string;
   voice_url?: string;
   reply_to_id?: string;
@@ -170,7 +170,7 @@ export default function ChatPage() {
         query = query.eq("task_id", taskId);
       } else {
         query = query.or(
-          `and(sender_id.eq.${user.id},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${user.id})`
+          `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
         );
       }
       
@@ -199,7 +199,7 @@ export default function ChatPage() {
           .from("messages")
           .update({ read: true })
           .eq("sender_id", otherUserId)
-          .eq("recipient_id", user.id)
+          .eq("receiver_id", user.id)
           .or("read.eq.false,read.is.null");
 
         if (error) {
@@ -228,7 +228,7 @@ export default function ChatPage() {
         pollQuery = pollQuery.eq("task_id", taskId);
       } else {
         pollQuery = pollQuery.or(
-          `and(sender_id.eq.${user.id},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${user.id})`
+          `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
         );
       }
       
@@ -255,7 +255,7 @@ export default function ChatPage() {
           table: "messages",
           filter: taskId 
             ? `task_id=eq.${taskId}`
-            : `or(and(sender_id=eq.${user.id},recipient_id=eq.${otherUserId}),and(sender_id=eq.${otherUserId},recipient_id=eq.${user.id}))`,
+            : `or(and(sender_id=eq.${user.id},receiver_id=eq.${otherUserId}),and(sender_id=eq.${otherUserId},receiver_id=eq.${user.id}))`,
         },
         async (payload) => {
           console.log("✅ New message received from subscription:", payload.new);
@@ -285,8 +285,8 @@ export default function ChatPage() {
             const tempMessageIndex = prev.findIndex((m) => 
               m.id.startsWith("temp-") && 
               m.sender_id === payload.new.sender_id && 
-              m.recipient_id === payload.new.recipient_id && 
-              m.content === payload.new.content
+              m.receiver_id === payload.new.receiver_id && 
+              m.text === payload.new.text
             );
             
             if (tempMessageIndex !== -1) {
@@ -311,7 +311,7 @@ export default function ChatPage() {
           event: "UPDATE",
           schema: "public",
           table: "messages",
-          filter: `or(and(sender_id=eq.${user.id},recipient_id=eq.${otherUserId}),and(sender_id=eq.${otherUserId},recipient_id=eq.${user.id}))`,
+          filter: `or(and(sender_id=eq.${user.id},receiver_id=eq.${otherUserId}),and(sender_id=eq.${otherUserId},receiver_id=eq.${user.id}))`,
         },
         (payload) => {
           console.log("Message updated:", payload.new);
@@ -327,7 +327,7 @@ export default function ChatPage() {
           event: "DELETE",
           schema: "public",
           table: "messages",
-          filter: `or(and(sender_id=eq.${user.id},recipient_id=eq.${otherUserId}),and(sender_id=eq.${otherUserId},recipient_id=eq.${user.id}))`,
+          filter: `or(and(sender_id=eq.${user.id},receiver_id=eq.${otherUserId}),and(sender_id=eq.${otherUserId},receiver_id=eq.${user.id}))`,
         },
         (payload) => {
           console.log("Message deleted:", payload.old);
@@ -473,20 +473,6 @@ export default function ChatPage() {
       } catch (err) {
         // Silent fail for polling
       }
-    }, 2000);
-
-    return () => {
-      subscription.unsubscribe();
-      clearInterval(pollInterval);
-    if (replyingTo) messageData.reply_to_id = replyingTo.id;
-
-    // Optimistic update - add message to UI immediately
-    const optimisticMessage: Message = {
-      id: `temp-${Date.now()}`,
-      ...messageData,
-    };
-    setMessages((prev) => [...prev, optimisticMessage]);
-    setNewMessage("");
     setReplyingTo(null);
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
 
@@ -1046,13 +1032,13 @@ export default function ChatPage() {
                   {msg.reply_to_id && messages.find(m => m.id === msg.reply_to_id) && (
                     <div className="text-xs glass-panel rounded p-2 mb-2 border-l-2 border-blue-400">
                       <p className="font-semibold glass-text-accent">Replying to:</p>
-                      <p className="glass-text-muted truncate">{messages.find(m => m.id === msg.reply_to_id)?.content}</p>
+                      <p className="glass-text-muted truncate">{messages.find(m => m.id === msg.reply_to_id)?.text}</p>
                     </div>
                   )}
                   {replyingTo?.id === msg.id && (
                     <div className="text-xs glass-panel rounded p-1 mb-2 border-l-2 border-yellow-400">
                       <p className="font-semibold text-yellow-300">Replying to:</p>
-                      <p className="glass-text-muted truncate">{replyingTo.content}</p>
+                      <p className="glass-text-muted truncate">{replyingTo.text}</p>
                     </div>
                   )}
                   {/* Sender name for received messages */}
@@ -1062,8 +1048,8 @@ export default function ChatPage() {
                     </p>
                   )}
                   {/* Text content - only show if exists */}
-                  {msg.content && (
-                    <p className="text-sm break-words glass-text">{msg.content}</p>
+                  {msg.text && (
+                    <p className="text-sm break-words glass-text">{msg.text}</p>
                   )}
                   {/* File attachment */}
                   {msg.file_url && (
@@ -1156,7 +1142,7 @@ export default function ChatPage() {
           <div className="mb-2 glass-message-sent border-l-4 border-blue-400 rounded p-2 flex justify-between items-center">
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold glass-text-accent">Replying to:</p>
-              <p className="text-sm glass-text truncate">{replyingTo.content}</p>
+              <p className="text-sm glass-text truncate">{replyingTo.text}</p>
             </div>
             <button
               onClick={() => setReplyingTo(null)}
