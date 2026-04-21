@@ -10,8 +10,8 @@ import RatingModal from "@/app/components/RatingModal";
 interface Message {
   id: string;
   sender_id: string;
-  receiver_id: string;
-  text: string;
+  recipient_id: string;
+  content: string;
   file_url?: string;
   voice_url?: string;
   reply_to_id?: string;
@@ -152,7 +152,7 @@ export default function ChatPage() {
         .from("messages")
         .select("*")
         .or(
-          `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
+          `and(sender_id.eq.${user.id},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${user.id})`
         )
         .order("created_at", { ascending: true });
 
@@ -172,7 +172,7 @@ export default function ChatPage() {
           .from("messages")
           .update({ read: true })
           .eq("sender_id", otherUserId)
-          .eq("receiver_id", user.id)
+          .eq("recipient_id", user.id)
           .or("read.eq.false,read.is.null");
 
         if (error) {
@@ -193,7 +193,7 @@ export default function ChatPage() {
         .from("messages")
         .select("*")
         .or(
-          `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
+          `and(sender_id.eq.${user.id},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${user.id})`
         )
         .order("created_at", { ascending: true });
 
@@ -216,7 +216,7 @@ export default function ChatPage() {
           event: "INSERT",
           schema: "public",
           table: "messages",
-          filter: `or(and(sender_id=eq.${user.id},receiver_id=eq.${otherUserId}),and(sender_id=eq.${otherUserId},receiver_id=eq.${user.id}))`,
+          filter: `or(and(sender_id=eq.${user.id},recipient_id=eq.${otherUserId}),and(sender_id=eq.${otherUserId},recipient_id=eq.${user.id}))`,
         },
         (payload) => {
           console.log("✅ New message received from subscription:", payload.new);
@@ -232,8 +232,8 @@ export default function ChatPage() {
             const tempMessageIndex = prev.findIndex((m) => 
               m.id.startsWith("temp-") && 
               m.sender_id === payload.new.sender_id && 
-              m.receiver_id === payload.new.receiver_id && 
-              m.text === payload.new.text
+              m.recipient_id === payload.new.recipient_id && 
+              m.content === payload.new.content
             );
             
             if (tempMessageIndex !== -1) {
@@ -258,7 +258,7 @@ export default function ChatPage() {
           event: "UPDATE",
           schema: "public",
           table: "messages",
-          filter: `or(and(sender_id=eq.${user.id},receiver_id=eq.${otherUserId}),and(sender_id=eq.${otherUserId},receiver_id=eq.${user.id}))`,
+          filter: `or(and(sender_id=eq.${user.id},recipient_id=eq.${otherUserId}),and(sender_id=eq.${otherUserId},recipient_id=eq.${user.id}))`,
         },
         (payload) => {
           console.log("Message updated:", payload.new);
@@ -274,7 +274,7 @@ export default function ChatPage() {
           event: "DELETE",
           schema: "public",
           table: "messages",
-          filter: `or(and(sender_id=eq.${user.id},receiver_id=eq.${otherUserId}),and(sender_id=eq.${otherUserId},receiver_id=eq.${user.id}))`,
+          filter: `or(and(sender_id=eq.${user.id},recipient_id=eq.${otherUserId}),and(sender_id=eq.${otherUserId},recipient_id=eq.${user.id}))`,
         },
         (payload) => {
           console.log("Message deleted:", payload.old);
@@ -425,23 +425,6 @@ export default function ChatPage() {
     return () => {
       subscription.unsubscribe();
       clearInterval(pollInterval);
-    };
-  }, [taskId, user?.id, otherUserId, taskStatus]);
-
-  const sendMessage = async (fileUrl?: string, voiceUrl?: string) => {
-    if ((!newMessage.trim() && !fileUrl && !voiceUrl) || !user?.id || !otherUserId) {
-      return;
-    }
-
-    const messageData: any = {
-      sender_id: user.id,
-      receiver_id: otherUserId,
-      text: newMessage || (fileUrl ? "[File shared]" : "[Voice message]"),
-      created_at: new Date().toISOString(),
-    };
-
-    if (fileUrl) messageData.file_url = fileUrl;
-    if (voiceUrl) messageData.voice_url = voiceUrl;
     if (replyingTo) messageData.reply_to_id = replyingTo.id;
 
     // Optimistic update - add message to UI immediately
@@ -1005,16 +988,16 @@ export default function ChatPage() {
                   {msg.reply_to_id && messages.find(m => m.id === msg.reply_to_id) && (
                     <div className="text-xs glass-panel rounded p-2 mb-2 border-l-2 border-blue-400">
                       <p className="font-semibold glass-text-accent">Replying to:</p>
-                      <p className="glass-text-muted truncate">{messages.find(m => m.id === msg.reply_to_id)?.text}</p>
+                      <p className="glass-text-muted truncate">{messages.find(m => m.id === msg.reply_to_id)?.content}</p>
                     </div>
                   )}
                   {replyingTo?.id === msg.id && (
                     <div className="text-xs glass-panel rounded p-1 mb-2 border-l-2 border-yellow-400">
                       <p className="font-semibold text-yellow-300">Replying to:</p>
-                      <p className="glass-text-muted truncate">{replyingTo.text}</p>
+                      <p className="glass-text-muted truncate">{replyingTo.content}</p>
                     </div>
                   )}
-                  <p className="text-sm break-words glass-text">{msg.text}</p>
+                  <p className="text-sm break-words glass-text">{msg.content}</p>
                   {msg.file_url && (
                     <button
                       onClick={() => setMediaView({ url: msg.file_url!, type: msg.file_url!.includes('.pdf') ? 'application/pdf' : 'file' })}
@@ -1093,7 +1076,7 @@ export default function ChatPage() {
           <div className="mb-2 glass-message-sent border-l-4 border-blue-400 rounded p-2 flex justify-between items-center">
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold glass-text-accent">Replying to:</p>
-              <p className="text-sm glass-text truncate">{replyingTo.text}</p>
+              <p className="text-sm glass-text truncate">{replyingTo.content}</p>
             </div>
             <button
               onClick={() => setReplyingTo(null)}
