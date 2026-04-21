@@ -473,6 +473,37 @@ export default function ChatPage() {
       } catch (err) {
         // Silent fail for polling
       }
+    }, 2000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearInterval(pollInterval);
+    };
+  }, [taskId, user?.id, otherUser?.id, taskStatus]);
+
+  const sendMessage = async (fileUrl?: string, voiceUrl?: string) => {
+    if ((!newMessage.trim() && !fileUrl && !voiceUrl) || !user?.id || !otherUserId) {
+      return;
+    }
+
+    const messageData: any = {
+      sender_id: user.id,
+      receiver_id: otherUserId,
+      text: newMessage || (fileUrl ? "[File shared]" : "[Voice message]"),
+      created_at: new Date().toISOString(),
+    };
+
+    if (fileUrl) messageData.file_url = fileUrl;
+    if (voiceUrl) messageData.voice_url = voiceUrl;
+    if (replyingTo) messageData.reply_to_id = replyingTo.id;
+
+    // Optimistic update - add message to UI immediately
+    const optimisticMessage: Message = {
+      id: `temp-${Date.now()}`,
+      ...messageData,
+    };
+    setMessages((prev) => [...prev, optimisticMessage]);
+    setNewMessage("");
     setReplyingTo(null);
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
 
