@@ -92,7 +92,7 @@ export default function ChatPage() {
       try {
         const { data, error } = await supabase
           .from("profiles")
-          .select("*")
+          .select("id, username, freelancer_username, avatar_url, rating, completed_tasks, average_rating")
           .eq("id", otherUserId)
           .single();
         
@@ -148,7 +148,9 @@ export default function ChatPage() {
     if (!user?.id || !otherUserId) return;
 
     const loadMessages = async () => {
-      const { data } = await supabase
+      console.log("🔵 Loading messages for:", { userId: user.id, otherUserId });
+      
+      const { data, error } = await supabase
         .from("messages")
         .select("*")
         .or(
@@ -156,6 +158,13 @@ export default function ChatPage() {
         )
         .order("created_at", { ascending: true });
 
+      if (error) {
+        console.error("❌ Error loading messages:", error);
+        setError(`Failed to load messages: ${error.message}`);
+        return;
+      }
+
+      console.log("✅ Messages loaded:", data?.length || 0, data);
       setMessages(data || []);
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -843,12 +852,17 @@ export default function ChatPage() {
                     otherUser.avatar_url ||
                     `https://api.dicebear.com/8.x/thumbs/svg?seed=${otherUser.username}`
                   }
-                  alt={otherUser.username}
+                  alt={otherUser.freelancer_username || otherUser.username}
                   className="w-10 h-10 glass-avatar"
                 />
                 <div>
                   <div className="flex items-center gap-2">
-                    <h1 className="text-xl font-bold glass-text">{otherUser.username}</h1>
+                    <h1 className="text-xl font-bold glass-text">
+                      {otherUser.freelancer_username || otherUser.username}
+                    </h1>
+                    {otherUser.freelancer_username && (
+                      <span className="text-xs glass-text-muted">(@{otherUser.username})</span>
+                    )}
                     <span
                       className={`w-3 h-3 rounded-full ${
                         otherUserOnline ? "glass-status-online" : "glass-status-offline"
@@ -997,15 +1011,31 @@ export default function ChatPage() {
                       <p className="glass-text-muted truncate">{replyingTo.content}</p>
                     </div>
                   )}
-                  <p className="text-sm break-words glass-text">{msg.content}</p>
-                  {msg.file_url && (
-                    <button
-                      onClick={() => setMediaView({ url: msg.file_url!, type: msg.file_url!.includes('.pdf') ? 'application/pdf' : 'file' })}
-                      className={`text-xs mt-2 block break-all text-left glass-text-accent hover:underline`}
-                    >
-                      📎 View File
-                    </button>
+                  {/* Text content - only show if exists */}
+                  {msg.content && (
+                    <p className="text-sm break-words glass-text">{msg.content}</p>
                   )}
+                  {/* File attachment */}
+                  {msg.file_url && (
+                    <div className="mt-2">
+                      {msg.file_url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                        <img 
+                          src={msg.file_url} 
+                          alt="Shared image"
+                          className="max-w-[200px] max-h-[200px] rounded-lg cursor-pointer hover:opacity-90"
+                          onClick={() => setMediaView({ url: msg.file_url!, type: 'image' })}
+                        />
+                      ) : (
+                        <button
+                          onClick={() => setMediaView({ url: msg.file_url!, type: msg.file_url!.includes('.pdf') ? 'application/pdf' : 'file' })}
+                          className="text-xs block break-all text-left glass-text-accent hover:underline flex items-center gap-1"
+                        >
+                          📎 {msg.file_url.includes('.pdf') ? 'View PDF' : 'Download File'}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {/* Voice message */}
                   {msg.voice_url && (
                     <audio
                       controls
