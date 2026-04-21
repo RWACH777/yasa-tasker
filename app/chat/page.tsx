@@ -16,6 +16,12 @@ interface Message {
   voice_url?: string;
   reply_to_id?: string;
   created_at: string;
+  sender?: {
+    id: string;
+    username: string;
+    freelancer_username?: string;
+    avatar_url?: string;
+  };
 }
 
 export default function ChatPage() {
@@ -148,15 +154,27 @@ export default function ChatPage() {
     if (!user?.id || !otherUserId) return;
 
     const loadMessages = async () => {
-      console.log("🔵 Loading messages for:", { userId: user.id, otherUserId });
+      console.log("🔵 Loading messages for task:", taskId, "between:", { userId: user.id, otherUserId });
       
-      const { data, error } = await supabase
+      // Query messages by task_id with sender profile joined
+      let query = supabase
         .from("messages")
-        .select("*")
-        .or(
-          `and(sender_id.eq.${user.id},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${user.id})`
-        )
+        .select(`
+          *,
+          sender:sender_id (id, username, freelancer_username, avatar_url)
+        `)
         .order("created_at", { ascending: true });
+      
+      // If taskId exists, filter by it. Otherwise filter by sender/recipient
+      if (taskId) {
+        query = query.eq("task_id", taskId);
+      } else {
+        query = query.or(
+          `and(sender_id.eq.${user.id},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${user.id})`
+        );
+      }
+      
+      const { data, error } = await query;
 
       if (error) {
         console.error("❌ Error loading messages:", error);
@@ -198,13 +216,23 @@ export default function ChatPage() {
 
     // Poll for new messages every 1 second as fallback (in case subscription is slow)
     const pollInterval = setInterval(async () => {
-      const { data } = await supabase
+      let pollQuery = supabase
         .from("messages")
-        .select("*")
-        .or(
-          `and(sender_id.eq.${user.id},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${user.id})`
-        )
+        .select(`
+          *,
+          sender:sender_id (id, username, freelancer_username, avatar_url)
+        `)
         .order("created_at", { ascending: true });
+      
+      if (taskId) {
+        pollQuery = pollQuery.eq("task_id", taskId);
+      } else {
+        pollQuery = pollQuery.or(
+          `and(sender_id.eq.${user.id},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${user.id})`
+        );
+      }
+      
+      const { data } = await pollQuery;
 
       // Only update if there are new messages
       setMessages((prev) => {
@@ -225,10 +253,26 @@ export default function ChatPage() {
           event: "INSERT",
           schema: "public",
           table: "messages",
-          filter: `or(and(sender_id=eq.${user.id},recipient_id=eq.${otherUserId}),and(sender_id=eq.${otherUserId},recipient_id=eq.${user.id}))`,
+          filter: taskId 
+            ? `task_id=eq.${taskId}`
+            : `or(and(sender_id=eq.${user.id},recipient_id=eq.${otherUserId}),and(sender_id=eq.${otherUserId},recipient_id=eq.${user.id}))`,
         },
-        (payload) => {
+        async (payload) => {
           console.log("✅ New message received from subscription:", payload.new);
+          
+          // Fetch sender info for the new message
+          let messageWithSender = payload.new as any;
+          if (payload.new.sender_id) {
+            const { data: sender } = await supabase
+              .from("profiles")
+              .select("id, username, freelancer_username, avatar_url")
+              .eq("id", payload.new.sender_id)
+              .single();
+            if (sender) {
+              messageWithSender = { ...payload.new, sender };
+            }
+          }
+          
           setMessages((prev) => {
             // Check if this exact message already exists by ID
             const messageExists = prev.some((m) => m.id === payload.new.id);
@@ -249,12 +293,12 @@ export default function ChatPage() {
               console.log("Replacing temp message with real one");
               // Replace temp message with real one
               const updated = [...prev];
-              updated[tempMessageIndex] = payload.new as Message;
+              updated[tempMessageIndex] = messageWithSender;
               return updated;
             }
             
             console.log("Adding new message from subscription");
-            return [...prev, payload.new as Message];
+            return [...prev, messageWithSender];
           });
           setTimeout(() => {
             messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -296,7 +340,7 @@ export default function ChatPage() {
       subscription.unsubscribe();
       clearInterval(pollInterval);
     };
-  }, [user?.id, otherUserId]);
+  }, [user?.id, otherUserId, taskId]);
 
   // Load task status
   useEffect(() => {
@@ -1010,6 +1054,12 @@ export default function ChatPage() {
                       <p className="font-semibold text-yellow-300">Replying to:</p>
                       <p className="glass-text-muted truncate">{replyingTo.content}</p>
                     </div>
+                  )}
+                  {/* Sender name for received messages */}
+                  {msg.sender_id !== user.id && msg.sender && (
+                    <p className="text-xs font-semibold glass-text-accent mb-1">
+                      {msg.sender.freelancer_username || msg.sender.username || "Unknown"}
+                    </p>
                   )}
                   {/* Text content - only show if exists */}
                   {msg.content && (
