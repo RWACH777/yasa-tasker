@@ -519,7 +519,8 @@ export default function ChatPage() {
     if (error) {
       const errorMsg = `❌ Failed to send message: ${error.message}`;
       setError(errorMsg);
-      alert(errorMsg);
+      alert("MESSAGE SAVE ERROR: " + error.message);
+      alert("Full error: " + JSON.stringify(error));
       // Remove optimistic message on error
       setMessages((prev) => prev.filter((m) => m.id !== optimisticMessage.id));
     } else if (data && data[0]) {
