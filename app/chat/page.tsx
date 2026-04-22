@@ -512,7 +512,9 @@ export default function ChatPage() {
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
 
     // Send to database
+    console.log("📤 Inserting message to Supabase:", messageData);
     const { error, data } = await supabase.from("messages").insert([messageData]).select();
+    console.log("📥 Supabase response:", { error, data });
 
     if (error) {
       const errorMsg = `❌ Failed to send message: ${error.message}`;
