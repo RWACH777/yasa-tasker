@@ -9,9 +9,11 @@ import RatingModal from "@/app/components/RatingModal";
 
 interface Message {
   id: string;
+  task_id?: string;
   sender_id: string;
   receiver_id: string;
-  text: string;
+  content?: string;
+  text?: string;
   file_url?: string;
   voice_url?: string;
   reply_to_id?: string;
@@ -286,7 +288,7 @@ export default function ChatPage() {
               m.id.startsWith("temp-") && 
               m.sender_id === payload.new.sender_id && 
               m.receiver_id === payload.new.receiver_id && 
-              m.text === payload.new.text
+              (m.content === payload.new.content || m.text === payload.new.text)
             );
             
             if (tempMessageIndex !== -1) {
@@ -487,9 +489,11 @@ export default function ChatPage() {
     }
 
     const messageData: any = {
+      task_id: taskId,
       sender_id: user.id,
       receiver_id: otherUserId,
-      text: newMessage || (fileUrl ? "[File shared]" : "[Voice message]"),
+      content: newMessage || null,
+      text: newMessage || null,
       created_at: new Date().toISOString(),
     };
 
@@ -1063,13 +1067,13 @@ export default function ChatPage() {
                   {msg.reply_to_id && messages.find(m => m.id === msg.reply_to_id) && (
                     <div className="text-xs glass-panel rounded p-2 mb-2 border-l-2 border-blue-400">
                       <p className="font-semibold glass-text-accent">Replying to:</p>
-                      <p className="glass-text-muted truncate">{messages.find(m => m.id === msg.reply_to_id)?.text}</p>
+                      <p className="glass-text-muted truncate">{(messages.find(m => m.id === msg.reply_to_id)?.content || messages.find(m => m.id === msg.reply_to_id)?.text)}</p>
                     </div>
                   )}
                   {replyingTo?.id === msg.id && (
                     <div className="text-xs glass-panel rounded p-1 mb-2 border-l-2 border-yellow-400">
                       <p className="font-semibold text-yellow-300">Replying to:</p>
-                      <p className="glass-text-muted truncate">{replyingTo.text}</p>
+                      <p className="glass-text-muted truncate">{replyingTo.content || replyingTo.text}</p>
                     </div>
                   )}
                   {/* Sender name for received messages */}
@@ -1079,8 +1083,8 @@ export default function ChatPage() {
                     </p>
                   )}
                   {/* Text content - only show if exists */}
-                  {msg.text && (
-                    <p className="text-sm break-words glass-text">{msg.text}</p>
+                  {(msg.content || msg.text) && (
+                    <p className="text-sm break-words glass-text">{msg.content || msg.text}</p>
                   )}
                   {/* File attachment */}
                   {msg.file_url && (
@@ -1173,7 +1177,7 @@ export default function ChatPage() {
           <div className="mb-2 glass-message-sent border-l-4 border-blue-400 rounded p-2 flex justify-between items-center">
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold glass-text-accent">Replying to:</p>
-              <p className="text-sm glass-text truncate">{replyingTo.text}</p>
+              <p className="text-sm glass-text truncate">{replyingTo.content || replyingTo.text}</p>
             </div>
             <button
               onClick={() => setReplyingTo(null)}
