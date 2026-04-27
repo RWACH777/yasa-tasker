@@ -513,16 +513,12 @@ export default function ChatPage() {
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
 
     // Send to database
-    alert("DEBUG: About to insert: " + JSON.stringify(messageData));
-    console.log("📤 Inserting message to Supabase:", messageData);
     const { error, data } = await supabase.from("messages").insert([messageData]).select();
-    console.log("📥 Supabase response:", { error, data });
 
     if (error) {
       const errorMsg = `❌ Failed to send message: ${error.message}`;
       setError(errorMsg);
-      alert("MESSAGE SAVE ERROR: " + error.message);
-      alert("Full error: " + JSON.stringify(error));
+      alert("Failed to save message: " + error.message);
       // Remove optimistic message on error
       setMessages((prev) => prev.filter((m) => m.id !== optimisticMessage.id));
     } else if (data && data[0]) {
@@ -560,19 +556,7 @@ export default function ChatPage() {
   };
 
   const uploadAndSendFile = async () => {
-    if (!filePreview) {
-      alert("DEBUG: No file preview");
-      return;
-    }
-    if (!user?.id) {
-      alert("DEBUG: No user ID");
-      return;
-    }
-    if (!otherUserId) {
-      alert("DEBUG: No otherUserId - chat recipient not set");
-      return;
-    }
-    alert("DEBUG: Starting upload...");
+    if (!filePreview || !user?.id || !otherUserId) return;
 
     setUploading(true);
     setError("⏳ Uploading file...");
@@ -596,21 +580,17 @@ export default function ChatPage() {
       });
 
       const uploadResult = await uploadResponse.json();
-      alert("DEBUG: Upload response: " + JSON.stringify(uploadResult));
 
       if (!uploadResponse.ok) {
         throw new Error(uploadResult.error || uploadResult.details || "Upload failed");
       }
 
-      alert("DEBUG: Upload success, fileUrl: " + uploadResult.url);
       // Send message with file URL
       await sendMessage(uploadResult.url);
-      alert("DEBUG: sendMessage completed");
       setFilePreview(null);
       setError(null);
     } catch (err: any) {
       console.error("File upload error:", err);
-      alert("DEBUG ERROR: " + err.message);
       setError(`❌ File upload failed: ${err.message}`);
     } finally {
       setUploading(false);
