@@ -1097,13 +1097,27 @@ export default function ChatPage() {
                           className="max-w-[200px] max-h-[200px] rounded-lg cursor-pointer hover:opacity-90"
                           onClick={() => setMediaView({ url: msg.file_url!, type: 'image' })}
                         />
-                      ) : (
-                        <button
-                          onClick={() => setMediaView({ url: msg.file_url!, type: msg.file_url!.includes('.pdf') ? 'application/pdf' : 'file' })}
+                      ) : msg.file_url?.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|zip|rar|mp3|mp4|mov|avi)$/i) ? (
+                        // Downloadable files - open in new tab
+                        <a
+                          href={msg.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download
                           className="text-xs block break-all text-left glass-text-accent hover:underline flex items-center gap-1"
                         >
                           📎 {msg.file_url.includes('.pdf') ? 'View PDF' : 'Download File'}
-                        </button>
+                        </a>
+                      ) : (
+                        // Other files - open in new tab
+                        <a
+                          href={msg.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs block break-all text-left glass-text-accent hover:underline flex items-center gap-1"
+                        >
+                          📎 Open File
+                        </a>
                       )}
                     </div>
                   )}
