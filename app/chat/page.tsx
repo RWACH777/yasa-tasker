@@ -50,6 +50,7 @@ export default function ChatPage() {
   const [ratingLoading, setRatingLoading] = useState(false);
   const [taskStatus, setTaskStatus] = useState<string | null>(null);
   const [taskPosterId, setTaskPosterId] = useState<string | null>(null);
+  const [task, setTask] = useState<any>(null);
   const [hasRatedThisTask, setHasRatedThisTask] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -352,7 +353,7 @@ export default function ChatPage() {
       try {
         const { data, error } = await supabase
           .from("tasks")
-          .select("status, poster_id")
+          .select("id, title, status, poster_id, assignee_id, budget, payment_status, payment_completed_at")
           .eq("id", taskId)
           .single();
 
@@ -362,7 +363,8 @@ export default function ChatPage() {
         }
 
         if (data) {
-          console.log("Task loaded:", { status: data.status, poster_id: data.poster_id, current_user: user?.id });
+          console.log("Task loaded:", { status: data.status, poster_id: data.poster_id, current_user: user?.id, payment_status: data.payment_status });
+          setTask(data);
           setTaskStatus(data.status);
           setTaskPosterId(data.poster_id);
           
@@ -416,6 +418,7 @@ export default function ChatPage() {
         async (payload) => {
           console.log("✅ Real-time task update received:", payload.new);
           console.log("Current state - user:", user?.id, "otherUser:", otherUser?.id, "taskId:", taskId);
+          setTask(payload.new);
           setTaskStatus(payload.new.status);
           setTaskPosterId(payload.new.poster_id);
           
@@ -462,15 +465,18 @@ export default function ChatPage() {
       try {
         const { data } = await supabase
           .from("tasks")
-          .select("status, poster_id")
+          .select("id, title, status, poster_id, assignee_id, budget, payment_status, payment_completed_at")
           .eq("id", taskId)
           .single();
 
-        if (data && data.status === "completed" && taskStatus !== "completed") {
-          console.log("📊 Polling detected task completion!");
-          setTaskStatus(data.status);
-          setTaskPosterId(data.poster_id);
-          setTimeout(() => setShowRatingModal(true), 500);
+        if (data) {
+          setTask(data);
+          if (data.status === "completed" && taskStatus !== "completed") {
+            console.log("📊 Polling detected task completion!");
+            setTaskStatus(data.status);
+            setTaskPosterId(data.poster_id);
+            setTimeout(() => setShowRatingModal(true), 500);
+          }
         }
       } catch (err) {
         // Silent fail for polling
@@ -952,10 +958,11 @@ export default function ChatPage() {
                 onClick={async () => {
                   const { data } = await supabase
                     .from("tasks")
-                    .select("status, poster_id")
+                    .select("id, title, status, poster_id, assignee_id, budget, payment_status, payment_completed_at")
                     .eq("id", taskId)
                     .single();
                   if (data) {
+                    setTask(data);
                     setTaskStatus(data.status);
                     setTaskPosterId(data.poster_id);
                   }
@@ -968,23 +975,20 @@ export default function ChatPage() {
             )}
             {taskId && taskStatus === "active" && user?.id === taskPosterId && (
               <button
-                onClick={async () => {
-                  const { error } = await supabase
-                    .from("tasks")
-                    .update({ status: "completed" })
-                    .eq("id", taskId);
-                  if (!error) {
-                    setTaskStatus("completed");
-                    alert("✅ Task marked as completed! Rating is now available.");
-                  } else {
-                    alert(`❌ Failed to complete task: ${error.message}`);
-                  }
+                onClick={() => {
+                  // Redirect to payment page for Pi payment
+                  router.push(`/payment?task=${taskId}&return=/chat?task=${taskId}&user=${otherUserId}`);
                 }}
-                className="glass-button glass-button-primary px-2 md:px-4 py-1 md:py-2 text-xs md:text-sm"
-                title="Mark this task as completed"
+                className="glass-button glass-button-primary px-2 md:px-4 py-1 md:py-2 text-xs md:text-sm animate-pulse"
+                title="Pay freelancer and complete task"
               >
-                ✓ Complete
+                💰 Pay & Complete
               </button>
+            )}
+            {taskId && taskStatus === "active" && task?.payment_status === "completed" && (
+              <span className="text-xs glass-text-accent flex items-center gap-1">
+                ✅ Payment Completed
+              </span>
             )}
             {taskId && taskStatus === "completed" && (
               <button
