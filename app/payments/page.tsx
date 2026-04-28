@@ -62,14 +62,40 @@ export default function PaymentsPage() {
     const Pi = (window as any).Pi;
     if (Pi && user?.wallet_address) {
       try {
-        // Note: Pi SDK doesn't directly expose balance, 
-        // this would need backend integration with Pi Network API
-        // For now, we'll show a placeholder that updates after transactions
+        // Try to get actual Pi balance from SDK if available
+        // Pi SDK doesn't expose balance directly, so we check via available payment methods
+        // or use a backend endpoint if configured
+        
+        // First try: Check if Pi SDK has a getBalance method (future versions)
+        if (Pi.getBalance && typeof Pi.getBalance === 'function') {
+          const balance = await Pi.getBalance();
+          setPiBalance(parseFloat(balance) || 0);
+          return;
+        }
+        
+        // Second try: Fetch from backend API if you have one set up
+        // This requires your backend to have Pi Network API access
+        const response = await fetch(`/api/pi-balance?userId=${user.id}&wallet=${user.wallet_address}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.balance !== undefined) {
+            setPiBalance(parseFloat(data.balance));
+            return;
+          }
+        }
+        
+        // Fallback: Show calculated balance from app transactions
+        // Note: This is NOT the real Pi wallet balance, just app-internal transactions
+        console.warn("Real Pi balance unavailable - showing calculated app balance. Connect Pi Network API for real balance.");
         const totalReceived = receivedPayments.reduce((sum, t) => sum + t.net_amount, 0);
         const totalSent = sentPayments.reduce((sum, t) => sum + t.total_amount, 0);
         setPiBalance(Math.max(0, totalReceived - totalSent));
       } catch (err) {
         console.error("Error fetching balance:", err);
+        // Fallback to calculated balance
+        const totalReceived = receivedPayments.reduce((sum, t) => sum + t.net_amount, 0);
+        const totalSent = sentPayments.reduce((sum, t) => sum + t.total_amount, 0);
+        setPiBalance(Math.max(0, totalReceived - totalSent));
       }
     }
   }, [user, receivedPayments, sentPayments]);
@@ -176,7 +202,7 @@ export default function PaymentsPage() {
       }
 
       const amount = parseFloat(sendAmount);
-      const platformFee = amount * 0.025; // 2.5% platform fee
+      const platformFee = amount * 0.05; // 5% platform fee
       const netAmount = amount - platformFee;
 
       // Create payment data
@@ -337,45 +363,49 @@ export default function PaymentsPage() {
           <div 
             className="relative w-full max-w-md mx-auto rounded-2xl p-6 overflow-hidden"
             style={{
-              background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(255,215,0,0.1)",
-              border: "1px solid rgba(255,215,0,0.3)",
+              background: "linear-gradient(145deg, #0a0a0a 0%, #1a1a1a 50%, #0d0d0d 100%)",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.8), 0 0 40px rgba(255,215,0,0.15)",
+              border: "1px solid rgba(255,215,0,0.4)",
             }}
           >
             {/* Card Pattern Overlay */}
             <div 
-              className="absolute inset-0 opacity-10"
+              className="absolute inset-0 opacity-5"
               style={{
                 backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23FFD700' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
               }}
             />
             
-            {/* Pi Logo */}
-            <div className="flex justify-between items-start mb-8 relative z-10">
-              <div className="flex items-center gap-2">
-                <div 
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold"
-                  style={{ 
-                    background: "linear-gradient(135deg, #FFD700 0%, #FFA500 100%)",
-                    color: "#1a1a2e",
-                    boxShadow: "0 0 20px rgba(255,215,0,0.5)"
-                  }}
-                >
-                  π
-                </div>
-                <span className="text-white/80 font-semibold text-sm tracking-wider">PI NETWORK</span>
+            {/* Top Row - Card Type */}
+            <div className="flex justify-between items-start mb-4 relative z-10">
+              <span className="text-white/60 font-semibold text-xs tracking-widest">YASA CARD</span>
+              <span className="text-white/40 text-xs">DEBIT</span>
+            </div>
+
+            {/* Center Pi Logo - Large */}
+            <div className="flex justify-center items-center mb-6 relative z-10">
+              <div 
+                className="w-20 h-20 rounded-full flex items-center justify-center"
+                style={{ 
+                  background: "linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FFD700 100%)",
+                  color: "#000000",
+                  boxShadow: "0 0 30px rgba(255,215,0,0.6), inset 0 0 20px rgba(255,255,255,0.3)",
+                  fontSize: "3rem",
+                  fontWeight: "bold",
+                  border: "3px solid rgba(255,215,0,0.5)"
+                }}
+              >
+                π
               </div>
-              <div className="text-white/40 text-xs">YASA CARD</div>
             </div>
 
             {/* Card Number */}
-            <div className="mb-6 relative z-10">
-              <p className="text-white/40 text-xs mb-1 tracking-widest">CARD NUMBER</p>
+            <div className="mb-6 text-center relative z-10">
               <p 
-                className="text-lg font-mono tracking-widest"
+                className="text-xl font-mono tracking-[0.3em]"
                 style={{ 
                   color: "#FFD700",
-                  textShadow: "0 0 10px rgba(255,215,0,0.3)",
+                  textShadow: "0 0 15px rgba(255,215,0,0.5)",
                   fontFamily: "'Courier New', monospace"
                 }}
               >
@@ -393,18 +423,25 @@ export default function PaymentsPage() {
               </div>
               <div className="text-right">
                 <p className="text-white/40 text-xs mb-1 tracking-wider">BALANCE</p>
-                <p className="text-xl font-bold" style={{ color: "#FFD700" }}>
+                <p className="text-2xl font-bold" style={{ color: "#FFD700", textShadow: "0 0 10px rgba(255,215,0,0.3)" }}>
                   {piBalance !== null ? piBalance.toFixed(2) : "--.--"} π
                 </p>
               </div>
             </div>
 
-            {/* Gold Accent Line */}
+            {/* Gold Accent Lines */}
             <div 
-              className="absolute bottom-0 left-0 right-0 h-1"
+              className="absolute top-0 left-0 right-0 h-0.5"
               style={{ 
-                background: "linear-gradient(90deg, transparent 0%, #FFD700 50%, transparent 100%)",
-                opacity: 0.6
+                background: "linear-gradient(90deg, transparent 0%, #FFD700 20%, #FFD700 80%, transparent 100%)",
+                opacity: 0.8
+              }}
+            />
+            <div 
+              className="absolute bottom-0 left-0 right-0 h-0.5"
+              style={{ 
+                background: "linear-gradient(90deg, transparent 0%, #FFD700 20%, #FFD700 80%, transparent 100%)",
+                opacity: 0.8
               }}
             />
           </div>
@@ -480,8 +517,8 @@ export default function PaymentsPage() {
                 />
                 {parseFloat(sendAmount) > 0 && (
                   <p className="text-xs glass-text-muted mt-1">
-                    Platform fee (2.5%): {(parseFloat(sendAmount) * 0.025).toFixed(2)} π<br/>
-                    Recipient receives: {(parseFloat(sendAmount) * 0.975).toFixed(2)} π
+                    Platform fee (5%): {(parseFloat(sendAmount) * 0.05).toFixed(2)} π<br/>
+                    Recipient receives: {(parseFloat(sendAmount) * 0.95).toFixed(2)} π
                   </p>
                 )}
               </div>
