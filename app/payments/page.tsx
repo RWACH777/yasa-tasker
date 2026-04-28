@@ -28,14 +28,36 @@ export default function PaymentsPage() {
   const [activeTab, setActiveTab] = useState<"sent" | "received">("sent");
 
   useEffect(() => {
-    const stored = localStorage.getItem("pi_user");
-    if (stored) {
-      const userData = JSON.parse(stored);
-      setUser(userData);
-      loadTransactions(userData.id);
-    } else {
+    const checkUser = async () => {
+      // First check localStorage
+      const stored = localStorage.getItem("pi_user");
+      if (stored) {
+        const userData = JSON.parse(stored);
+        setUser(userData);
+        loadTransactions(userData.id);
+        return;
+      }
+
+      // If no localStorage, check Supabase session (for existing logged-in users)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const userData = {
+          id: session.user.id,
+          username: session.user.user_metadata?.username || session.user.email?.split('@')[0] || "User",
+          avatar_url: session.user.user_metadata?.avatar_url || null,
+          wallet_address: session.user.user_metadata?.wallet_address || null,
+        };
+        // Save to localStorage for next time
+        localStorage.setItem("pi_user", JSON.stringify(userData));
+        setUser(userData);
+        loadTransactions(userData.id);
+        return;
+      }
+
       setLoading(false);
-    }
+    };
+
+    checkUser();
   }, []);
 
   const loadTransactions = async (userId: string) => {
