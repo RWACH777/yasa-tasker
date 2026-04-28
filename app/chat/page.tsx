@@ -952,26 +952,11 @@ export default function ChatPage() {
             )}
           </div>
           <div className="flex gap-1 md:gap-2">
-            {/* Debug: Show button if taskId exists (for testing) */}
+            {/* Show loading while task status is loading */}
             {taskId && !taskStatus && (
-              <button
-                onClick={async () => {
-                  const { data } = await supabase
-                    .from("tasks")
-                    .select("id, title, status, poster_id, assignee_id, budget, payment_status, payment_completed_at")
-                    .eq("id", taskId)
-                    .single();
-                  if (data) {
-                    setTask(data);
-                    setTaskStatus(data.status);
-                    setTaskPosterId(data.poster_id);
-                  }
-                }}
-                className="glass-button px-2 md:px-4 py-1 md:py-2 text-xs md:text-sm"
-                title="Reload task status"
-              >
-                🔄 Reload
-              </button>
+              <span className="text-xs glass-text-accent animate-pulse">
+                Loading task...
+              </span>
             )}
             {taskId && taskStatus === "active" && user?.id === taskPosterId && (
               <button
@@ -1095,12 +1080,29 @@ export default function ChatPage() {
                   {msg.file_url && (
                     <div className="mt-2">
                       {msg.file_url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
-                        <img 
-                          src={msg.file_url} 
-                          alt="Shared image"
-                          className="max-w-[200px] max-h-[200px] rounded-lg cursor-pointer hover:opacity-90"
-                          onClick={() => setMediaView({ url: msg.file_url!, type: 'image' })}
-                        />
+                        <div className="relative group">
+                          <img 
+                            src={msg.file_url} 
+                            alt="Shared image"
+                            className="max-w-[200px] max-h-[200px] rounded-lg cursor-pointer hover:opacity-90"
+                            onClick={() => setMediaView({ url: msg.file_url!, type: 'image' })}
+                          />
+                          {/* Download button for images */}
+                          <a
+                            href={msg.file_url}
+                            download
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="absolute bottom-2 right-2 p-2 rounded-lg bg-black/50 hover:bg-black/70 text-white opacity-0 group-hover:opacity-100 transition flex items-center gap-1"
+                            onClick={(e) => e.stopPropagation()}
+                            title="Download image"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            <span className="text-xs">Download</span>
+                          </a>
+                        </div>
                       ) : msg.file_url?.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|zip|rar|mp3|mp4|mov|avi)$/i) ? (
                         // Downloadable files - open in new tab
                         <a

@@ -32,6 +32,8 @@ export default function MessagesPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [longPressedConvId, setLongPressedConvId] = useState<string | null>(null);
+  const [menuOpenConvId, setMenuOpenConvId] = useState<string | null>(null);
+  const [confirmDeleteConvId, setConfirmDeleteConvId] = useState<string | null>(null);
 
   // Load current user
   useEffect(() => {
@@ -55,6 +57,14 @@ export default function MessagesPage() {
     if (!user?.id) return;
 
     const loadConversations = async () => {
+      // First, get list of cleared conversations for this user
+      const { data: clearedConvs } = await supabase
+        .from("cleared_conversations")
+        .select("other_user_id")
+        .eq("user_id", user.id);
+
+      const clearedUserIds = new Set(clearedConvs?.map(c => c.other_user_id) || []);
+
       const { data: sent } = await supabase
         .from("messages")
         .select("*")
@@ -72,6 +82,9 @@ export default function MessagesPage() {
 
       for (const msg of allMessages) {
         const otherUserId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
+
+        // Skip if this conversation was cleared/deleted by user
+        if (clearedUserIds.has(otherUserId)) continue;
 
         if (!uniqueUsers.has(otherUserId)) {
           const { data: profile } = await supabase
@@ -105,6 +118,15 @@ export default function MessagesPage() {
     };
 
     loadConversations();
+
+    // Refresh when page becomes visible (coming back from chat)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        console.log("Page visible - refreshing conversations");
+        loadConversations();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     // Subscribe to message updates to refresh unread counts
     const subscription = supabase
@@ -155,8 +177,18 @@ export default function MessagesPage() {
     return () => {
       subscription.unsubscribe();
       clearInterval(pollInterval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [user?.id]);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setMenuOpenConvId(null);
+    if (menuOpenConvId) {
+      document.addEventListener("click", handleClickOutside);
+      return () => document.removeEventListener("click", handleClickOutside);
+    }
+  }, [menuOpenConvId]);
 
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -291,19 +323,72 @@ export default function MessagesPage() {
                       </p>
                     </div>
                   </button>
-                  <button
-                    onClick={() => deleteConversation(conv.userId)}
-                    className="ml-2 px-3 py-1 glass-button glass-button-danger text-xs font-semibold opacity-0 group-hover:opacity-100 transition"
-                    title="Delete conversation"
-                  >
-                    🗑️ Delete
-                  </button>
+                  {/* 3-dot menu for conversation options */}
+                  <div className="relative ml-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMenuOpenConvId(menuOpenConvId === conv.userId ? null : conv.userId);
+                      }}
+                      className="p-2 rounded-lg hover:bg-white/10 transition"
+                      title="More options"
+                    >
+                      <svg className="w-5 h-5 glass-text-muted" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                      </svg>
+                    </button>
+                    
+                    {/* Dropdown menu */}
+                    {menuOpenConvId === conv.userId && (
+                      <div className="absolute right-0 top-full mt-1 w-40 glass-card border border-white/20 rounded-lg shadow-xl z-50">
+                        <button
+                          onClick={() => {
+                            setMenuOpenConvId(null);
+                            setConfirmDeleteConvId(conv.userId);
+                          }}
+                          className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition flex items-center gap-2"
+                        >
+                          <span>🗑️</span>
+                          <span>Delete Chat</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {confirmDeleteConvId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="glass-card p-6 max-w-sm w-full">
+            <h3 className="text-lg font-semibold mb-2">Delete Conversation?</h3>
+            <p className="glass-text-muted text-sm mb-6">
+              This will remove the conversation from your list. The messages will still be saved.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDeleteConvId(null)}
+                className="flex-1 glass-button py-2"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  deleteConversation(confirmDeleteConvId);
+                  setConfirmDeleteConvId(null);
+                }}
+                className="flex-1 glass-button glass-button-danger py-2"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
