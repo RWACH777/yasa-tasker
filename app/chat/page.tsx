@@ -140,11 +140,11 @@ export default function ChatPage() {
       )
       .subscribe();
 
-    // Also poll every 3 seconds as fallback
+    // Poll every 10 seconds for online status (optimized)
     const pollInterval = setInterval(async () => {
       const status = await getUserOnlineStatus(otherUserId);
       setOtherUserOnline(status.is_online || false);
-    }, 3000);
+    }, 10000);
 
     return () => {
       presenceChannel.unsubscribe();
@@ -217,7 +217,7 @@ export default function ChatPage() {
 
     markMessagesAsRead();
 
-    // Poll for new messages every 1 second as fallback (in case subscription is slow)
+    // Poll for new messages every 5 seconds (optimized, real-time subscription is primary)
     const pollInterval = setInterval(async () => {
       let pollQuery = supabase
         .from("messages")
@@ -460,7 +460,7 @@ export default function ChatPage() {
         console.log("Subscription status:", status);
       });
 
-    // Polling fallback - check task status every 2 seconds
+    // Polling fallback - check task status every 8 seconds (optimized)
     const pollInterval = setInterval(async () => {
       try {
         const { data } = await supabase
@@ -481,7 +481,7 @@ export default function ChatPage() {
       } catch (err) {
         // Silent fail for polling
       }
-    }, 2000);
+    }, 8000);
 
     return () => {
       subscription.unsubscribe();

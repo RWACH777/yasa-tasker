@@ -169,10 +169,10 @@ export default function MessagesPage() {
       )
       .subscribe();
 
-    // Also poll every 3 seconds as backup to ensure badges update
+    // Poll every 10 seconds as backup (reduced from 3s to save bandwidth)
     const pollInterval = setInterval(() => {
       loadConversations();
-    }, 3000);
+    }, 10000);
 
     return () => {
       subscription.unsubscribe();

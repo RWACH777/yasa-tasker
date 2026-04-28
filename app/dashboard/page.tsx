@@ -307,11 +307,10 @@ export default function DashboardPage() {
         console.log("Subscription status:", status);
       });
 
-    // Polling fallback every 2 seconds as backup (since realtime might not be working)
+    // Polling fallback every 8 seconds (optimized from 2s to reduce API calls)
     const pollInterval = setInterval(() => {
-      console.log("Polling tasks for updates...");
       fetchTasks();
-    }, 2000);
+    }, 8000);
 
     return () => {
       subscription.unsubscribe();
@@ -323,11 +322,11 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user?.id) return;
 
-    // Refresh notification and message count every 3 seconds
+    // Refresh notification and message count every 10 seconds (optimized)
     const interval = setInterval(() => {
       loadNotificationCount(user.id);
       loadMessageCount(user.id);
-    }, 3000);
+    }, 10000);
 
     return () => clearInterval(interval);
   }, [user?.id]);
