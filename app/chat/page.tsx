@@ -1049,7 +1049,7 @@ export default function ChatPage() {
                           className="glass-button glass-button-danger px-3 py-1 text-xs font-semibold whitespace-nowrap"
                           title="Delete message"
                         >
-                          🗑️ Delete
+                          Delete
                         </button>
                       )}
                     </div>

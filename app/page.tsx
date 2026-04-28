@@ -111,6 +111,18 @@ export default function Home() {
           access_token: result.access_token,
           refresh_token: result.refresh_token,
         });
+        
+        // Save pi_user data for other pages
+        const userData = {
+          id: pi_uid,
+          username: username,
+          avatar_url: avatar_url,
+          wallet_address: wallet_address,
+        };
+        localStorage.setItem("pi_user", JSON.stringify(userData));
+        localStorage.setItem("yasa_has_logged_in", "true");
+        localStorage.setItem("yasa_has_wallet", "true");
+        
         router.push("/dashboard");
       } else {
         setIsAutoLoggingIn(false);
@@ -298,7 +310,16 @@ export default function Home() {
         // Save flags that user has logged in before and has wallet permission
         localStorage.setItem("yasa_has_logged_in", "true");
         localStorage.setItem("yasa_has_wallet", "true");
-        console.log(" Saved yasa_has_logged_in and yasa_has_wallet flags");
+        
+        // Save pi_user data for other pages to access
+        const userData = {
+          id: pi_uid,
+          username: username,
+          avatar_url: avatar_url,
+          wallet_address: wallet_address,
+        };
+        localStorage.setItem("pi_user", JSON.stringify(userData));
+        console.log(" Saved pi_user and login flags");
       } else {
         console.error(" Missing tokens in result:", result);
         alert("No tokens from server");

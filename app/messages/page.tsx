@@ -297,7 +297,7 @@ export default function MessagesPage() {
                 onClick={() => setShowDeleted(!showDeleted)}
                 className="text-xs glass-button px-3 py-1"
               >
-                {showDeleted ? "🗑️ Hide Deleted" : `🗑️ Show Deleted (${clearedCount})`}
+                {showDeleted ? "Hide Deleted" : `Show Deleted (${clearedCount})`}
               </button>
             )}
           </div>
@@ -380,7 +380,6 @@ export default function MessagesPage() {
                             }}
                             className="w-full px-4 py-2 text-left text-sm text-green-400 hover:bg-green-500/10 rounded-lg transition flex items-center gap-2"
                           >
-                            <span>↩️</span>
                             <span>Restore Chat</span>
                           </button>
                         ) : (
@@ -391,7 +390,6 @@ export default function MessagesPage() {
                             }}
                             className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition flex items-center gap-2"
                           >
-                            <span>🗑️</span>
                             <span>Delete Chat</span>
                           </button>
                         )}

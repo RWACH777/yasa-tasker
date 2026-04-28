@@ -28,7 +28,7 @@ export default function Sidebar({ isOpen, onClose, onNotificationsClick, notific
 
         <div className="glass-panel p-4">
           <div className="flex items-center gap-2 mb-3">
-            <h3 className="text-lg font-semibold glass-text">💬 Messages</h3>
+            <h3 className="text-lg font-semibold glass-text">Messages</h3>
             {messageCount > 0 && (
               <span className="glass-badge text-white text-xs font-bold w-6 h-6 flex items-center justify-center">
                 {messageCount}
@@ -46,7 +46,7 @@ export default function Sidebar({ isOpen, onClose, onNotificationsClick, notific
 
         <div className="glass-panel p-4">
           <div className="flex items-center gap-2 mb-3">
-            <h3 className="text-lg font-semibold glass-text">� Payments</h3>
+            <h3 className="text-lg font-semibold glass-text">Payments</h3>
             {transactionCount > 0 && (
               <span className="glass-badge text-white text-xs font-bold w-6 h-6 flex items-center justify-center">
                 {transactionCount}
@@ -64,7 +64,7 @@ export default function Sidebar({ isOpen, onClose, onNotificationsClick, notific
 
         <div className="glass-panel p-4">
           <div className="flex items-center gap-2 mb-3">
-            <h3 className="text-lg font-semibold glass-text">�🔔 Notifications</h3>
+            <h3 className="text-lg font-semibold glass-text">Notifications</h3>
             {notificationCount > 0 && (
               <span className="glass-badge text-white text-xs font-bold w-6 h-6 flex items-center justify-center">
                 {notificationCount}
@@ -81,7 +81,7 @@ export default function Sidebar({ isOpen, onClose, onNotificationsClick, notific
         </div>
 
         <div className="glass-panel p-4">
-          <h3 className="text-lg font-semibold glass-text mb-3">📞 Support</h3>
+          <h3 className="text-lg font-semibold glass-text mb-3">Support</h3>
           <a
             href="mailto:YasaTasker@gmail.com"
             className="glass-button w-full px-4 py-2 text-sm block text-center"
