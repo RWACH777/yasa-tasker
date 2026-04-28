@@ -108,7 +108,7 @@ export default function PaymentsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen glass-dark flex items-center justify-center">
+      <div className="min-h-screen app-background flex items-center justify-center">
         <div className="glass-card p-8">
           <div className="glass-loading mx-auto mb-4"></div>
           <p className="glass-text-accent">Loading payments...</p>
@@ -119,7 +119,7 @@ export default function PaymentsPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen glass-dark flex items-center justify-center">
+      <div className="min-h-screen app-background flex items-center justify-center">
         <div className="glass-card p-8 max-w-md text-center">
           <h2 className="text-xl font-bold mb-4">Please Login</h2>
           <p className="glass-text mb-6">You need to be logged in to view payments.</p>
@@ -132,7 +132,7 @@ export default function PaymentsPage() {
   }
 
   return (
-    <div className="min-h-screen glass-dark app-background">
+    <div className="min-h-screen app-background text-white flex flex-col">
       {/* Header */}
       <div className="glass-nav sticky top-0 z-50 p-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">

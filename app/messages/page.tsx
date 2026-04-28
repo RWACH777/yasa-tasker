@@ -23,6 +23,7 @@ interface Conversation {
   lastMessageTime: string;
   isOnline: boolean;
   unreadCount: number;
+  isCleared?: boolean;
 }
 
 export default function MessagesPage() {
@@ -34,6 +35,8 @@ export default function MessagesPage() {
   const [longPressedConvId, setLongPressedConvId] = useState<string | null>(null);
   const [menuOpenConvId, setMenuOpenConvId] = useState<string | null>(null);
   const [confirmDeleteConvId, setConfirmDeleteConvId] = useState<string | null>(null);
+  const [showDeleted, setShowDeleted] = useState(false);
+  const [clearedCount, setClearedCount] = useState(0);
 
   // Load current user
   useEffect(() => {
@@ -52,71 +55,70 @@ export default function MessagesPage() {
     loadUser();
   }, []);
 
-  // Load conversations
-  useEffect(() => {
+  // Load conversations function
+  const loadConversations = async () => {
     if (!user?.id) return;
+    
+    // First, get list of cleared conversations for this user
+    const { data: clearedConvs } = await supabase
+      .from("cleared_conversations")
+      .select("other_user_id")
+      .eq("user_id", user.id);
 
-    const loadConversations = async () => {
-      // First, get list of cleared conversations for this user
-      const { data: clearedConvs } = await supabase
-        .from("cleared_conversations")
-        .select("other_user_id")
-        .eq("user_id", user.id);
+    const clearedUserIds = new Set(clearedConvs?.map(c => c.other_user_id) || []);
+    setClearedCount(clearedUserIds.size);
 
-      const clearedUserIds = new Set(clearedConvs?.map(c => c.other_user_id) || []);
+    const { data: sent } = await supabase
+      .from("messages")
+      .select("*")
+      .eq("sender_id", user.id)
+      .order("created_at", { ascending: false });
 
-      const { data: sent } = await supabase
-        .from("messages")
-        .select("*")
-        .eq("sender_id", user.id)
-        .order("created_at", { ascending: false });
+    const { data: received } = await supabase
+      .from("messages")
+      .select("*")
+      .eq("receiver_id", user.id)
+      .order("created_at", { ascending: false });
 
-      const { data: received } = await supabase
-        .from("messages")
-        .select("*")
-        .eq("receiver_id", user.id)
-        .order("created_at", { ascending: false });
+    const allMessages = [...(sent || []), ...(received || [])];
+    const uniqueUsers = new Map();
 
-      const allMessages = [...(sent || []), ...(received || [])];
-      const uniqueUsers = new Map();
+    for (const msg of allMessages) {
+      const otherUserId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
 
-      for (const msg of allMessages) {
-        const otherUserId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
+      // Skip if this conversation was cleared/deleted by user (unless showing deleted)
+      if (!showDeleted && clearedUserIds.has(otherUserId)) continue;
 
-        // Skip if this conversation was cleared/deleted by user
-        if (clearedUserIds.has(otherUserId)) continue;
+      if (!uniqueUsers.has(otherUserId)) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("username, avatar_url")
+          .eq("id", otherUserId)
+          .single();
 
-        if (!uniqueUsers.has(otherUserId)) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("username, avatar_url")
-            .eq("id", otherUserId)
-            .single();
+        // Count only unread messages from this user (messages received from them with read=false)
+        const unreadMessages = (received || []).filter(
+          (m) => m.sender_id === otherUserId && m.read === false
+        );
 
-          // Count only unread messages from this user (messages received from them with read=false)
-          const unreadMessages = (received || []).filter(
-            (m) => m.sender_id === otherUserId && m.read === false
-          );
-
-          console.log(`Conversation with ${profile?.username}:`, {
-            unreadCount: unreadMessages.length,
-          });
-
-          uniqueUsers.set(otherUserId, {
-            userId: otherUserId,
-            username: profile?.username || "Unknown",
-            avatar_url: profile?.avatar_url,
-            lastMessage: msg.text || (msg.file_url ? "[File shared]" : "[Voice message]"),
-            lastMessageTime: msg.created_at,
-            isOnline: false,
-            unreadCount: unreadMessages.length,
-          });
-        }
+        uniqueUsers.set(otherUserId, {
+          userId: otherUserId,
+          username: profile?.username || "Unknown",
+          avatar_url: profile?.avatar_url,
+          lastMessage: msg.text || (msg.file_url ? "[File shared]" : "[Voice message]"),
+          lastMessageTime: msg.created_at,
+          isOnline: false,
+          unreadCount: unreadMessages.length,
+          isCleared: clearedUserIds.has(otherUserId),
+        });
       }
+    }
 
-      setConversations(Array.from(uniqueUsers.values()));
-    };
+    setConversations(Array.from(uniqueUsers.values()));
+  };
 
+  // Load conversations effect
+  useEffect(() => {
     loadConversations();
 
     // Refresh when page becomes visible (coming back from chat)
@@ -179,7 +181,7 @@ export default function MessagesPage() {
       clearInterval(pollInterval);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [user?.id]);
+  }, [user?.id, showDeleted]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -209,13 +211,9 @@ export default function MessagesPage() {
       // Add to cleared_conversations table for soft-delete
       const { error: clearError } = await supabase
         .from("cleared_conversations")
-        .upsert([
-          {
-            user_id: user.id,
-            other_user_id: otherUserId,
-          }
-        ], {
-          onConflict: "user_id,other_user_id"
+        .insert({
+          user_id: user.id,
+          other_user_id: otherUserId,
         });
 
       if (clearError) {
@@ -224,13 +222,36 @@ export default function MessagesPage() {
         return;
       }
 
-      // Remove from UI immediately
-      setConversations(conversations.filter((c) => c.userId !== otherUserId));
-      setLongPressedConvId(null);
+      // Reload conversations to reflect the change
+      await loadConversations();
       console.log("✅ Conversation cleared for current user");
     } catch (err) {
       console.error("Exception deleting conversation:", err);
       alert(`❌ Error deleting conversation: ${err}`);
+    }
+  };
+
+  const restoreConversation = async (otherUserId: string) => {
+    try {
+      // Remove from cleared_conversations table
+      const { error: deleteError } = await supabase
+        .from("cleared_conversations")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("other_user_id", otherUserId);
+
+      if (deleteError) {
+        console.error("Error restoring conversation:", deleteError);
+        alert(`❌ Failed to restore conversation: ${deleteError.message}`);
+        return;
+      }
+
+      // Reload conversations to reflect the change
+      await loadConversations();
+      console.log("✅ Conversation restored");
+    } catch (err) {
+      console.error("Exception restoring conversation:", err);
+      alert(`❌ Error restoring conversation: ${err}`);
     }
   };
 
@@ -269,7 +290,17 @@ export default function MessagesPage() {
       {/* Conversations List */}
       <div className="flex-1 max-w-4xl mx-auto w-full p-4">
         <div className="glass-panel p-6">
-          <h2 className="text-lg font-semibold mb-4 glass-text">Your Conversations</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold glass-text">Your Conversations</h2>
+            {clearedCount > 0 && (
+              <button
+                onClick={() => setShowDeleted(!showDeleted)}
+                className="text-xs glass-button px-3 py-1"
+              >
+                {showDeleted ? "🗑️ Hide Deleted" : `🗑️ Show Deleted (${clearedCount})`}
+              </button>
+            )}
+          </div>
           {conversations.length === 0 ? (
             <p className="glass-text-muted text-sm">No conversations yet. Click "Contact Tasker" on a task to start!</p>
           ) : (
@@ -279,7 +310,7 @@ export default function MessagesPage() {
                   key={conv.userId}
                   className={`flex items-center justify-between glass-list-item p-3 relative group ${
                     longPressedConvId === conv.userId ? "ring-2 ring-red-400" : ""
-                  }`}
+                  } ${conv.isCleared ? "opacity-60" : ""}`}
                   onMouseDown={() => handleConvMouseDown(conv.userId)}
                   onMouseUp={handleConvMouseUp}
                   onMouseLeave={handleConvMouseUp}
@@ -341,16 +372,29 @@ export default function MessagesPage() {
                     {/* Dropdown menu */}
                     {menuOpenConvId === conv.userId && (
                       <div className="absolute right-0 top-full mt-1 w-40 glass-card border border-white/20 rounded-lg shadow-xl z-50">
-                        <button
-                          onClick={() => {
-                            setMenuOpenConvId(null);
-                            setConfirmDeleteConvId(conv.userId);
-                          }}
-                          className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition flex items-center gap-2"
-                        >
-                          <span>🗑️</span>
-                          <span>Delete Chat</span>
-                        </button>
+                        {conv.isCleared ? (
+                          <button
+                            onClick={() => {
+                              setMenuOpenConvId(null);
+                              restoreConversation(conv.userId);
+                            }}
+                            className="w-full px-4 py-2 text-left text-sm text-green-400 hover:bg-green-500/10 rounded-lg transition flex items-center gap-2"
+                          >
+                            <span>↩️</span>
+                            <span>Restore Chat</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setMenuOpenConvId(null);
+                              setConfirmDeleteConvId(conv.userId);
+                            }}
+                            className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition flex items-center gap-2"
+                          >
+                            <span>🗑️</span>
+                            <span>Delete Chat</span>
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
