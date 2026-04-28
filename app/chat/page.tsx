@@ -961,18 +961,20 @@ export default function ChatPage() {
             {taskId && taskStatus === "active" && user?.id === taskPosterId && (
               <button
                 onClick={() => {
-                  // Redirect to payment page for Pi payment
-                  router.push(`/payment?task=${taskId}&return=/chat?task=${taskId}&user=${otherUserId}`);
+                  // Redirect to payments page with pre-filled data
+                  const amount = task?.price || 0;
+                  const otherUsername = otherUser?.username || "tasker";
+                  router.push(`/payments?task=${taskId}&amount=${amount}&to=${otherUsername}&to_uid=${otherUserId}&memo=Payment for task: ${task?.title || "Task"}`);
                 }}
                 className="glass-button glass-button-primary px-2 md:px-4 py-1 md:py-2 text-xs md:text-sm animate-pulse"
                 title="Pay freelancer and complete task"
               >
-                💰 Pay & Complete
+                Pay & Complete
               </button>
             )}
             {taskId && taskStatus === "active" && task?.payment_status === "completed" && (
               <span className="text-xs glass-text-accent flex items-center gap-1">
-                ✅ Payment Completed
+                Payment Completed
               </span>
             )}
             {taskId && taskStatus === "completed" && (
@@ -986,7 +988,7 @@ export default function ChatPage() {
                 }`}
                 title={hasRatedThisTask ? "You have already rated this task" : "Rate this task and comment"}
               >
-                {hasRatedThisTask ? "✓ Rated" : "⭐ Rate & Comment"}
+                {hasRatedThisTask ? "Rated" : "Rate & Comment"}
               </button>
             )}
             <Link
@@ -994,7 +996,7 @@ export default function ChatPage() {
               className="glass-button glass-button-primary px-3 md:px-5 py-2 md:py-2.5 text-sm md:text-base"
               title="Back to messages list"
             >
-              ←
+              Back
             </Link>
           </div>
         </div>
@@ -1184,7 +1186,7 @@ export default function ChatPage() {
                   Uploading...
                 </>
               ) : (
-                "✓ Send"
+                "Send"
               )}
             </button>
           </div>

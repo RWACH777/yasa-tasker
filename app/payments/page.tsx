@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 
 interface Transaction {
   id: string;
@@ -21,11 +22,57 @@ interface Transaction {
 }
 
 export default function PaymentsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState<any>(null);
+  const [piBalance, setPiBalance] = useState<number | null>(null);
   const [sentPayments, setSentPayments] = useState<Transaction[]>([]);
   const [receivedPayments, setReceivedPayments] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"sent" | "received">("sent");
+  const [activeTab, setActiveTab] = useState<"sent" | "received" | "send">("sent");
+  
+  // Send Pi form state
+  const [sendAmount, setSendAmount] = useState("");
+  const [recipientUsername, setRecipientUsername] = useState("");
+  const [recipientUid, setRecipientUid] = useState("");
+  const [sendMemo, setSendMemo] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [sendError, setSendError] = useState("");
+  const [sendSuccess, setSendSuccess] = useState("");
+  
+  // From task completion query params
+  const taskId = searchParams.get("task");
+  const prefillAmount = searchParams.get("amount");
+  const prefillRecipient = searchParams.get("to");
+  const prefillRecipientUid = searchParams.get("to_uid");
+  const prefillMemo = searchParams.get("memo");
+
+  // Generate unique card number from user ID
+  const generateCardNumber = (userId: string) => {
+    // Create a formatted card number: YASA-XXXX-XXXX-XXXX
+    const hash = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const part1 = String(hash).padStart(4, '0').slice(-4);
+    const part2 = Math.floor(Math.random() * 9000 + 1000);
+    const part3 = userId.slice(-4).toUpperCase();
+    return `YASA-${part1}-${part2}-${part3}`;
+  };
+
+  // Fetch Pi balance from Pi Network
+  const fetchPiBalance = useCallback(async () => {
+    const Pi = (window as any).Pi;
+    if (Pi && user?.wallet_address) {
+      try {
+        // Note: Pi SDK doesn't directly expose balance, 
+        // this would need backend integration with Pi Network API
+        // For now, we'll show a placeholder that updates after transactions
+        const totalReceived = receivedPayments.reduce((sum, t) => sum + t.net_amount, 0);
+        const totalSent = sentPayments.reduce((sum, t) => sum + t.total_amount, 0);
+        setPiBalance(Math.max(0, totalReceived - totalSent));
+      } catch (err) {
+        console.error("Error fetching balance:", err);
+      }
+    }
+  }, [user, receivedPayments, sentPayments]);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -34,11 +81,11 @@ export default function PaymentsPage() {
       if (stored) {
         const userData = JSON.parse(stored);
         setUser(userData);
-        loadTransactions(userData.id);
+        await loadTransactions(userData.id);
         return;
       }
 
-      // If no localStorage, check Supabase session (for existing logged-in users)
+      // If no localStorage, check Supabase session
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         const userData = {
@@ -47,10 +94,9 @@ export default function PaymentsPage() {
           avatar_url: session.user.user_metadata?.avatar_url || null,
           wallet_address: session.user.user_metadata?.wallet_address || null,
         };
-        // Save to localStorage for next time
         localStorage.setItem("pi_user", JSON.stringify(userData));
         setUser(userData);
-        loadTransactions(userData.id);
+        await loadTransactions(userData.id);
         return;
       }
 
@@ -60,16 +106,37 @@ export default function PaymentsPage() {
     checkUser();
   }, []);
 
+  // Prefill form if coming from task completion
+  useEffect(() => {
+    if (prefillAmount) {
+      setSendAmount(prefillAmount);
+      setActiveTab("send");
+    }
+    if (prefillRecipient) {
+      setRecipientUsername(prefillRecipient);
+    }
+    if (prefillRecipientUid) {
+      setRecipientUid(prefillRecipientUid);
+    }
+    if (prefillMemo) {
+      setSendMemo(prefillMemo);
+    }
+  }, [prefillAmount, prefillRecipient, prefillRecipientUid, prefillMemo]);
+
+  useEffect(() => {
+    if (user) {
+      fetchPiBalance();
+    }
+  }, [user, fetchPiBalance]);
+
   const loadTransactions = async (userId: string) => {
     try {
-      // Load sent payments (user is sender)
       const { data: sent } = await supabase
         .from("transactions")
         .select("*")
         .eq("sender_uid", userId)
         .order("created_at", { ascending: false });
 
-      // Load received payments (user is receiver)
       const { data: received } = await supabase
         .from("transactions")
         .select("*")
@@ -84,6 +151,105 @@ export default function PaymentsPage() {
       setLoading(false);
     }
   };
+
+  // Handle Pi payment submission
+  const handleSendPi = async () => {
+    if (!sendAmount || parseFloat(sendAmount) <= 0) {
+      setSendError("Please enter a valid amount");
+      return;
+    }
+    if (!recipientUsername && !recipientUid) {
+      setSendError("Please enter recipient username");
+      return;
+    }
+
+    setIsSending(true);
+    setSendError("");
+    setSendSuccess("");
+
+    try {
+      const Pi = (window as any).Pi;
+      if (!Pi) {
+        setSendError("Pi Network not available. Please open in Pi Browser.");
+        setIsSending(false);
+        return;
+      }
+
+      const amount = parseFloat(sendAmount);
+      const platformFee = amount * 0.025; // 2.5% platform fee
+      const netAmount = amount - platformFee;
+
+      // Create payment data
+      const paymentData = {
+        amount: amount,
+        memo: sendMemo || `Payment to ${recipientUsername}`,
+        metadata: {
+          task_id: taskId,
+          recipient_uid: recipientUid,
+          recipient_username: recipientUsername,
+          platform_fee: platformFee,
+          net_amount: netAmount,
+        },
+      };
+
+      // Initiate Pi payment
+      const payment = await Pi.createPayment(paymentData, {
+        onReadyForServerApproval: async (paymentId: string) => {
+          console.log("Payment ready for approval:", paymentId);
+          // Save pending transaction
+          await supabase.from("transactions").insert({
+            task_id: taskId,
+            sender_uid: user.id,
+            sender_username: user.username,
+            receiver_uid: recipientUid,
+            receiver_username: recipientUsername,
+            total_amount: amount,
+            platform_fee_amount: platformFee,
+            net_amount: netAmount,
+            status: "pending",
+            pi_txid: paymentId,
+          });
+        },
+        onReadyForServerCompletion: async (paymentId: string, txid: string) => {
+          console.log("Payment completed:", paymentId, txid);
+          // Update transaction as completed
+          await supabase
+            .from("transactions")
+            .update({ status: "completed", completed_at: new Date().toISOString() })
+            .eq("pi_txid", paymentId);
+          
+          setSendSuccess(`Successfully sent ${amount} π to ${recipientUsername}`);
+          loadTransactions(user.id);
+          
+          // If from task completion, redirect to rating
+          if (taskId) {
+            setTimeout(() => {
+              router.push(`/rate?task=${taskId}&user=${recipientUid}`);
+            }, 2000);
+          }
+        },
+        onCancel: (paymentId: string) => {
+          console.log("Payment cancelled:", paymentId);
+          setSendError("Payment was cancelled");
+          setIsSending(false);
+        },
+        onError: (error: any, paymentId?: string) => {
+          console.error("Payment error:", error);
+          setSendError("Payment failed: " + (error?.message || "Unknown error"));
+          setIsSending(false);
+        },
+      });
+
+      console.log("Payment created:", payment);
+    } catch (err: any) {
+      console.error("Send Pi error:", err);
+      setSendError("Failed to send: " + (err?.message || "Unknown error"));
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const cardNumber = user ? generateCardNumber(user.id) : "YASA-0000-0000-0000";
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -125,9 +291,6 @@ export default function PaymentsPage() {
     }
   };
 
-  const transactions = activeTab === "sent" ? sentPayments : receivedPayments;
-  const totalAmount = transactions.reduce((sum, t) => sum + (activeTab === "sent" ? t.total_amount : t.net_amount), 0);
-
   if (loading) {
     return (
       <div className="min-h-screen app-background flex items-center justify-center">
@@ -153,138 +316,307 @@ export default function PaymentsPage() {
     );
   }
 
+  const transactions = activeTab === "sent" ? sentPayments : activeTab === "received" ? receivedPayments : [];
+  const totalSent = sentPayments.reduce((sum, t) => sum + t.total_amount, 0);
+  const totalReceived = receivedPayments.reduce((sum, t) => sum + t.net_amount, 0);
+
   return (
     <div className="min-h-screen app-background text-white flex flex-col">
       {/* Header */}
       <div className="glass-nav sticky top-0 z-50 p-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <Link href="/dashboard" className="text-xl">← Dashboard</Link>
-          <h1 className="text-lg font-bold">💳 Payments</h1>
+          <h1 className="text-lg font-bold">Payments</h1>
           <div className="w-8"></div>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto p-4 pt-8">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="glass-card p-4">
-            <p className="glass-text-accent text-sm mb-1">Sent Payments</p>
-            <p className="text-2xl font-bold glass-text">{sentPayments.length}</p>
-          </div>
-          <div className="glass-card p-4">
-            <p className="glass-text-accent text-sm mb-1">Received Payments</p>
-            <p className="text-2xl font-bold glass-text">{receivedPayments.length}</p>
-          </div>
-          <div className="glass-card p-4">
-            <p className="glass-text-accent text-sm mb-1">
-              Total {activeTab === "sent" ? "Sent" : "Received"}
-            </p>
-            <p className="text-2xl font-bold text-yellow-400">{totalAmount.toFixed(2)} π</p>
-          </div>
-        </div>
+      <div className="max-w-4xl mx-auto p-4 pt-6 w-full">
+        {/* Pi Debit Card */}
+        <div className="mb-6">
+          <div 
+            className="relative w-full max-w-md mx-auto rounded-2xl p-6 overflow-hidden"
+            style={{
+              background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(255,215,0,0.1)",
+              border: "1px solid rgba(255,215,0,0.3)",
+            }}
+          >
+            {/* Card Pattern Overlay */}
+            <div 
+              className="absolute inset-0 opacity-10"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23FFD700' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+              }}
+            />
+            
+            {/* Pi Logo */}
+            <div className="flex justify-between items-start mb-8 relative z-10">
+              <div className="flex items-center gap-2">
+                <div 
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold"
+                  style={{ 
+                    background: "linear-gradient(135deg, #FFD700 0%, #FFA500 100%)",
+                    color: "#1a1a2e",
+                    boxShadow: "0 0 20px rgba(255,215,0,0.5)"
+                  }}
+                >
+                  π
+                </div>
+                <span className="text-white/80 font-semibold text-sm tracking-wider">PI NETWORK</span>
+              </div>
+              <div className="text-white/40 text-xs">YASA CARD</div>
+            </div>
 
-        {/* Tab Navigation */}
-        <div className="glass-card p-1 mb-6">
-          <div className="flex">
-            <button
-              onClick={() => setActiveTab("sent")}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition ${
-                activeTab === "sent"
-                  ? "glass-button-primary"
-                  : "glass-text-muted hover:glass-text"
-              }`}
-            >
-              📤 Sent ({sentPayments.length})
-            </button>
-            <button
-              onClick={() => setActiveTab("received")}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition ${
-                activeTab === "received"
-                  ? "glass-button-primary"
-                  : "glass-text-muted hover:glass-text"
-              }`}
-            >
-              📥 Received ({receivedPayments.length})
-            </button>
-          </div>
-        </div>
-
-        {/* Transactions List */}
-        <div className="space-y-3">
-          {transactions.length === 0 ? (
-            <div className="glass-card p-8 text-center">
-              <div className="text-4xl mb-4">💳</div>
-              <p className="glass-text mb-2">
-                No {activeTab} payments yet
-              </p>
-              <p className="text-sm glass-text-muted">
-                {activeTab === "sent"
-                  ? "Payments you make to freelancers will appear here"
-                  : "Payments you receive from taskers will appear here"}
+            {/* Card Number */}
+            <div className="mb-6 relative z-10">
+              <p className="text-white/40 text-xs mb-1 tracking-widest">CARD NUMBER</p>
+              <p 
+                className="text-lg font-mono tracking-widest"
+                style={{ 
+                  color: "#FFD700",
+                  textShadow: "0 0 10px rgba(255,215,0,0.3)",
+                  fontFamily: "'Courier New', monospace"
+                }}
+              >
+                {cardNumber}
               </p>
             </div>
-          ) : (
-            transactions.map((tx) => (
-              <div key={tx.id} className="glass-card p-4 hover:bg-white/5 transition">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={`text-lg ${getStatusColor(tx.status)}`}>
-                        {getStatusIcon(tx.status)}
-                      </span>
-                      <span className={`text-sm font-medium ${getStatusColor(tx.status)}`}>
-                        {tx.status?.toUpperCase()}
-                      </span>
-                      <span className="text-xs glass-text-muted">
-                        {formatDate(tx.created_at)}
-                      </span>
-                    </div>
 
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="glass-text text-sm">
-                        {activeTab === "sent" ? "To:" : "From:"}
-                      </span>
-                      <span className="glass-text-accent font-medium">
-                        {activeTab === "sent" ? tx.receiver_username : tx.sender_username}
-                      </span>
-                    </div>
-
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-xl font-bold text-yellow-400">
-                        {activeTab === "sent" ? tx.total_amount.toFixed(2) : tx.net_amount.toFixed(2)} π
-                      </span>
-                      {activeTab === "sent" && tx.platform_fee_amount > 0 && (
-                        <span className="text-xs glass-text-muted">
-                          (Fee: {tx.platform_fee_amount.toFixed(2)} π)
-                        </span>
-                      )}
-                    </div>
-
-                    {tx.pi_txid && (
-                      <p className="text-xs glass-text-muted mt-2 font-mono">
-                        TX: {tx.pi_txid.slice(0, 16)}...
-                      </p>
-                    )}
-                  </div>
-
-                  {tx.status === "success" || tx.status === "completed" ? (
-                    <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
-                      <span className="text-green-400 text-sm">✓</span>
-                    </div>
-                  ) : tx.status === "failed" ? (
-                    <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center">
-                      <span className="text-red-400 text-sm">✗</span>
-                    </div>
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center">
-                      <span className="text-yellow-400 text-sm">⏳</span>
-                    </div>
-                  )}
-                </div>
+            {/* Card Details */}
+            <div className="flex justify-between items-end relative z-10">
+              <div>
+                <p className="text-white/40 text-xs mb-1 tracking-wider">CARDHOLDER</p>
+                <p className="text-white font-semibold tracking-wider text-sm uppercase">
+                  {user.username}
+                </p>
               </div>
-            ))
-          )}
+              <div className="text-right">
+                <p className="text-white/40 text-xs mb-1 tracking-wider">BALANCE</p>
+                <p className="text-xl font-bold" style={{ color: "#FFD700" }}>
+                  {piBalance !== null ? piBalance.toFixed(2) : "--.--"} π
+                </p>
+              </div>
+            </div>
+
+            {/* Gold Accent Line */}
+            <div 
+              className="absolute bottom-0 left-0 right-0 h-1"
+              style={{ 
+                background: "linear-gradient(90deg, transparent 0%, #FFD700 50%, transparent 100%)",
+                opacity: 0.6
+              }}
+            />
+          </div>
         </div>
+
+        {/* Quick Actions */}
+        <div className="flex gap-3 mb-6">
+          <button
+            onClick={() => setActiveTab("send")}
+            className={`flex-1 py-3 px-4 rounded-xl font-semibold transition ${
+              activeTab === "send"
+                ? "bg-gradient-to-r from-yellow-500 to-yellow-600 text-black"
+                : "glass-button hover:bg-white/10"
+            }`}
+          >
+            Send Pi
+          </button>
+          <button
+            onClick={() => setActiveTab("sent")}
+            className={`flex-1 py-3 px-4 rounded-xl font-semibold transition ${
+              activeTab === "sent"
+                ? "glass-button-primary"
+                : "glass-button hover:bg-white/10"
+            }`}
+          >
+            History
+          </button>
+        </div>
+
+        {/* Send Pi Form */}
+        {activeTab === "send" && (
+          <div className="glass-card p-6 mb-6">
+            <h3 className="text-lg font-semibold mb-4 glass-text">
+              {taskId ? "Complete Payment for Task" : "Send Pi"}
+            </h3>
+            
+            {sendError && (
+              <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 mb-4">
+                <p className="text-red-400 text-sm">{sendError}</p>
+              </div>
+            )}
+            
+            {sendSuccess && (
+              <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-3 mb-4">
+                <p className="text-green-400 text-sm">{sendSuccess}</p>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm glass-text-accent mb-2">Recipient Username</label>
+                <input
+                  type="text"
+                  value={recipientUsername}
+                  onChange={(e) => setRecipientUsername(e.target.value)}
+                  placeholder="@username"
+                  className="w-full glass-input px-4 py-3 rounded-lg text-white placeholder-white/30"
+                  disabled={!!prefillRecipient || isSending}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm glass-text-accent mb-2">Amount (π)</label>
+                <input
+                  type="number"
+                  value={sendAmount}
+                  onChange={(e) => setSendAmount(e.target.value)}
+                  placeholder="0.00"
+                  step="0.01"
+                  min="0.01"
+                  className="w-full glass-input px-4 py-3 rounded-lg text-white placeholder-white/30 text-2xl font-bold"
+                  disabled={isSending}
+                />
+                {parseFloat(sendAmount) > 0 && (
+                  <p className="text-xs glass-text-muted mt-1">
+                    Platform fee (2.5%): {(parseFloat(sendAmount) * 0.025).toFixed(2)} π<br/>
+                    Recipient receives: {(parseFloat(sendAmount) * 0.975).toFixed(2)} π
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm glass-text-accent mb-2">Memo (Optional)</label>
+                <input
+                  type="text"
+                  value={sendMemo}
+                  onChange={(e) => setSendMemo(e.target.value)}
+                  placeholder="Payment for..."
+                  className="w-full glass-input px-4 py-3 rounded-lg text-white placeholder-white/30"
+                  disabled={isSending}
+                />
+              </div>
+
+              <button
+                onClick={handleSendPi}
+                disabled={isSending || !sendAmount || parseFloat(sendAmount) <= 0}
+                className="w-full py-4 rounded-xl font-bold text-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  background: "linear-gradient(135deg, #FFD700 0%, #FFA500 100%)",
+                  color: "#1a1a2e",
+                  boxShadow: "0 4px 20px rgba(255,215,0,0.3)"
+                }}
+              >
+                {isSending ? "Processing..." : taskId ? "Pay & Complete Task" : "Send Pi"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Transaction History Tabs */}
+        {(activeTab === "sent" || activeTab === "received") && (
+          <>
+            {/* Summary Stats */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="glass-card p-4">
+                <p className="glass-text-accent text-xs mb-1">Total Sent</p>
+                <p className="text-xl font-bold text-white">{totalSent.toFixed(2)} π</p>
+                <p className="text-xs glass-text-muted">{sentPayments.length} payments</p>
+              </div>
+              <div className="glass-card p-4">
+                <p className="glass-text-accent text-xs mb-1">Total Received</p>
+                <p className="text-xl font-bold" style={{ color: "#FFD700" }}>{totalReceived.toFixed(2)} π</p>
+                <p className="text-xs glass-text-muted">{receivedPayments.length} payments</p>
+              </div>
+            </div>
+
+            {/* Tab Navigation */}
+            <div className="glass-card p-1 mb-6">
+              <div className="flex">
+                <button
+                  onClick={() => setActiveTab("sent")}
+                  className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition ${
+                    activeTab === "sent"
+                      ? "glass-button-primary"
+                      : "glass-text-muted hover:glass-text"
+                  }`}
+                >
+                  Sent ({sentPayments.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab("received")}
+                  className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition ${
+                    activeTab === "received"
+                      ? "glass-button-primary"
+                      : "glass-text-muted hover:glass-text"
+                  }`}
+                >
+                  Received ({receivedPayments.length})
+                </button>
+              </div>
+            </div>
+
+            {/* Transactions List */}
+            <div className="space-y-3">
+              {transactions.length === 0 ? (
+                <div className="glass-card p-8 text-center">
+                  <p className="glass-text mb-2">
+                    No {activeTab} payments yet
+                  </p>
+                  <p className="text-sm glass-text-muted">
+                    {activeTab === "sent"
+                      ? "Payments you make will appear here"
+                      : "Payments you receive will appear here"}
+                  </p>
+                </div>
+              ) : (
+                transactions.map((tx) => (
+                  <div key={tx.id} className="glass-card p-4 hover:bg-white/5 transition">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`text-sm font-medium ${getStatusColor(tx.status)}`}>
+                            {tx.status?.toUpperCase()}
+                          </span>
+                          <span className="text-xs glass-text-muted">
+                            {formatDate(tx.created_at)}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="glass-text text-sm">
+                            {activeTab === "sent" ? "To:" : "From:"}
+                          </span>
+                          <span className="glass-text-accent font-medium">
+                            {activeTab === "sent" ? tx.receiver_username : tx.sender_username}
+                          </span>
+                        </div>
+
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-lg font-bold text-yellow-400">
+                            {activeTab === "sent" ? tx.total_amount.toFixed(2) : tx.net_amount.toFixed(2)} π
+                          </span>
+                          {activeTab === "sent" && tx.platform_fee_amount > 0 && (
+                            <span className="text-xs glass-text-muted">
+                              (fee: {tx.platform_fee_amount.toFixed(2)} π)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className={`w-2 h-2 rounded-full ${
+                        tx.status === "completed" ? "bg-green-400" :
+                        tx.status === "failed" ? "bg-red-400" :
+                        "bg-yellow-400"
+                      }`} />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
