@@ -359,12 +359,14 @@ export default function PaymentsPage() {
 
       <div className="max-w-4xl mx-auto p-4 pt-6 w-full">
         {/* Pi Debit Card */}
-        <div className="mb-6">
+        <div className="mb-6 flex justify-center">
           <div 
-            className="relative w-full max-w-md mx-auto rounded-2xl p-6 overflow-hidden"
+            className="relative rounded-xl p-4 overflow-hidden"
             style={{
+              width: "340px",
+              height: "200px",
               background: "linear-gradient(145deg, #0a0a0a 0%, #1a1a1a 50%, #0d0d0d 100%)",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.8), 0 0 40px rgba(255,215,0,0.15)",
+              boxShadow: "0 15px 40px rgba(0,0,0,0.8), 0 0 30px rgba(255,215,0,0.1)",
               border: "1px solid rgba(255,215,0,0.4)",
             }}
           >
@@ -377,20 +379,22 @@ export default function PaymentsPage() {
             />
             
             {/* Top Row - Card Type */}
-            <div className="flex justify-between items-start mb-4 relative z-10">
-              <span className="text-white/60 font-semibold text-xs tracking-widest">YASA CARD</span>
-              <span className="text-white/40 text-xs">DEBIT</span>
+            <div className="flex justify-between items-start mb-2 relative z-10">
+              <span className="text-white/60 font-semibold text-[10px] tracking-widest">YASA CARD</span>
+              <span className="text-white/40 text-[10px]">DEBIT</span>
             </div>
 
-            {/* Center Pi Logo - Large */}
-            <div className="flex justify-center items-center mb-6 relative z-10">
+            {/* Center Pi Logo - Large and Centered */}
+            <div className="flex justify-center items-center mb-2 relative z-10">
               <div 
-                className="w-20 h-20 rounded-full flex items-center justify-center"
+                className="rounded-full flex items-center justify-center"
                 style={{ 
+                  width: "70px",
+                  height: "70px",
                   background: "linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FFD700 100%)",
                   color: "#000000",
-                  boxShadow: "0 0 30px rgba(255,215,0,0.6), inset 0 0 20px rgba(255,255,255,0.3)",
-                  fontSize: "3rem",
+                  boxShadow: "0 0 25px rgba(255,215,0,0.6), inset 0 0 15px rgba(255,255,255,0.3)",
+                  fontSize: "2.5rem",
                   fontWeight: "bold",
                   border: "3px solid rgba(255,215,0,0.5)"
                 }}
@@ -400,12 +404,12 @@ export default function PaymentsPage() {
             </div>
 
             {/* Card Number */}
-            <div className="mb-6 text-center relative z-10">
+            <div className="mb-3 text-center relative z-10">
               <p 
-                className="text-xl font-mono tracking-[0.3em]"
+                className="text-lg font-mono tracking-[0.25em]"
                 style={{ 
                   color: "#FFD700",
-                  textShadow: "0 0 15px rgba(255,215,0,0.5)",
+                  textShadow: "0 0 10px rgba(255,215,0,0.5)",
                   fontFamily: "'Courier New', monospace"
                 }}
               >
@@ -416,14 +420,14 @@ export default function PaymentsPage() {
             {/* Card Details */}
             <div className="flex justify-between items-end relative z-10">
               <div>
-                <p className="text-white/40 text-xs mb-1 tracking-wider">CARDHOLDER</p>
-                <p className="text-white font-semibold tracking-wider text-sm uppercase">
+                <p className="text-white/40 text-[10px] mb-0.5 tracking-wider">CARDHOLDER</p>
+                <p className="text-white font-semibold tracking-wider text-xs uppercase truncate max-w-[140px]">
                   {user.username}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-white/40 text-xs mb-1 tracking-wider">BALANCE</p>
-                <p className="text-2xl font-bold" style={{ color: "#FFD700", textShadow: "0 0 10px rgba(255,215,0,0.3)" }}>
+                <p className="text-white/40 text-[10px] mb-0.5 tracking-wider">BALANCE</p>
+                <p className="text-xl font-bold" style={{ color: "#FFD700", textShadow: "0 0 8px rgba(255,215,0,0.3)" }}>
                   {piBalance !== null ? piBalance.toFixed(2) : "--.--"} π
                 </p>
               </div>
