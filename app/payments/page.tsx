@@ -361,10 +361,10 @@ export default function PaymentsPage() {
         {/* Pi Debit Card */}
         <div className="mb-6 flex justify-center">
           <div 
-            className="relative rounded-xl p-4 overflow-hidden"
+            className="relative rounded-xl p-5 overflow-hidden"
             style={{
-              width: "340px",
-              height: "200px",
+              width: "380px",
+              height: "220px",
               background: "linear-gradient(145deg, #0a0a0a 0%, #1a1a1a 50%, #0d0d0d 100%)",
               boxShadow: "0 15px 40px rgba(0,0,0,0.8), 0 0 30px rgba(255,215,0,0.1)",
               border: "1px solid rgba(255,215,0,0.4)",
@@ -421,7 +421,7 @@ export default function PaymentsPage() {
             <div className="flex justify-between items-end relative z-10">
               <div>
                 <p className="text-white/40 text-[10px] mb-0.5 tracking-wider">CARDHOLDER</p>
-                <p className="text-white font-semibold tracking-wider text-xs uppercase truncate max-w-[140px]">
+                <p className="text-white font-semibold tracking-wider text-xs uppercase truncate max-w-[180px]">
                   {user.username}
                 </p>
               </div>
