@@ -953,7 +953,7 @@ export default function ChatPage() {
           </div>
           <div className="flex gap-1 md:gap-2 items-center">
             {/* Debug status for tasker */}
-            {taskId && (
+            {taskId ? (
               <div className="text-[10px] leading-tight">
                 {taskStatus === "active" ? (
                   String(user?.id) === String(taskPosterId) ? (
@@ -965,6 +965,8 @@ export default function ChatPage() {
                   <span className="glass-text-muted">Status: {taskStatus || "loading"}</span>
                 )}
               </div>
+            ) : (
+              <span className="text-[10px] text-yellow-400">NO TASK</span>
             )}
             {taskId && taskStatus === "active" && String(user?.id) === String(taskPosterId) && (
               <button
