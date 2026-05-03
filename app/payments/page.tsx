@@ -12,9 +12,10 @@ interface Transaction {
   sender_username: string;
   receiver_uid: string;
   receiver_username: string;
-  total_amount: number;
+  task_amount: number;
   platform_fee_amount: number;
-  net_amount: number;
+  total_amount: number;
+  net_amount?: number; // legacy field
   status: string;
   created_at: string;
   completed_at?: string;
@@ -87,14 +88,15 @@ export default function PaymentsPage() {
         // Fallback: Show calculated balance from app transactions
         // Note: This is NOT the real Pi wallet balance, just app-internal transactions
         console.warn("Real Pi balance unavailable - showing calculated app balance. Connect Pi Network API for real balance.");
-        const totalReceived = receivedPayments.reduce((sum, t) => sum + t.net_amount, 0);
-        const totalSent = sentPayments.reduce((sum, t) => sum + t.total_amount, 0);
+        // Received = task_amount (what recipient gets), Sent = total_amount (what sender pays)
+        const totalReceived = receivedPayments.reduce((sum, t) => sum + (t.task_amount || t.net_amount || 0), 0);
+        const totalSent = sentPayments.reduce((sum, t) => sum + (t.total_amount || 0), 0);
         setPiBalance(Math.max(0, totalReceived - totalSent));
       } catch (err) {
         console.error("Error fetching balance:", err);
         // Fallback to calculated balance
-        const totalReceived = receivedPayments.reduce((sum, t) => sum + t.net_amount, 0);
-        const totalSent = sentPayments.reduce((sum, t) => sum + t.total_amount, 0);
+        const totalReceived = receivedPayments.reduce((sum, t) => sum + (t.task_amount || t.net_amount || 0), 0);
+        const totalSent = sentPayments.reduce((sum, t) => sum + (t.total_amount || 0), 0);
         setPiBalance(Math.max(0, totalReceived - totalSent));
       }
     }
@@ -201,20 +203,21 @@ export default function PaymentsPage() {
         return;
       }
 
-      const amount = parseFloat(sendAmount);
-      const platformFee = amount * 0.05; // 5% platform fee
-      const netAmount = amount - platformFee;
+      const totalAmount = parseFloat(sendAmount); // Total user pays
+      const platformFee = totalAmount * 0.05; // 5% platform fee taken from total
+      const taskAmount = totalAmount - platformFee; // What freelancer receives
 
       // Create payment data
       const paymentData = {
-        amount: amount,
+        amount: totalAmount,
         memo: sendMemo || `Payment to ${recipientUsername}`,
         metadata: {
           task_id: taskId,
           recipient_uid: recipientUid,
           recipient_username: recipientUsername,
+          total_amount: totalAmount,
           platform_fee: platformFee,
-          net_amount: netAmount,
+          task_amount: taskAmount,
         },
       };
 
@@ -229,9 +232,9 @@ export default function PaymentsPage() {
             sender_username: user.username,
             receiver_uid: recipientUid,
             receiver_username: recipientUsername,
-            total_amount: amount,
+            task_amount: taskAmount,
             platform_fee_amount: platformFee,
-            net_amount: netAmount,
+            total_amount: totalAmount,
             status: "pending",
             pi_txid: paymentId,
           });
@@ -244,7 +247,7 @@ export default function PaymentsPage() {
             .update({ status: "completed", completed_at: new Date().toISOString() })
             .eq("pi_txid", paymentId);
           
-          setSendSuccess(`Successfully sent ${amount} π to ${recipientUsername}`);
+          setSendSuccess(`Successfully paid ${totalAmount} π (Freelancer: ${taskAmount} π, Fee: ${platformFee} π)`);
           loadTransactions(user.id);
           
           // If from task completion, redirect to rating
@@ -508,7 +511,7 @@ export default function PaymentsPage() {
               </div>
 
               <div>
-                <label className="block text-sm glass-text-accent mb-2">Amount (π)</label>
+                <label className="block text-sm glass-text-accent mb-2">Payment Amount (π)</label>
                 <input
                   type="number"
                   value={sendAmount}
@@ -520,10 +523,20 @@ export default function PaymentsPage() {
                   disabled={isSending}
                 />
                 {parseFloat(sendAmount) > 0 && (
-                  <p className="text-xs glass-text-muted mt-1">
-                    Platform fee (5%): {(parseFloat(sendAmount) * 0.05).toFixed(2)} π<br/>
-                    Recipient receives: {(parseFloat(sendAmount) * 0.95).toFixed(2)} π
-                  </p>
+                  <div className="mt-3 p-3 rounded-lg bg-white/5 border border-white/10">
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="glass-text-muted">You Pay:</span>
+                      <span className="text-white">{parseFloat(sendAmount).toFixed(2)} π</span>
+                    </div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="glass-text-muted">Platform Fee (5%):</span>
+                      <span className="text-yellow-400">-{(parseFloat(sendAmount) * 0.05).toFixed(2)} π</span>
+                    </div>
+                    <div className="border-t border-white/10 mt-2 pt-2 flex justify-between font-bold">
+                      <span className="glass-text">Freelancer Receives:</span>
+                      <span className="text-green-400">{(parseFloat(sendAmount) * 0.95).toFixed(2)} π</span>
+                    </div>
+                  </div>
                 )}
               </div>
 
@@ -636,11 +649,14 @@ export default function PaymentsPage() {
 
                         <div className="flex items-baseline gap-2">
                           <span className="text-lg font-bold text-yellow-400">
-                            {activeTab === "sent" ? tx.total_amount.toFixed(2) : tx.net_amount.toFixed(2)} π
+                            {activeTab === "sent" 
+                              ? tx.total_amount?.toFixed(2) 
+                              : tx.task_amount?.toFixed(2)
+                            } π
                           </span>
                           {activeTab === "sent" && tx.platform_fee_amount > 0 && (
                             <span className="text-xs glass-text-muted">
-                              (fee: {tx.platform_fee_amount.toFixed(2)} π)
+                              (freelancer gets {tx.task_amount?.toFixed(2)} π)
                             </span>
                           )}
                         </div>
