@@ -952,10 +952,27 @@ export default function ChatPage() {
             )}
           </div>
           <div className="flex gap-1 md:gap-2">
+            {/* Debug Status - visible indicator */}
+            {taskId && (
+              <span className="text-[10px] glass-text-muted hidden md:inline">
+                Task: {taskId?.slice(0,8)}... | Status: {taskStatus || "loading"} | You: {user?.id?.slice(0,8)}... | Poster: {taskPosterId?.slice(0,8)}... | Match: {user?.id === taskPosterId ? "YES" : "NO"}
+              </span>
+            )}
             {/* Show loading while task status is loading */}
             {taskId && !taskStatus && (
               <span className="text-xs glass-text-accent animate-pulse">
                 Loading task...
+              </span>
+            )}
+            {/* Debug: Show why button is hidden */}
+            {taskId && taskStatus === "active" && user?.id !== taskPosterId && (
+              <span className="text-xs text-red-400" title="You are not the task poster">
+                Not task owner
+              </span>
+            )}
+            {taskId && taskStatus && taskStatus !== "active" && (
+              <span className="text-xs glass-text-muted">
+                Task {taskStatus}
               </span>
             )}
             {taskId && taskStatus === "active" && user?.id === taskPosterId && (
