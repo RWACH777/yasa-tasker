@@ -952,11 +952,19 @@ export default function ChatPage() {
             )}
           </div>
           <div className="flex gap-1 md:gap-2 items-center">
-            {/* Show loading while task status is loading */}
-            {taskId && !taskStatus && (
-              <span className="text-xs glass-text-accent animate-pulse">
-                Loading...
-              </span>
+            {/* Debug status for tasker */}
+            {taskId && (
+              <div className="text-[10px] leading-tight">
+                {taskStatus === "active" ? (
+                  String(user?.id) === String(taskPosterId) ? (
+                    <span className="text-green-400">Ready to pay</span>
+                  ) : (
+                    <span className="text-red-400">UID:{String(user?.id).slice(0,6)} vs POSTER:{String(taskPosterId).slice(0,6)}</span>
+                  )
+                ) : (
+                  <span className="glass-text-muted">Status: {taskStatus || "loading"}</span>
+                )}
+              </div>
             )}
             {taskId && taskStatus === "active" && String(user?.id) === String(taskPosterId) && (
               <button
