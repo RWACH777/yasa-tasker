@@ -1086,27 +1086,9 @@ const handleUpdateFreelancerUsername = async () => {
                     {profileTasks.active.map((task) => (
                       <div key={task.id} className="glass-list-item p-3">
                         <p className="font-semibold text-sm glass-text">{task.title}</p>
-                        <p className="text-xs glass-text-muted mb-2">
+                        <p className="text-xs glass-text-muted">
                           Budget: {task.budget} π
                         </p>
-                        {/* Tasker view: chat with assigned freelancer */}
-                        {profileView === "tasker" && task.assignee_id && (
-                          <button
-                            onClick={() => router.push(`/chat?user=${task.assignee_id}&task=${task.id}`)}
-                            className="glass-button glass-button-primary text-xs px-3 py-1"
-                          >
-                            Chat with Freelancer
-                          </button>
-                        )}
-                        {/* Freelancer view: chat with task poster */}
-                        {profileView === "freelancer" && task.poster_id && (
-                          <button
-                            onClick={() => router.push(`/chat?user=${task.poster_id}&task=${task.id}`)}
-                            className="glass-button glass-button-primary text-xs px-3 py-1"
-                          >
-                            Chat with Tasker
-                          </button>
-                        )}
                       </div>
                     ))}
                   </div>
