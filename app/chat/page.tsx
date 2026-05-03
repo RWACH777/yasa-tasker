@@ -954,9 +954,10 @@ export default function ChatPage() {
           <div className="flex gap-1 md:gap-2">
             {/* Debug Status - visible indicator */}
             {taskId && (
-              <span className="text-[10px] glass-text-muted hidden md:inline">
-                Task: {taskId?.slice(0,8)}... | Status: {taskStatus || "loading"} | You: {user?.id?.slice(0,8)}... | Poster: {taskPosterId?.slice(0,8)}... | Match: {user?.id === taskPosterId ? "YES" : "NO"}
-              </span>
+              <div className="text-[10px] glass-text-muted flex flex-col leading-tight">
+                <span>Task: {taskId?.slice(0,8)}... Status: {taskStatus || "loading"}</span>
+                <span>Match: {user?.id === taskPosterId ? "YES" : "NO"}</span>
+              </div>
             )}
             {/* Show loading while task status is loading */}
             {taskId && !taskStatus && (
