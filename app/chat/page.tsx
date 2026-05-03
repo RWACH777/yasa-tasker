@@ -952,33 +952,13 @@ export default function ChatPage() {
             )}
           </div>
           <div className="flex gap-1 md:gap-2 items-center">
-            {/* Debug Status - visible indicator */}
-            {taskId ? (
-              <div className="text-[10px] glass-text-muted flex flex-col leading-tight">
-                <span>Task: {taskId?.slice(0,8)}... Status: {taskStatus || "loading"}</span>
-                <span>Match: {user?.id === taskPosterId ? "YES" : "NO"}</span>
-              </div>
-            ) : (
-              <span className="text-[10px] text-yellow-400">NO TASK ID</span>
-            )}
             {/* Show loading while task status is loading */}
             {taskId && !taskStatus && (
               <span className="text-xs glass-text-accent animate-pulse">
-                Loading task...
+                Loading...
               </span>
             )}
-            {/* Debug: Show why button is hidden */}
-            {taskId && taskStatus === "active" && user?.id !== taskPosterId && (
-              <span className="text-xs text-red-400" title="You are not the task poster">
-                Not task owner
-              </span>
-            )}
-            {taskId && taskStatus && taskStatus !== "active" && (
-              <span className="text-xs glass-text-muted">
-                Task {taskStatus}
-              </span>
-            )}
-            {taskId && taskStatus === "active" && user?.id === taskPosterId && (
+            {taskId && taskStatus === "active" && String(user?.id) === String(taskPosterId) && (
               <button
                 onClick={() => {
                   // Redirect to payments page with pre-filled data
