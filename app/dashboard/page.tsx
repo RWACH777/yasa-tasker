@@ -841,9 +841,9 @@ export default function DashboardPage() {
     }
     
     loadProfileTasks();
+    // Use window.location for hard redirect - router.push doesn't work reliably in Pi Browser
     const chatUrl = `/chat?user=${applicantId}&task=${taskId}`;
-    alert(`Redirecting to: ${chatUrl}`);
-    router.push(chatUrl);
+    window.location.href = chatUrl;
   }
   setReviewLoading(false);
 };
