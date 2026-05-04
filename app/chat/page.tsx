@@ -966,7 +966,10 @@ export default function ChatPage() {
                 )}
               </div>
             ) : (
-              <span className="text-[10px] text-yellow-400">NO TASK</span>
+              <div className="text-[10px] text-yellow-400 flex flex-col">
+                <span>NO TASK ID</span>
+                <span>task={taskId || "null"}</span>
+              </div>
             )}
             {taskId && taskStatus === "active" && String(user?.id) === String(taskPosterId) && (
               <button
