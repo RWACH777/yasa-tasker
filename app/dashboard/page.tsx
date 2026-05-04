@@ -841,12 +841,11 @@ export default function DashboardPage() {
     }
     
     loadProfileTasks();
-    // Debug: show what values we have
-    alert(`taskId=${taskId}, applicantId=${applicantId}, reviewTaskId=${reviewTaskId}`);
-    // Use window.location for hard redirect
+    // Navigate to chat with hard redirect (Pi Browser compatible)
     const chatUrl = `/chat?user=${applicantId}&task=${taskId}`;
-    alert(`Going to: ${chatUrl}`);
-    window.location.href = chatUrl;
+    setTimeout(() => {
+      window.location.replace(chatUrl);
+    }, 100);
   }
   setReviewLoading(false);
 };
