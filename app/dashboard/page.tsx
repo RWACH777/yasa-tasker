@@ -58,6 +58,7 @@ export default function DashboardPage() {
   const [profileTasks, setProfileTasks] = useState({ active: [], pending: [], completed: [] });
   const [userApplications, setUserApplications] = useState<any[]>([]);
   const [userRatings, setUserRatings] = useState<any[]>([]);
+  const [approvedChatUrl, setApprovedChatUrl] = useState<string | null>(null);
   
   // Picture modal state
   const [pictureToEdit, setPictureToEdit] = useState<string | null>(null);
@@ -841,16 +842,11 @@ export default function DashboardPage() {
     }
     
     loadProfileTasks();
-    // Navigate to chat - try multiple methods for Pi Browser
+    // Store URL for manual navigation fallback
     const chatUrl = `/chat?user=${applicantId}&task=${taskId}`;
-    // Method 1: Direct assignment
-    document.location.href = chatUrl;
-    // Method 2: Fallback with replace
-    setTimeout(() => {
-      if (window.location.pathname !== '/chat') {
-        window.location.replace(chatUrl);
-      }
-    }, 200);
+    setApprovedChatUrl(chatUrl);
+    // Try automatic redirect
+    window.location.href = chatUrl;
   }
   setReviewLoading(false);
 };
@@ -1369,7 +1365,19 @@ const handleUpdateFreelancerUsername = async () => {
         <h2 className="text-lg font-semibold mb-4 glass-text">
           {form.id ? "Edit Task" : "Post a Task"}
         </h2>
-        {message && <p className="text-sm glass-text-muted mb-3">{message}</p>}
+        {message && (
+          <div className="mb-3">
+            <p className="text-sm glass-text-muted">{message}</p>
+            {approvedChatUrl && (
+              <a
+                href={approvedChatUrl}
+                className="mt-2 inline-block glass-button glass-button-primary text-sm px-4 py-2"
+              >
+                Open Chat
+              </a>
+            )}
+          </div>
+        )}
         <form
           onSubmit={handleSubmit}
           className="space-y-3 relative z-10 pointer-events-auto"
