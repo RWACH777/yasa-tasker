@@ -841,11 +841,16 @@ export default function DashboardPage() {
     }
     
     loadProfileTasks();
-    // Navigate to chat with hard redirect (Pi Browser compatible)
+    // Navigate to chat - try multiple methods for Pi Browser
     const chatUrl = `/chat?user=${applicantId}&task=${taskId}`;
+    // Method 1: Direct assignment
+    document.location.href = chatUrl;
+    // Method 2: Fallback with replace
     setTimeout(() => {
-      window.location.replace(chatUrl);
-    }, 100);
+      if (window.location.pathname !== '/chat') {
+        window.location.replace(chatUrl);
+      }
+    }, 200);
   }
   setReviewLoading(false);
 };
