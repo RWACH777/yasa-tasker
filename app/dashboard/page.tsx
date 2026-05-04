@@ -841,7 +841,9 @@ export default function DashboardPage() {
     }
     
     loadProfileTasks();
-    router.push(`/chat?user=${applicantId}&task=${taskId}`);
+    const chatUrl = `/chat?user=${applicantId}&task=${taskId}`;
+    alert(`Redirecting to: ${chatUrl}`);
+    router.push(chatUrl);
   }
   setReviewLoading(false);
 };
