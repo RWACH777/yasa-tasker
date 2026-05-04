@@ -847,8 +847,18 @@ export default function DashboardPage() {
     // Store URL for manual navigation fallback
     const chatUrl = `/chat?user=${applicantId}&task=${taskId}`;
     setApprovedChatUrl(chatUrl);
-    // Try automatic redirect
-    window.location.href = chatUrl;
+    // Redirect using multiple methods for Pi Browser compatibility
+    // Method 1: Create and click a link
+    const link = document.createElement('a');
+    link.href = chatUrl;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    // Method 2: Fallback after delay
+    setTimeout(() => {
+      window.location.replace(chatUrl);
+    }, 300);
   }
   setReviewLoading(false);
 };
