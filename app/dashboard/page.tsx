@@ -841,8 +841,11 @@ export default function DashboardPage() {
     }
     
     loadProfileTasks();
-    // Use window.location for hard redirect - router.push doesn't work reliably in Pi Browser
+    // Debug: show what values we have
+    alert(`taskId=${taskId}, applicantId=${applicantId}, reviewTaskId=${reviewTaskId}`);
+    // Use window.location for hard redirect
     const chatUrl = `/chat?user=${applicantId}&task=${taskId}`;
+    alert(`Going to: ${chatUrl}`);
     window.location.href = chatUrl;
   }
   setReviewLoading(false);
