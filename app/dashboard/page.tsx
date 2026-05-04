@@ -1371,12 +1371,15 @@ const handleUpdateFreelancerUsername = async () => {
           <div className="mb-3">
             <p className="text-sm glass-text-muted">{message}</p>
             {approvedChatUrl && (
-              <a
-                href={approvedChatUrl}
-                className="mt-2 inline-block glass-button glass-button-primary text-sm px-4 py-2"
-              >
-                Open Chat
-              </a>
+              <>
+                <p className="text-[10px] glass-text-muted mt-1">URL: {approvedChatUrl}</p>
+                <a
+                  href={approvedChatUrl}
+                  className="mt-2 inline-block glass-button glass-button-primary text-sm px-4 py-2"
+                >
+                  Open Chat
+                </a>
+              </>
             )}
           </div>
         )}
