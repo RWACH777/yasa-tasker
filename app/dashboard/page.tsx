@@ -842,23 +842,14 @@ export default function DashboardPage() {
     }
     
     loadProfileTasks();
-    // Debug values
-    console.log("DEBUG APPROVAL:", { taskId, applicantId, reviewTaskId, appData });
-    // Store URL for manual navigation fallback
-    const chatUrl = `/chat?user=${applicantId}&task=${taskId}`;
-    setApprovedChatUrl(chatUrl);
-    // Redirect using multiple methods for Pi Browser compatibility
-    // Method 1: Create and click a link
-    const link = document.createElement('a');
-    link.href = chatUrl;
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    // Method 2: Fallback after delay
-    setTimeout(() => {
-      window.location.replace(chatUrl);
-    }, 300);
+    // STEP 1: Store task context in localStorage for Pi Browser compatibility
+    if (taskId && applicantId) {
+      localStorage.setItem("activeTaskId", taskId);
+      localStorage.setItem("activeChatUserId", applicantId);
+      console.log("Stored in localStorage:", { taskId, applicantId });
+    }
+    // STEP 2: Navigate without query params (clean URL for Pi Browser)
+    router.push("/chat");
   }
   setReviewLoading(false);
 };
@@ -1377,22 +1368,7 @@ const handleUpdateFreelancerUsername = async () => {
         <h2 className="text-lg font-semibold mb-4 glass-text">
           {form.id ? "Edit Task" : "Post a Task"}
         </h2>
-        {message && (
-          <div className="mb-3">
-            <p className="text-sm glass-text-muted">{message}</p>
-            {approvedChatUrl && (
-              <>
-                <p className="text-[10px] glass-text-muted mt-1">URL: {approvedChatUrl}</p>
-                <a
-                  href={approvedChatUrl}
-                  className="mt-2 inline-block glass-button glass-button-primary text-sm px-4 py-2"
-                >
-                  Open Chat
-                </a>
-              </>
-            )}
-          </div>
-        )}
+        {message && <p className="text-sm glass-text-muted mb-3">{message}</p>}
         <form
           onSubmit={handleSubmit}
           className="space-y-3 relative z-10 pointer-events-auto"

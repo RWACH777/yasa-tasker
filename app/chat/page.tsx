@@ -29,8 +29,12 @@ interface Message {
 export default function ChatPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const otherUserId = searchParams.get("user");
-  const taskId = searchParams.get("task");
+  const otherUserId = searchParams.get("user") || localStorage.getItem("activeChatUserId");
+  const urlTaskId = searchParams.get("task");
+  
+  // STEP 3: Resolved taskId from multiple sources (URL -> localStorage -> database)
+  const [resolvedTaskId, setResolvedTaskId] = useState<string | null>(null);
+  const taskId = resolvedTaskId || urlTaskId;
 
   const [user, setUser] = useState<any>(null);
   const [otherUser, setOtherUser] = useState<any>(null);
@@ -47,6 +51,7 @@ export default function ChatPage() {
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [showRatingModal, setShowRatingModal] = useState(false);
+  const [taskResolutionSource, setTaskResolutionSource] = useState<string>("none"); // debug
   const [ratingLoading, setRatingLoading] = useState(false);
   const [taskStatus, setTaskStatus] = useState<string | null>(null);
   const [taskPosterId, setTaskPosterId] = useState<string | null>(null);
@@ -121,6 +126,52 @@ export default function ChatPage() {
     };
 
     loadOtherUser();
+
+    // STEP 3 & 4: Resolve taskId from localStorage or database fallback
+    const resolveTaskId = async () => {
+      // First try: URL params (already in urlTaskId)
+      if (urlTaskId) {
+        setResolvedTaskId(urlTaskId);
+        setTaskResolutionSource("url");
+        return;
+      }
+      
+      // Second try: localStorage
+      const storedTaskId = localStorage.getItem("activeTaskId");
+      if (storedTaskId) {
+        setResolvedTaskId(storedTaskId);
+        setTaskResolutionSource("localStorage");
+        return;
+      }
+      
+      // Third try: Database fallback - get latest approved task between users
+      if (user?.id && otherUserId) {
+        try {
+          const { data, error } = await supabase
+            .from("applications")
+            .select("task_id")
+            .eq("applicant_id", otherUserId)
+            .eq("status", "approved")
+            .order("updated_at", { ascending: false })
+            .limit(1)
+            .single();
+          
+          if (data?.task_id) {
+            setResolvedTaskId(data.task_id);
+            setTaskResolutionSource("database");
+            // Also store for future use
+            localStorage.setItem("activeTaskId", data.task_id);
+            return;
+          }
+        } catch (err) {
+          console.log("No approved task found in database fallback");
+        }
+      }
+      
+      setTaskResolutionSource("none");
+    };
+    
+    resolveTaskId();
 
     // Subscribe to presence changes using postgres_changes for real-time updates
     const presenceChannel = supabase
@@ -393,6 +444,9 @@ export default function ChatPage() {
           // Auto-show rating modal if task is completed
           if (data.status === "completed") {
             console.log("Task is completed, showing rating modal");
+            // STEP 6: Clean up localStorage when task is completed
+            localStorage.removeItem("activeTaskId");
+            localStorage.removeItem("activeChatUserId");
             setTimeout(() => setShowRatingModal(true), 800);
           }
         }
@@ -955,19 +1009,20 @@ export default function ChatPage() {
             {/* Debug status for tasker */}
             {taskId ? (
               <div className="text-[10px] leading-tight">
+                <span className="text-blue-400">[{taskResolutionSource}]</span>
                 {taskStatus === "active" ? (
                   String(user?.id) === String(taskPosterId) ? (
-                    <span className="text-green-400">Ready to pay</span>
+                    <span className="text-green-400 ml-1">Ready to pay</span>
                   ) : (
-                    <span className="text-red-400">UID:{String(user?.id).slice(0,6)} vs POSTER:{String(taskPosterId).slice(0,6)}</span>
+                    <span className="text-red-400 ml-1">UID:{String(user?.id).slice(0,6)} vs POSTER:{String(taskPosterId).slice(0,6)}</span>
                   )
                 ) : (
-                  <span className="glass-text-muted">Status: {taskStatus || "loading"}</span>
+                  <span className="glass-text-muted ml-1">Status: {taskStatus || "loading"}</span>
                 )}
               </div>
             ) : (
               <div className="text-[10px] text-yellow-400 flex flex-col">
-                <span>NO TASK ID</span>
+                <span>NO TASK ID [{taskResolutionSource}]</span>
                 <span>task={taskId || "null"}</span>
               </div>
             )}
