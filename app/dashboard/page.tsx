@@ -842,6 +842,8 @@ export default function DashboardPage() {
     }
     
     loadProfileTasks();
+    // Debug values
+    console.log("DEBUG APPROVAL:", { taskId, applicantId, reviewTaskId, appData });
     // Store URL for manual navigation fallback
     const chatUrl = `/chat?user=${applicantId}&task=${taskId}`;
     setApprovedChatUrl(chatUrl);
