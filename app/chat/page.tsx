@@ -1016,9 +1016,9 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* Header - FIXED */}
-      <div className="sticky top-0 z-10 glass-nav border-b border-white/20 p-4">
-        <div className="max-w-4xl mx-auto flex justify-between items-center">
+      {/* Header */}
+      <div className="sticky top-0 z-10 glass-nav border-b border-white/20 p-3 md:p-4">
+        <div className="flex justify-between items-center w-full">
           <div className="flex items-center gap-3">
             {otherUser ? (
               <>
@@ -1054,29 +1054,7 @@ export default function ChatPage() {
               <div className="glass-text-muted">Loading user...</div>
             )}
           </div>
-          <div className="flex gap-1 md:gap-2 items-center">
-            {/* Debug status for tasker */}
-            {taskId ? (
-              <div className="text-[10px] leading-tight flex flex-col">
-                <span className="text-blue-400">[{taskResolutionSource}] {taskId.slice(0,8)}</span>
-                <span className={taskStatus === "active" ? "text-yellow-400" : "glass-text-muted"}>
-                  Status: {taskStatus || "loading"} | You:{String(user?.id).slice(0,6)} | Poster:{String(taskPosterId).slice(0,6)}
-                </span>
-                {(taskStatus === "loading" || !taskStatus) && (
-                  <button 
-                    onClick={() => window.location.reload()}
-                    className="text-[10px] bg-blue-500 text-white px-2 py-1 rounded mt-1"
-                  >
-                    Reload
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="text-[10px] text-yellow-400 flex flex-col">
-                <span>NO TASK ID [{taskResolutionSource}]</span>
-                <span>task={taskId || "null"}</span>
-              </div>
-            )}
+          <div className="flex gap-1 md:gap-2 items-center overflow-hidden">
             {taskId && taskStatus === "active" && String(user?.id) === String(taskPosterId) && (
               <button
                 onClick={() => {
@@ -1107,7 +1085,7 @@ export default function ChatPage() {
             )}
             <Link
               href="/messages"
-              className="glass-button glass-button-primary px-3 md:px-5 py-2 md:py-2.5 text-sm md:text-base"
+              className="glass-button glass-button-primary px-2 md:px-4 py-1.5 md:py-2 text-xs md:text-sm whitespace-nowrap flex-shrink-0"
               title="Back to messages list"
             >
               Back
