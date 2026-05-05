@@ -448,7 +448,7 @@ export default function ChatPage() {
         console.log("🔄 Loading task status for taskId:", taskId);
         const { data, error } = await supabase
           .from("tasks")
-          .select("id, title, status, poster_id, budget, payment_status, payment_completed_at")
+          .select("id, title, status, poster_id, budget")
           .eq("id", taskId)
           .single();
 
@@ -568,7 +568,7 @@ export default function ChatPage() {
       try {
         const { data } = await supabase
           .from("tasks")
-          .select("id, title, status, poster_id, budget, payment_status, payment_completed_at")
+          .select("id, title, status, poster_id, budget")
           .eq("id", taskId)
           .single();
 
@@ -1090,11 +1090,6 @@ export default function ChatPage() {
               >
                 Pay & Complete
               </button>
-            )}
-            {taskId && taskStatus === "active" && task?.payment_status === "completed" && (
-              <span className="text-xs glass-text-accent flex items-center gap-1">
-                Payment Completed
-              </span>
             )}
             {taskId && taskStatus === "completed" && (
               <button
