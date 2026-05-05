@@ -994,21 +994,15 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="app-background h-screen text-white flex flex-col">
+    <div className="app-background h-screen w-full text-white flex flex-col overflow-hidden">
       {/* Error Banner */}
       {error && (
         <div className="glass-button-danger border-b border-red-500/50 p-3 text-sm">
-        <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <span className="text-red-200">{error}</span>
-          <button
-            onClick={() => setError(null)}
-            className="glass-button glass-close w-8 h-8 text-red-300 hover:text-red-100"
-          >
-            ✕
-          </button>
+          <div className="flex justify-between items-center w-full px-4">
+            <span className="text-red-200">{error}</span>
             <button
               onClick={() => setError(null)}
-              className="glass-close w-8 h-8 text-red-300 hover:text-red-100"
+              className="glass-close w-8 h-8 text-red-300 hover:text-red-100 flex-shrink-0"
             >
               ✕
             </button>
