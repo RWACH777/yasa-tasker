@@ -25,25 +25,48 @@ export default function Home() {
       const hasWalletPermission = localStorage.getItem("yasa_has_wallet") === "true";
       const hasPaymentsScope = localStorage.getItem("yasa_has_payments_scope") === "true";
       
-      console.log("Checking permissions:", { hasLoggedInBefore, hasWalletPermission, hasPaymentsScope });
+      // DEBUG: Show what permissions we have
+      const debugMsg = `Permissions check:\n- Logged in before: ${hasLoggedInBefore}\n- Has wallet: ${hasWalletPermission}\n- Has payments: ${hasPaymentsScope}`;
+      console.log(debugMsg);
       
       // FORCE RE-AUTHENTICATION: Clear old permissions if payments scope not granted
       // This ensures all users re-authenticate with the new required scopes
-      if (hasWalletPermission && !hasPaymentsScope) {
-        console.log(" Old permissions detected without payments scope. Clearing to force re-auth...");
-        alert("Updating app permissions... Please login again to enable payments.");
+      if (hasLoggedInBefore && hasWalletPermission && !hasPaymentsScope) {
+        console.log("🔄 FORCE RE-AUTH: Old permissions without payments scope detected");
+        alert("⚠️ Updating app permissions... Please login again to enable Pi payments.");
         
-        // Clear ALL localStorage
-        localStorage.removeItem("yasa_has_wallet");
-        localStorage.removeItem("yasa_has_logged_in");
-        localStorage.removeItem("pi_user");
-        localStorage.removeItem("yasa_has_payments_scope");
+        // Clear ALL localStorage items
+        const itemsToClear = ["yasa_has_wallet", "yasa_has_logged_in", "pi_user", "yasa_has_payments_scope", "sb-"];
+        itemsToClear.forEach(item => {
+          if (item === "sb-") {
+            // Clear all supabase auth keys
+            Object.keys(localStorage).forEach(key => {
+              if (key.startsWith("sb-")) localStorage.removeItem(key);
+            });
+          } else {
+            localStorage.removeItem(item);
+          }
+        });
         
-        // Clear Supabase session to force complete re-authentication
-        await supabase.auth.signOut();
+        // Clear Supabase session
+        try {
+          await supabase.auth.signOut();
+        } catch (e) {
+          console.log("Sign out error (expected if no session):", e);
+        }
         
-        // Force page reload to restart with fresh state
-        window.location.href = "/";
+        // Show clearing confirmation
+        alert("✅ Cleared! Reloading app...");
+        
+        // Force full page reload to root
+        window.location.href = window.location.origin + "/";
+        return;
+      }
+      
+      // If no login history at all, just show landing page normally
+      if (!hasLoggedInBefore && !hasWalletPermission) {
+        console.log("📍 Fresh user - showing landing page");
+        setPiReady(true);
         return;
       }
       
@@ -473,11 +496,31 @@ export default function Home() {
             </p>
           </div>
 
+          {/* Debug Info - Shows permission status */}
+          {typeof window !== "undefined" && (
+            <div className="mt-4 p-3 rounded bg-black/30 text-xs text-white/70 max-w-xs">
+              <div>Permissions:</div>
+              <div>• Wallet: {localStorage.getItem("yasa_has_wallet") === "true" ? "✅" : "❌"}</div>
+              <div>• Payments: {localStorage.getItem("yasa_has_payments_scope") === "true" ? "✅" : "❌"}</div>
+              <div>• Logged in: {localStorage.getItem("yasa_has_logged_in") === "true" ? "✅" : "❌"}</div>
+              <button
+                onClick={() => {
+                  localStorage.clear();
+                  alert("All data cleared! Reloading...");
+                  window.location.reload();
+                }}
+                className="mt-2 px-2 py-1 bg-red-500/50 hover:bg-red-500/70 rounded text-white text-xs"
+              >
+                🗑️ Clear All & Reload
+              </button>
+            </div>
+          )}
+
           {/* Login with Pi Button - White Background */}
           <button
             onClick={handlePiLogin}
             disabled={!piReady || isLoading}
-            className="mt-8 px-8 py-3 rounded-full font-semibold text-sm transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="mt-4 px-8 py-3 rounded-full font-semibold text-sm transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
             style={{
               background: "rgba(255, 255, 255, 0.95)",
               color: "#000",
