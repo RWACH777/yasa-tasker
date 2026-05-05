@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
@@ -57,6 +57,9 @@ export default function ChatPage() {
   const [taskPosterId, setTaskPosterId] = useState<string | null>(null);
   const [task, setTask] = useState<any>(null);
   const [hasRatedThisTask, setHasRatedThisTask] = useState(false);
+  const [transaction, setTransaction] = useState<any>(null);
+  const [payoutRequest, setPayoutRequest] = useState<any>(null);
+  const [requestingPayout, setRequestingPayout] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -592,6 +595,69 @@ export default function ChatPage() {
     };
   }, [taskId, user?.id, otherUser?.id, taskStatus]);
 
+  // Load payout request for this transaction
+  const loadPayoutRequest = useCallback(async (txId: string) => {
+    if (!user?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("payout_requests")
+        .select("*")
+        .eq("transaction_id", txId)
+        .eq("freelancer_uid", user.id)
+        .maybeSingle();
+      
+      if (error) {
+        console.log("No payout request found");
+        return;
+      }
+      
+      if (data) {
+        console.log("✅ Payout request found:", data);
+        setPayoutRequest(data);
+      }
+    } catch (err) {
+      console.log("No payout request found");
+    }
+  }, [user?.id]);
+  
+  // Load transaction for this task
+  const loadTransaction = useCallback(async () => {
+    if (!taskId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("task_id", taskId)
+        .eq("status", "completed")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (error) {
+        console.log("No completed transaction found for task:", taskId);
+        return;
+      }
+      
+      if (data) {
+        console.log("✅ Transaction found:", data);
+        setTransaction(data);
+        // Also load payout request for this transaction
+        await loadPayoutRequest(data.id);
+      }
+    } catch (err) {
+      console.log("No transaction found");
+    }
+  }, [taskId, loadPayoutRequest]);
+  
+  // Load transaction when task loads
+  useEffect(() => {
+    if (taskId) {
+      loadTransaction();
+    }
+  }, [taskId, loadTransaction]);
+
   const sendMessage = async (fileUrl?: string, voiceUrl?: string) => {
     if ((!newMessage.trim() && !fileUrl && !voiceUrl) || !user?.id || !otherUserId) {
       return;
@@ -1076,6 +1142,64 @@ export default function ChatPage() {
               >
                 {hasRatedThisTask ? "Rated" : "Rate & Comment"}
               </button>
+            )}
+            
+            {/* Freelancer Payout Request Button */}
+            {taskId && transaction?.status === "completed" && 
+             String(user?.id) !== String(taskPosterId) && 
+             !payoutRequest && (
+              <button
+                onClick={async () => {
+                  if (!confirm(`Request payout of ${transaction.task_amount?.toFixed(2)} π?`)) return;
+                  
+                  setRequestingPayout(true);
+                  try {
+                    const { error } = await supabase.from("payout_requests").insert({
+                      task_id: taskId,
+                      transaction_id: transaction.id,
+                      freelancer_uid: user?.id,
+                      freelancer_username: user?.username,
+                      amount: transaction.task_amount,
+                      fee_amount: transaction.platform_fee_amount,
+                      status: "pending",
+                    });
+                    
+                    if (error) throw error;
+                    
+                    alert("Payout request submitted! Admin will process it soon.");
+                    await loadTransaction();
+                  } catch (err: any) {
+                    alert("Failed to request payout: " + err.message);
+                  } finally {
+                    setRequestingPayout(false);
+                  }
+                }}
+                disabled={requestingPayout}
+                className="glass-button glass-button-primary px-2 md:px-4 py-1 md:py-2 text-xs md:text-sm animate-pulse"
+                title="Request your payout from admin"
+              >
+                {requestingPayout ? "Requesting..." : `Request Payout (${transaction.task_amount?.toFixed(2)} π)`}
+              </button>
+            )}
+            
+            {/* Payout Status for Freelancer */}
+            {payoutRequest && (
+              <div className="flex items-center gap-2">
+                <span className={`text-xs px-2 py-1 rounded ${
+                  payoutRequest.status === "pending" 
+                    ? "bg-yellow-500/20 text-yellow-400" 
+                    : payoutRequest.status === "completed"
+                    ? "bg-green-500/20 text-green-400"
+                    : "bg-red-500/20 text-red-400"
+                }`}>
+                  Payout {payoutRequest.status}
+                </span>
+                {payoutRequest.status === "completed" && payoutRequest.pi_txid && (
+                  <span className="text-xs glass-text-muted">
+                    TX: {payoutRequest.pi_txid.slice(0, 8)}...
+                  </span>
+                )}
+              </div>
             )}
             <Link
               href="/messages"
