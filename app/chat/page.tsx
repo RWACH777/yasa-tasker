@@ -1077,6 +1077,14 @@ export default function ChatPage() {
                 <span className={taskStatus === "active" ? "text-yellow-400" : "glass-text-muted"}>
                   Status: {taskStatus || "loading"} | You:{String(user?.id).slice(0,6)} | Poster:{String(taskPosterId).slice(0,6)}
                 </span>
+                {taskStatus === "loading" && (
+                  <button 
+                    onClick={() => window.location.reload()}
+                    className="text-[10px] bg-blue-500 text-white px-2 py-1 rounded mt-1"
+                  >
+                    Reload
+                  </button>
+                )}
               </div>
             ) : (
               <div className="text-[10px] text-yellow-400 flex flex-col">
