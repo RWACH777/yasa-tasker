@@ -510,13 +510,12 @@ export default function Home() {
               <div>• Logged in: {localStorage.getItem("yasa_has_logged_in") === "true" ? "✅" : "❌"}</div>
               <button
                 onClick={() => {
-                  localStorage.clear();
-                  alert("All data cleared! Reloading...");
-                  window.location.reload();
+                  // Force re-auth by adding parameter to URL
+                  window.location.href = window.location.origin + "/?force_reauth=true";
                 }}
                 className="mt-2 px-2 py-1 bg-red-500/50 hover:bg-red-500/70 rounded text-white text-xs"
               >
-                🗑️ Clear All & Reload
+                � Reset & Re-login
               </button>
             </div>
           )}
