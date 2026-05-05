@@ -183,7 +183,7 @@ export default function DashboardPage() {
           return;
         }
 
-        const authResult = await pi.authenticate(["username"], (p) => p);
+        const authResult = await pi.authenticate(["username", "payments", "wallet_address"], (p) => p);
         piUser = authResult.user;
       }
 
