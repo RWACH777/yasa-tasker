@@ -1059,6 +1059,15 @@ const handleUpdateFreelancerUsername = async () => {
               <p className="text-[10px] glass-text-muted/50 mt-2 font-mono">
                 ID: {user.id}
               </p>
+              
+              {/* Admin Button */}
+              <Link
+                href="/admin/payouts"
+                className="glass-button glass-button-primary mt-4 px-6 py-2 text-sm"
+                onClick={() => setShowProfileModal(false)}
+              >
+                🛡️ Admin Panel
+              </Link>
             </div>
 
             {/* Profile View Tabs */}
