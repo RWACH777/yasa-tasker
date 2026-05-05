@@ -20,6 +20,21 @@ export default function Home() {
     const checkAutoLogin = async () => {
       if (typeof window === "undefined") return;
       
+      // Check URL for force_reauth parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const forceReauth = urlParams.get("force_reauth") === "true";
+      
+      // If force_reauth is in URL, clear everything and show landing page
+      if (forceReauth) {
+        console.log("🔄 FORCE_REAUTH parameter detected - clearing all data");
+        localStorage.clear();
+        await supabase.auth.signOut();
+        // Remove the parameter from URL without reloading
+        window.history.replaceState({}, document.title, "/");
+        setPiReady(true);
+        return;
+      }
+      
       // Check if user has logged in before AND has wallet permission
       const hasLoggedInBefore = localStorage.getItem("yasa_has_logged_in") === "true";
       const hasWalletPermission = localStorage.getItem("yasa_has_wallet") === "true";
@@ -28,9 +43,8 @@ export default function Home() {
       console.log("Permissions check:", { hasLoggedInBefore, hasWalletPermission, hasPaymentsScope });
       
       // FORCE RE-AUTHENTICATION: If wallet permission exists but NO payments scope
-      // This means old permissions - need to force re-auth
       if (hasWalletPermission && !hasPaymentsScope) {
-        console.log("� BLOCKING AUTO-LOGIN: Missing payments scope");
+        console.log("🛑 BLOCKING AUTO-LOGIN: Missing payments scope");
         
         // Clear everything
         localStorage.removeItem("yasa_has_wallet");
@@ -42,14 +56,14 @@ export default function Home() {
         });
         await supabase.auth.signOut();
         
-        // BLOCK - Show landing page
+        // Show landing page
         setPiReady(true);
         return;
       }
       
-      // BLOCK if missing payments scope (even if logged in before)
+      // BLOCK if missing payments scope
       if (hasLoggedInBefore && hasWalletPermission && !hasPaymentsScope) {
-        console.log("🛑 BLOCKING: User has logged in but missing payments scope");
+        console.log("🛑 BLOCKING: Missing payments scope");
         setPiReady(true);
         return;
       }
