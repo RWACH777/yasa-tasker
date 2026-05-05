@@ -127,16 +127,16 @@ export default function ChatPage() {
 
     loadOtherUser();
 
-    // STEP 3 & 4: Resolve taskId from localStorage or database fallback
+    // STEP 3 & 4: Resolve taskId from multiple sources
     const resolveTaskId = async () => {
-      // First try: URL params (already in urlTaskId)
+      // Source 1: URL params
       if (urlTaskId) {
         setResolvedTaskId(urlTaskId);
         setTaskResolutionSource("url");
         return;
       }
       
-      // Second try: localStorage
+      // Source 2: localStorage
       const storedTaskId = localStorage.getItem("activeTaskId");
       if (storedTaskId) {
         setResolvedTaskId(storedTaskId);
@@ -144,28 +144,70 @@ export default function ChatPage() {
         return;
       }
       
-      // Third try: Database fallback - get latest approved task between users
-      if (user?.id && otherUserId) {
-        try {
-          const { data, error } = await supabase
-            .from("applications")
-            .select("task_id")
-            .eq("applicant_id", otherUserId)
-            .eq("status", "approved")
-            .order("updated_at", { ascending: false })
-            .limit(1)
-            .single();
-          
-          if (data?.task_id) {
-            setResolvedTaskId(data.task_id);
-            setTaskResolutionSource("database");
-            // Also store for future use
-            localStorage.setItem("activeTaskId", data.task_id);
-            return;
-          }
-        } catch (err) {
-          console.log("No approved task found in database fallback");
+      // Source 3: Messages - get task_id from most recent message
+      try {
+        const { data: msgData, error: msgError } = await supabase
+          .from("messages")
+          .select("task_id, sender_id, receiver_id")
+          .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+          .not("task_id", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (msgData?.task_id) {
+          console.log("✅ Found task_id in messages:", msgData.task_id);
+          setResolvedTaskId(msgData.task_id);
+          setTaskResolutionSource("messages");
+          localStorage.setItem("activeTaskId", msgData.task_id);
+          // Also store the other user from this message
+          const otherParticipant = msgData.sender_id === user.id ? msgData.receiver_id : msgData.sender_id;
+          localStorage.setItem("activeChatUserId", otherParticipant);
+          return;
         }
+      } catch (err) {
+        console.log("No task found in messages");
+      }
+      
+      // Source 4: Database - get latest approved task for current user
+      try {
+        // Query as tasker (current user is poster)
+        const { data: asTasker, error: err1 } = await supabase
+          .from("tasks")
+          .select("id")
+          .eq("poster_id", user.id)
+          .eq("status", "active")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (asTasker?.id) {
+          console.log("✅ Found active task as tasker:", asTasker.id);
+          setResolvedTaskId(asTasker.id);
+          setTaskResolutionSource("db-tasker");
+          localStorage.setItem("activeTaskId", asTasker.id);
+          return;
+        }
+        
+        // Query as freelancer (current user is assignee)
+        const { data: asFreelancer, error: err2 } = await supabase
+          .from("tasks")
+          .select("id")
+          .eq("assignee_id", user.id)
+          .eq("status", "active")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (asFreelancer?.id) {
+          console.log("✅ Found active task as freelancer:", asFreelancer.id);
+          setResolvedTaskId(asFreelancer.id);
+          setTaskResolutionSource("db-freelancer");
+          localStorage.setItem("activeTaskId", asFreelancer.id);
+          return;
+        }
+      } catch (err) {
+        console.log("No active tasks found in database");
       }
       
       setTaskResolutionSource("none");
@@ -203,14 +245,14 @@ export default function ChatPage() {
     };
   }, [otherUserId, user?.id]);
 
-  // Load messages
+  // Load messages - works even without otherUserId (STEP 2: derive from messages)
   useEffect(() => {
-    if (!user?.id || !otherUserId) return;
+    if (!user?.id) return;
 
     const loadMessages = async () => {
-      console.log("🔵 Loading messages for task:", taskId, "between:", { userId: user.id, otherUserId });
+      console.log("🔵 Loading messages for user:", user.id, "taskId:", taskId);
       
-      // Query messages by task_id with sender profile joined
+      // Query messages - if we have taskId filter by it, otherwise get recent messages
       let query = supabase
         .from("messages")
         .select(`
@@ -219,13 +261,17 @@ export default function ChatPage() {
         `)
         .order("created_at", { ascending: true });
       
-      // If taskId exists, filter by it. Otherwise filter by sender/recipient
+      // If taskId exists, filter by task
       if (taskId) {
         query = query.eq("task_id", taskId);
-      } else {
+      } else if (otherUserId) {
+        // Fall back to filtering by participants if no task
         query = query.or(
           `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
         );
+      } else {
+        // Get ALL recent messages for this user (to derive participant)
+        query = query.or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`).limit(50);
       }
       
       const { data, error } = await query;
@@ -238,6 +284,18 @@ export default function ChatPage() {
 
       console.log("✅ Messages loaded:", data?.length || 0, data);
       setMessages(data || []);
+      
+      // STEP 2: Derive otherUserId from messages if missing
+      if (!otherUserId && data && data.length > 0) {
+        const participant = data.find(m => m.sender_id !== user.id)?.sender_id 
+          || data.find(m => m.receiver_id !== user.id)?.receiver_id;
+        if (participant) {
+          console.log("🔍 Derived otherUserId from messages:", participant);
+          // Store in localStorage for future use
+          localStorage.setItem("activeChatUserId", participant);
+        }
+      }
+      
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       }, 0);
