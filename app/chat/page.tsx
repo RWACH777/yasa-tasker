@@ -478,10 +478,6 @@ export default function ChatPage() {
           setTask(data);
           setTaskStatus(data.status);
           setTaskPosterId(data.poster_id);
-        } else {
-          console.log("⚠️ No task data found for taskId:", taskId);
-          setTaskStatus("not-found");
-        }
           
           // Check if current user already rated this task
           if (user?.id && otherUser?.id && taskId) {
@@ -513,9 +509,13 @@ export default function ChatPage() {
             localStorage.removeItem("activeChatUserId");
             setTimeout(() => setShowRatingModal(true), 800);
           }
+        } else {
+          console.log("⚠️ No task data found for taskId:", taskId);
+          setTaskStatus("not-found");
         }
       } catch (err) {
         console.error("Exception loading task status:", err);
+        setTaskStatus("error:" + String(err));
       }
     };
 
