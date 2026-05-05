@@ -25,17 +25,25 @@ export default function Home() {
       const hasWalletPermission = localStorage.getItem("yasa_has_wallet") === "true";
       const hasPaymentsScope = localStorage.getItem("yasa_has_payments_scope") === "true";
       
+      console.log("Checking permissions:", { hasLoggedInBefore, hasWalletPermission, hasPaymentsScope });
+      
       // FORCE RE-AUTHENTICATION: Clear old permissions if payments scope not granted
       // This ensures all users re-authenticate with the new required scopes
       if (hasWalletPermission && !hasPaymentsScope) {
         console.log(" Old permissions detected without payments scope. Clearing to force re-auth...");
+        alert("Updating app permissions... Please login again to enable payments.");
+        
+        // Clear ALL localStorage
         localStorage.removeItem("yasa_has_wallet");
         localStorage.removeItem("yasa_has_logged_in");
         localStorage.removeItem("pi_user");
-        // Don't clear yasa_has_payments_scope if it exists
+        localStorage.removeItem("yasa_has_payments_scope");
+        
+        // Clear Supabase session to force complete re-authentication
+        await supabase.auth.signOut();
         
         // Force page reload to restart with fresh state
-        window.location.reload();
+        window.location.href = "/";
         return;
       }
       
