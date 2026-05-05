@@ -102,9 +102,21 @@ export default function PaymentsPage() {
     }
   }, [user, receivedPayments, sentPayments]);
 
+  // Initialize Pi SDK and check user
   useEffect(() => {
-    const checkUser = async () => {
-      // First check localStorage
+    const init = async () => {
+      // Initialize Pi SDK first
+      const Pi = (window as any).Pi;
+      if (Pi) {
+        try {
+          Pi.init({ version: "2.0", sandbox: false });
+          console.log("✅ Pi SDK initialized in payments page");
+        } catch (err) {
+          console.error("❌ Pi SDK init failed:", err);
+        }
+      }
+
+      // Check user
       const stored = localStorage.getItem("pi_user");
       if (stored) {
         const userData = JSON.parse(stored);
@@ -131,7 +143,7 @@ export default function PaymentsPage() {
       setLoading(false);
     };
 
-    checkUser();
+    init();
   }, []);
 
   // Prefill form if coming from task completion
