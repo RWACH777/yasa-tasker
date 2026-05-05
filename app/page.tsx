@@ -33,6 +33,10 @@ export default function Home() {
         localStorage.removeItem("yasa_has_logged_in");
         localStorage.removeItem("pi_user");
         // Don't clear yasa_has_payments_scope if it exists
+        
+        // Force page reload to restart with fresh state
+        window.location.reload();
+        return;
       }
       
       // If they logged in before but don't have wallet permission, force re-auth
