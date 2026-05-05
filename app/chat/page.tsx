@@ -189,25 +189,10 @@ export default function ChatPage() {
           return;
         }
         
-        // Query as freelancer (current user is assignee)
-        const { data: asFreelancer, error: err2 } = await supabase
-          .from("tasks")
-          .select("id")
-          .eq("assignee_id", user.id)
-          .eq("status", "active")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
-        
-        if (asFreelancer?.id) {
-          console.log("✅ Found active task as freelancer:", asFreelancer.id);
-          setResolvedTaskId(asFreelancer.id);
-          setTaskResolutionSource("db-freelancer");
-          localStorage.setItem("activeTaskId", asFreelancer.id);
-          return;
-        }
+        // NOTE: assignee_id column doesn't exist in tasks table
+        // Task resolution for freelancers should work via messages or applications table
       } catch (err) {
-        console.log("No active tasks found in database");
+        console.log("No active tasks found in database as tasker");
       }
       
       setTaskResolutionSource("none");
@@ -463,7 +448,7 @@ export default function ChatPage() {
         console.log("🔄 Loading task status for taskId:", taskId);
         const { data, error } = await supabase
           .from("tasks")
-          .select("id, title, status, poster_id, assignee_id, budget, payment_status, payment_completed_at")
+          .select("id, title, status, poster_id, budget, payment_status, payment_completed_at")
           .eq("id", taskId)
           .single();
 
@@ -474,7 +459,7 @@ export default function ChatPage() {
         }
 
         if (data) {
-          console.log("✅ Task loaded:", { status: data.status, poster_id: data.poster_id, assignee_id: data.assignee_id, current_user: user?.id });
+          console.log("✅ Task loaded:", { status: data.status, poster_id: data.poster_id, current_user: user?.id });
           setTask(data);
           setTaskStatus(data.status);
           setTaskPosterId(data.poster_id);
@@ -583,7 +568,7 @@ export default function ChatPage() {
       try {
         const { data } = await supabase
           .from("tasks")
-          .select("id, title, status, poster_id, assignee_id, budget, payment_status, payment_completed_at")
+          .select("id, title, status, poster_id, budget, payment_status, payment_completed_at")
           .eq("id", taskId)
           .single();
 
