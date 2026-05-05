@@ -460,6 +460,7 @@ export default function ChatPage() {
 
     const loadTaskStatus = async () => {
       try {
+        console.log("🔄 Loading task status for taskId:", taskId);
         const { data, error } = await supabase
           .from("tasks")
           .select("id, title, status, poster_id, assignee_id, budget, payment_status, payment_completed_at")
@@ -467,15 +468,20 @@ export default function ChatPage() {
           .single();
 
         if (error) {
-          console.error("Error loading task status:", error);
+          console.error("❌ Error loading task status:", error);
+          setTaskStatus("error:" + error.message);
           return;
         }
 
         if (data) {
-          console.log("Task loaded:", { status: data.status, poster_id: data.poster_id, current_user: user?.id, payment_status: data.payment_status });
+          console.log("✅ Task loaded:", { status: data.status, poster_id: data.poster_id, assignee_id: data.assignee_id, current_user: user?.id });
           setTask(data);
           setTaskStatus(data.status);
           setTaskPosterId(data.poster_id);
+        } else {
+          console.log("⚠️ No task data found for taskId:", taskId);
+          setTaskStatus("not-found");
+        }
           
           // Check if current user already rated this task
           if (user?.id && otherUser?.id && taskId) {
