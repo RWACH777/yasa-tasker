@@ -253,19 +253,29 @@ export default function PaymentsPage() {
         },
         onReadyForServerCompletion: async (paymentId: string, txid: string) => {
           console.log("Payment completed:", paymentId, txid);
+          
           // Update transaction as completed
           await supabase
             .from("transactions")
             .update({ status: "completed", completed_at: new Date().toISOString() })
             .eq("pi_txid", paymentId);
           
+          // Update task status to completed
+          if (taskId) {
+            await supabase
+              .from("tasks")
+              .update({ status: "completed", updated_at: new Date().toISOString() })
+              .eq("id", taskId);
+            console.log("✅ Task marked as completed:", taskId);
+          }
+          
           setSendSuccess(`Successfully paid ${totalAmount} π (Freelancer: ${taskAmount} π, Fee: ${platformFee} π)`);
           loadTransactions(user.id);
           
-          // If from task completion, redirect to rating
+          // If from task completion, redirect to rating for tasker to rate freelancer
           if (taskId) {
             setTimeout(() => {
-              router.push(`/rate?task=${taskId}&user=${recipientUid}`);
+              window.location.href = `/rate?task=${taskId}&user=${recipientUid}&role=tasker`;
             }, 2000);
           }
         },

@@ -15,7 +15,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [isAutoLoggingIn, setIsAutoLoggingIn] = useState(false);
 
-  // Check for auto-login on mount
+  // Check for existing wallet permission on mount
   useEffect(() => {
     const checkAutoLogin = async () => {
       if (typeof window === "undefined") return;
@@ -23,10 +23,21 @@ export default function Home() {
       // Check if user has logged in before AND has wallet permission
       const hasLoggedInBefore = localStorage.getItem("yasa_has_logged_in") === "true";
       const hasWalletPermission = localStorage.getItem("yasa_has_wallet") === "true";
+      const hasPaymentsScope = localStorage.getItem("yasa_has_payments_scope") === "true";
+      
+      // FORCE RE-AUTHENTICATION: Clear old permissions if payments scope not granted
+      // This ensures all users re-authenticate with the new required scopes
+      if (hasWalletPermission && !hasPaymentsScope) {
+        console.log(" Old permissions detected without payments scope. Clearing to force re-auth...");
+        localStorage.removeItem("yasa_has_wallet");
+        localStorage.removeItem("yasa_has_logged_in");
+        localStorage.removeItem("pi_user");
+        // Don't clear yasa_has_payments_scope if it exists
+      }
       
       // If they logged in before but don't have wallet permission, force re-auth
       if (hasLoggedInBefore && !hasWalletPermission) {
-        console.log("🔄 User logged in before but missing wallet permission - forcing re-auth...");
+        console.log(" User logged in before but missing wallet permission - forcing re-auth...");
         setIsAutoLoggingIn(true);
         
         const Pi = (window as any).Pi;
@@ -38,6 +49,8 @@ export default function Home() {
             if (authResult?.user) {
               // Save wallet permission flag
               localStorage.setItem("yasa_has_wallet", "true");
+              // Also save that we have payments scope
+              localStorage.setItem("yasa_has_payments_scope", "true");
               await handleAutoLogin(authResult.user);
             }
           } catch (err) {
@@ -53,8 +66,8 @@ export default function Home() {
       }
       
       // Normal auto-login flow for users with wallet permission
-      if (hasLoggedInBefore && hasWalletPermission) {
-        console.log("🔄 User has logged in before with wallet, attempting auto-login...");
+      if (hasLoggedInBefore && hasWalletPermission && hasPaymentsScope) {
+        console.log(" User has logged in before with wallet, attempting auto-login...");
         setIsAutoLoggingIn(true);
         
         // Try to restore session from Supabase
@@ -122,6 +135,7 @@ export default function Home() {
         localStorage.setItem("pi_user", JSON.stringify(userData));
         localStorage.setItem("yasa_has_logged_in", "true");
         localStorage.setItem("yasa_has_wallet", "true");
+        localStorage.setItem("yasa_has_payments_scope", "true");
         
         router.push("/dashboard");
       } else {
@@ -310,6 +324,7 @@ export default function Home() {
         // Save flags that user has logged in before and has wallet permission
         localStorage.setItem("yasa_has_logged_in", "true");
         localStorage.setItem("yasa_has_wallet", "true");
+        localStorage.setItem("yasa_has_payments_scope", "true");
         
         // Save pi_user data for other pages to access
         const userData = {

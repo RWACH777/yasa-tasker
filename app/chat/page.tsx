@@ -1201,6 +1201,22 @@ export default function ChatPage() {
                 )}
               </div>
             )}
+            
+            {/* Freelancer Rating Button - Show after payout completed */}
+            {payoutRequest?.status === "completed" && 
+             String(user?.id) !== String(taskPosterId) && 
+             !hasRatedThisTask && (
+              <button
+                onClick={() => {
+                  // Redirect to rating page for freelancer to rate tasker
+                  window.location.href = `/rate?task=${taskId}&user=${taskPosterId}&role=freelancer`;
+                }}
+                className="glass-button glass-button-success px-2 md:px-4 py-1 md:py-2 text-xs md:text-sm animate-pulse"
+                title="Rate your experience with the tasker"
+              >
+                Rate Tasker
+              </button>
+            )}
             <Link
               href="/messages"
               className="glass-button glass-button-primary px-2 md:px-4 py-1.5 md:py-2 text-xs md:text-sm whitespace-nowrap flex-shrink-0"
