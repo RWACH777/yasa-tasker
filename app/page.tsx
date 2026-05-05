@@ -31,35 +31,22 @@ export default function Home() {
       
       // FORCE RE-AUTHENTICATION: Clear old permissions if payments scope not granted
       // This ensures all users re-authenticate with the new required scopes
-      if (hasLoggedInBefore && hasWalletPermission && !hasPaymentsScope) {
-        console.log("🔄 FORCE RE-AUTH: Old permissions without payments scope detected");
-        alert("⚠️ Updating app permissions... Please login again to enable Pi payments.");
+      if (hasWalletPermission && !hasPaymentsScope) {
+        console.log("🔄 FORCE RE-AUTH: Wallet permission exists but no payments scope");
         
         // Clear ALL localStorage items
-        const itemsToClear = ["yasa_has_wallet", "yasa_has_logged_in", "pi_user", "yasa_has_payments_scope", "sb-"];
-        itemsToClear.forEach(item => {
-          if (item === "sb-") {
-            // Clear all supabase auth keys
-            Object.keys(localStorage).forEach(key => {
-              if (key.startsWith("sb-")) localStorage.removeItem(key);
-            });
-          } else {
-            localStorage.removeItem(item);
-          }
+        const itemsToClear = ["yasa_has_wallet", "yasa_has_logged_in", "pi_user", "yasa_has_payments_scope"];
+        itemsToClear.forEach(item => localStorage.removeItem(item));
+        // Clear all supabase auth keys
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith("sb-")) localStorage.removeItem(key);
         });
         
         // Clear Supabase session
-        try {
-          await supabase.auth.signOut();
-        } catch (e) {
-          console.log("Sign out error (expected if no session):", e);
-        }
+        try { await supabase.auth.signOut(); } catch (e) { /* ignore */ }
         
-        // Show clearing confirmation
-        alert("✅ Cleared! Reloading app...");
-        
-        // Force full page reload to root
-        window.location.href = window.location.origin + "/";
+        // STOP HERE - Show landing page without auto-login
+        setPiReady(true);
         return;
       }
       
