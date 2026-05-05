@@ -1066,17 +1066,11 @@ export default function ChatPage() {
           <div className="flex gap-1 md:gap-2 items-center">
             {/* Debug status for tasker */}
             {taskId ? (
-              <div className="text-[10px] leading-tight">
-                <span className="text-blue-400">[{taskResolutionSource}]</span>
-                {taskStatus === "active" ? (
-                  String(user?.id) === String(taskPosterId) ? (
-                    <span className="text-green-400 ml-1">Ready to pay</span>
-                  ) : (
-                    <span className="text-red-400 ml-1">UID:{String(user?.id).slice(0,6)} vs POSTER:{String(taskPosterId).slice(0,6)}</span>
-                  )
-                ) : (
-                  <span className="glass-text-muted ml-1">Status: {taskStatus || "loading"}</span>
-                )}
+              <div className="text-[10px] leading-tight flex flex-col">
+                <span className="text-blue-400">[{taskResolutionSource}] {taskId.slice(0,8)}</span>
+                <span className={taskStatus === "active" ? "text-yellow-400" : "glass-text-muted"}>
+                  Status: {taskStatus || "loading"} | You:{String(user?.id).slice(0,6)} | Poster:{String(taskPosterId).slice(0,6)}
+                </span>
               </div>
             ) : (
               <div className="text-[10px] text-yellow-400 flex flex-col">
