@@ -1056,6 +1056,9 @@ const handleUpdateFreelancerUsername = async () => {
               <p className="text-xs glass-text-muted mt-3">
                 ⭐️ Rating: {user.average_rating && user.average_rating > 0 ? `${user.average_rating}/5 (${user.total_ratings || 0} ratings)` : "No ratings yet"} • Completed: {user.completed_tasks || 0}
               </p>
+              <p className="text-[10px] glass-text-muted/50 mt-2 font-mono">
+                ID: {user.id}
+              </p>
             </div>
 
             {/* Profile View Tabs */}
