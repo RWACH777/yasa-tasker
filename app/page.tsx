@@ -25,32 +25,36 @@ export default function Home() {
       const hasWalletPermission = localStorage.getItem("yasa_has_wallet") === "true";
       const hasPaymentsScope = localStorage.getItem("yasa_has_payments_scope") === "true";
       
-      // DEBUG: Show what permissions we have
-      const debugMsg = `Permissions check:\n- Logged in before: ${hasLoggedInBefore}\n- Has wallet: ${hasWalletPermission}\n- Has payments: ${hasPaymentsScope}`;
-      console.log(debugMsg);
+      console.log("Permissions check:", { hasLoggedInBefore, hasWalletPermission, hasPaymentsScope });
       
-      // FORCE RE-AUTHENTICATION: Clear old permissions if payments scope not granted
-      // This ensures all users re-authenticate with the new required scopes
+      // FORCE RE-AUTHENTICATION: If wallet permission exists but NO payments scope
+      // This means old permissions - need to force re-auth
       if (hasWalletPermission && !hasPaymentsScope) {
-        console.log("🔄 FORCE RE-AUTH: Wallet permission exists but no payments scope");
+        console.log("� BLOCKING AUTO-LOGIN: Missing payments scope");
         
-        // Clear ALL localStorage items
-        const itemsToClear = ["yasa_has_wallet", "yasa_has_logged_in", "pi_user", "yasa_has_payments_scope"];
-        itemsToClear.forEach(item => localStorage.removeItem(item));
-        // Clear all supabase auth keys
+        // Clear everything
+        localStorage.removeItem("yasa_has_wallet");
+        localStorage.removeItem("yasa_has_logged_in");
+        localStorage.removeItem("pi_user");
+        localStorage.removeItem("yasa_has_payments_scope");
         Object.keys(localStorage).forEach(key => {
           if (key.startsWith("sb-")) localStorage.removeItem(key);
         });
+        await supabase.auth.signOut();
         
-        // Clear Supabase session
-        try { await supabase.auth.signOut(); } catch (e) { /* ignore */ }
-        
-        // STOP HERE - Show landing page without auto-login
+        // BLOCK - Show landing page
         setPiReady(true);
         return;
       }
       
-      // If no login history at all, just show landing page normally
+      // BLOCK if missing payments scope (even if logged in before)
+      if (hasLoggedInBefore && hasWalletPermission && !hasPaymentsScope) {
+        console.log("🛑 BLOCKING: User has logged in but missing payments scope");
+        setPiReady(true);
+        return;
+      }
+      
+      // Fresh user - show landing page
       if (!hasLoggedInBefore && !hasWalletPermission) {
         console.log("📍 Fresh user - showing landing page");
         setPiReady(true);
