@@ -13,132 +13,12 @@ export default function Home() {
 
   const [piReady, setPiReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isAutoLoggingIn, setIsAutoLoggingIn] = useState(false);
 
-  // Check for existing wallet permission on mount
+  // On mount: Just show landing page - no auto-login
   useEffect(() => {
-    const checkAutoLogin = async () => {
-      if (typeof window === "undefined") return;
-      
-      // TEMPORARY: Always show landing page - no auto-login
-      // This ensures Pi authentication happens fresh every time
-      console.log("📍 Showing landing page - manual login required");
-      setPiReady(true);
-      return;
-      
-      // If they logged in before but don't have wallet permission, force re-auth
-      if (hasLoggedInBefore && !hasWalletPermission) {
-        console.log(" User logged in before but missing wallet permission - forcing re-auth...");
-        setIsAutoLoggingIn(true);
-        
-        const Pi = (window as any).Pi;
-        if (Pi) {
-          try {
-            Pi.init({ version: "2.0", sandbox: false });
-            // This will prompt Pi to ask for wallet permission
-            const authResult = await Pi.authenticate(["username", "payments", "wallet_address"], () => {});
-            if (authResult?.user) {
-              // Save wallet permission flag
-              localStorage.setItem("yasa_has_wallet", "true");
-              // Also save that we have payments scope
-              localStorage.setItem("yasa_has_payments_scope", "true");
-              await handleAutoLogin(authResult.user);
-            }
-          } catch (err) {
-            console.error("Re-auth for wallet failed:", err);
-            setIsAutoLoggingIn(false);
-            setPiReady(true);
-          }
-        } else {
-          setIsAutoLoggingIn(false);
-          setPiReady(true);
-        }
-        return;
-      }
-      
-      // Normal auto-login flow for users with wallet permission
-      if (hasLoggedInBefore && hasWalletPermission && hasPaymentsScope) {
-        console.log(" User has logged in before with wallet, attempting auto-login...");
-        setIsAutoLoggingIn(true);
-        
-        // Try to restore session from Supabase
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (session) {
-          console.log("✅ Existing session found, redirecting to dashboard");
-          router.push("/dashboard");
-          return;
-        }
-        
-        // No session, need to re-authenticate with Pi
-        const Pi = (window as any).Pi;
-        if (Pi) {
-          try {
-            Pi.init({ version: "2.0", sandbox: false });
-            const authResult = await Pi.authenticate(["username", "payments", "wallet_address"], () => {});
-            if (authResult?.user) {
-              await handleAutoLogin(authResult.user);
-            }
-          } catch (err) {
-            console.error("Auto-login failed:", err);
-            setIsAutoLoggingIn(false);
-            setPiReady(true);
-          }
-        } else {
-          setIsAutoLoggingIn(false);
-          setPiReady(true);
-        }
-      }
-    };
-    
-    checkAutoLogin();
+    console.log("📍 Landing page - manual login required");
+    setPiReady(true);
   }, []);
-
-  // Auto-login handler
-  const handleAutoLogin = async (piUser: any) => {
-    try {
-      const username = piUser.username ?? "Unknown";
-      const pi_uid = piUser.uid ?? "";
-      const avatar_url = piUser.photo ?? null;
-      const wallet_address = (piUser as any).wallet_address ?? null;
-
-      const response = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pi_uid, username, avatar_url, wallet_address }),
-      });
-      
-      const result = await response.json();
-      
-      if (response.ok && result.access_token && result.refresh_token) {
-        await supabase.auth.setSession({
-          access_token: result.access_token,
-          refresh_token: result.refresh_token,
-        });
-        
-        // Save pi_user data for other pages
-        const userData = {
-          id: pi_uid,
-          username: username,
-          avatar_url: avatar_url,
-          wallet_address: wallet_address,
-        };
-        localStorage.setItem("pi_user", JSON.stringify(userData));
-        localStorage.setItem("yasa_has_logged_in", "true");
-        localStorage.setItem("yasa_has_wallet", "true");
-        localStorage.setItem("yasa_has_payments_scope", "true");
-        
-        router.push("/dashboard");
-      } else {
-        setIsAutoLoggingIn(false);
-        setPiReady(true);
-      }
-    } catch (err) {
-      console.error("Auto-login error:", err);
-      setIsAutoLoggingIn(false);
-      setPiReady(true);
-    }
-  };
 
   // Initialize Pi SDK
   useEffect(() => {
@@ -146,8 +26,8 @@ export default function Home() {
       try {
         const isLocal = typeof window !== "undefined" && window.location.hostname === "localhost";
         
-        if (isLocal || isAutoLoggingIn) {
-          console.log("🔧 Local mode or auto-logging in: Pi SDK init skipped");
+        if (isLocal) {
+          console.log("🔧 Local mode: Pi SDK init skipped");
           setPiReady(true);
           return;
         }
