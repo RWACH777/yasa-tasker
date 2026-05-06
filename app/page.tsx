@@ -83,7 +83,7 @@ export default function Home() {
         const Pi = (window as any).Pi;
         if (Pi) {
           try {
-            Pi.init({ version: "2.0", sandbox: true });
+            Pi.init({ version: "2.0", sandbox: false });
             // This will prompt Pi to ask for wallet permission
             const authResult = await Pi.authenticate(["username", "payments", "wallet_address"], () => {});
             if (authResult?.user) {
@@ -123,7 +123,7 @@ export default function Home() {
         const Pi = (window as any).Pi;
         if (Pi) {
           try {
-            Pi.init({ version: "2.0", sandbox: true });
+            Pi.init({ version: "2.0", sandbox: false });
             const authResult = await Pi.authenticate(["username", "payments", "wallet_address"], () => {});
             if (authResult?.user) {
               await handleAutoLogin(authResult.user);
