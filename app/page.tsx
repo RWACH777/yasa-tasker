@@ -119,6 +119,17 @@ export default function Home() {
             console.log("🪙 Incomplete payment:", payment);
           });
           console.log("✅ Pi authenticate success:", authResult);
+          
+          // TEMPORARY DEBUG - Check what scopes Pi actually returned
+          const debugInfo = {
+            requestedScopes: scopes,
+            credentialsScopes: authResult?.credentials?.scopes,
+            accessToken: authResult?.accessToken?.substring(0, 20) + "...",
+            username: authResult?.user?.username,
+            fullAuthResult: JSON.stringify(authResult).substring(0, 500)
+          };
+          console.log("🔍 Pi Auth Debug:", debugInfo);
+          alert("Pi Auth Debug:\n" + JSON.stringify(debugInfo, null, 2));
         } catch (authError: any) {
           console.error("❌ Pi authenticate failed:", authError);
           alert("Pi auth failed: " + JSON.stringify(authError));
