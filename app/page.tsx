@@ -120,16 +120,15 @@ export default function Home() {
           });
           console.log("✅ Pi authenticate success:", authResult);
           
-          // TEMPORARY DEBUG - Check what scopes Pi actually returned
-          const debugInfo = {
-            requestedScopes: scopes,
-            credentialsScopes: authResult?.credentials?.scopes,
-            accessToken: authResult?.accessToken?.substring(0, 20) + "...",
-            username: authResult?.user?.username,
-            fullAuthResult: JSON.stringify(authResult).substring(0, 500)
-          };
-          console.log("🔍 Pi Auth Debug:", debugInfo);
-          alert("Pi Auth Debug:\n" + JSON.stringify(debugInfo, null, 2));
+          // Check if Pi actually granted payments scope
+          const grantedScopes = authResult?.user?.credentials?.scopes || [];
+          const hasPayments = grantedScopes.includes("payments");
+          console.log("🔍 Granted scopes:", grantedScopes, "Has payments:", hasPayments);
+          
+          if (!hasPayments) {
+            alert("⚠️ Pi did not grant payments scope. Please try again or contact support.");
+            throw new Error("Payments scope not granted by Pi");
+          }
         } catch (authError: any) {
           console.error("❌ Pi authenticate failed:", authError);
           alert("Pi auth failed: " + JSON.stringify(authError));
