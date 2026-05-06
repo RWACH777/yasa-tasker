@@ -109,7 +109,7 @@ export default function PaymentsPage() {
       const Pi = (window as any).Pi;
       if (Pi) {
         try {
-          Pi.init({ version: "2.0", sandbox: false });
+          Pi.init({ version: "2.0", sandbox: true });
           console.log("✅ Pi SDK initialized in payments page");
         } catch (err) {
           console.error("❌ Pi SDK init failed:", err);
