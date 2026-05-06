@@ -111,8 +111,21 @@ export default function PaymentsPage() {
         try {
           Pi.init({ version: "2.0", sandbox: false });
           console.log("✅ Pi SDK initialized in payments page");
+          
+          // Authenticate with Pi to ensure payments scope is available
+          const authResult = await Pi.authenticate(["username", "payments", "wallet_address"], (payment: any) => {
+            console.log("🪙 Incomplete payment found:", payment);
+          });
+          console.log("✅ Pi authenticated in payments page:", authResult?.user?.username);
+          
+          // Verify payments scope
+          const grantedScopes = authResult?.user?.credentials?.scopes || [];
+          if (!grantedScopes.includes("payments")) {
+            console.error("❌ Payments scope not granted");
+            alert("Pi payments permission not granted. Please logout and login again.");
+          }
         } catch (err) {
-          console.error("❌ Pi SDK init failed:", err);
+          console.error("❌ Pi SDK init/auth failed:", err);
         }
       }
 
