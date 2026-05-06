@@ -20,60 +20,11 @@ export default function Home() {
     const checkAutoLogin = async () => {
       if (typeof window === "undefined") return;
       
-      // Check URL for force_reauth parameter
-      const urlParams = new URLSearchParams(window.location.search);
-      const forceReauth = urlParams.get("force_reauth") === "true";
-      
-      // If force_reauth is in URL, clear everything and show landing page
-      if (forceReauth) {
-        console.log("🔄 FORCE_REAUTH parameter detected - clearing all data");
-        localStorage.clear();
-        await supabase.auth.signOut();
-        // Remove the parameter from URL without reloading
-        window.history.replaceState({}, document.title, "/");
-        setPiReady(true);
-        return;
-      }
-      
-      // Check if user has logged in before AND has wallet permission
-      const hasLoggedInBefore = localStorage.getItem("yasa_has_logged_in") === "true";
-      const hasWalletPermission = localStorage.getItem("yasa_has_wallet") === "true";
-      const hasPaymentsScope = localStorage.getItem("yasa_has_payments_scope") === "true";
-      
-      console.log("Permissions check:", { hasLoggedInBefore, hasWalletPermission, hasPaymentsScope });
-      
-      // FORCE RE-AUTHENTICATION: If wallet permission exists but NO payments scope
-      if (hasWalletPermission && !hasPaymentsScope) {
-        console.log("🛑 BLOCKING AUTO-LOGIN: Missing payments scope");
-        
-        // Clear everything
-        localStorage.removeItem("yasa_has_wallet");
-        localStorage.removeItem("yasa_has_logged_in");
-        localStorage.removeItem("pi_user");
-        localStorage.removeItem("yasa_has_payments_scope");
-        Object.keys(localStorage).forEach(key => {
-          if (key.startsWith("sb-")) localStorage.removeItem(key);
-        });
-        await supabase.auth.signOut();
-        
-        // Show landing page
-        setPiReady(true);
-        return;
-      }
-      
-      // BLOCK if missing payments scope
-      if (hasLoggedInBefore && hasWalletPermission && !hasPaymentsScope) {
-        console.log("🛑 BLOCKING: Missing payments scope");
-        setPiReady(true);
-        return;
-      }
-      
-      // Fresh user - show landing page
-      if (!hasLoggedInBefore && !hasWalletPermission) {
-        console.log("📍 Fresh user - showing landing page");
-        setPiReady(true);
-        return;
-      }
+      // TEMPORARY: Always show landing page - no auto-login
+      // This ensures Pi authentication happens fresh every time
+      console.log("📍 Showing landing page - manual login required");
+      setPiReady(true);
+      return;
       
       // If they logged in before but don't have wallet permission, force re-auth
       if (hasLoggedInBefore && !hasWalletPermission) {
