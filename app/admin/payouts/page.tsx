@@ -54,7 +54,8 @@ export default function AdminPayoutsPage() {
         .single();
 
       if (adminError || !adminData) {
-        setError("Access denied. You are not authorized to view this page.");
+        console.error("Admin check error:", adminError);
+        setError(`Access denied. User ID: ${userData.id}. Error: ${adminError?.message || "Not found in admin_users table"}`);
         setLoading(false);
         return;
       }

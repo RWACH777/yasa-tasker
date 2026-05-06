@@ -122,7 +122,6 @@ export default function PaymentsPage() {
           const grantedScopes = authResult?.user?.credentials?.scopes || [];
           if (!grantedScopes.includes("payments")) {
             console.error("❌ Payments scope not granted");
-            alert("Pi payments permission not granted. Please logout and login again.");
           }
         } catch (err) {
           console.error("❌ Pi SDK init/auth failed:", err);

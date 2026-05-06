@@ -119,25 +119,13 @@ export default function Home() {
             console.log("🪙 Incomplete payment:", payment);
           });
           console.log("✅ Pi authenticate success:", authResult);
-          
-          // Check if Pi actually granted payments scope
-          const grantedScopes = authResult?.user?.credentials?.scopes || [];
-          const hasPayments = grantedScopes.includes("payments");
-          console.log("🔍 Granted scopes:", grantedScopes, "Has payments:", hasPayments);
-          
-          if (!hasPayments) {
-            alert("⚠️ Pi did not grant payments scope. Please try again or contact support.");
-            throw new Error("Payments scope not granted by Pi");
-          }
         } catch (authError: any) {
           console.error("❌ Pi authenticate failed:", authError);
-          alert("Pi auth failed: " + JSON.stringify(authError));
           throw new Error("Pi authentication failed: " + (authError?.message || JSON.stringify(authError)));
         }
 
         step = "Checking auth result";
         if (!authResult?.user) {
-          alert("No user data from Pi");
           throw new Error("Pi authentication returned no user data");
         }
 
