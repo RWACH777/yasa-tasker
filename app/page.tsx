@@ -334,25 +334,6 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Debug Info - Shows permission status */}
-          {typeof window !== "undefined" && (
-            <div className="mt-4 p-3 rounded bg-black/30 text-xs text-white/70 max-w-xs">
-              <div>Permissions:</div>
-              <div>• Wallet: {localStorage.getItem("yasa_has_wallet") === "true" ? "✅" : "❌"}</div>
-              <div>• Payments: {localStorage.getItem("yasa_has_payments_scope") === "true" ? "✅" : "❌"}</div>
-              <div>• Logged in: {localStorage.getItem("yasa_has_logged_in") === "true" ? "✅" : "❌"}</div>
-              <button
-                onClick={() => {
-                  // Force re-auth by adding parameter to URL
-                  window.location.href = window.location.origin + "/?force_reauth=true";
-                }}
-                className="mt-2 px-2 py-1 bg-red-500/50 hover:bg-red-500/70 rounded text-white text-xs"
-              >
-                � Reset & Re-login
-              </button>
-            </div>
-          )}
-
           {/* Login with Pi Button - White Background */}
           <button
             onClick={handlePiLogin}
