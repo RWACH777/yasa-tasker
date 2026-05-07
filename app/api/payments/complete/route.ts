@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const piApiKey = process.env.PI_API_KEY!;
 
 const adminClient = createClient(supabaseUrl, serviceRoleKey, {
   auth: { persistSession: false },
@@ -22,7 +23,30 @@ export async function POST(req: Request) {
       );
     }
 
-    // Update the payment with completion details
+    // Call Pi API to complete the payment
+    console.log("🔵 Calling Pi API to complete payment:", paymentId);
+    const piResponse = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/complete`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Key ${piApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ txid: txid }),
+    });
+
+    if (!piResponse.ok) {
+      const piError = await piResponse.text();
+      console.error("❌ Pi API complete failed:", piError);
+      return NextResponse.json(
+        { error: "Pi API complete failed", details: piError },
+        { status: piResponse.status }
+      );
+    }
+
+    const piResult = await piResponse.json();
+    console.log("✅ Pi API complete success:", piResult);
+
+    // Update the payment with completion details in Supabase
     const { error: updateError } = await adminClient
       .from("payments")
       .update({
