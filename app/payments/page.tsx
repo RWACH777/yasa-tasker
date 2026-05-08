@@ -105,26 +105,14 @@ export default function PaymentsPage() {
   // Initialize Pi SDK and check user
   useEffect(() => {
     const init = async () => {
-      // Initialize Pi SDK first
+      // Initialize Pi SDK (just for init, auth happens on landing page)
       const Pi = (window as any).Pi;
       if (Pi) {
         try {
           Pi.init({ version: "2.0", sandbox: false });
           console.log("✅ Pi SDK initialized in payments page");
-          
-          // Authenticate with Pi to ensure payments scope is available
-          const authResult = await Pi.authenticate(["username", "payments", "wallet_address"], (payment: any) => {
-            console.log("🪙 Incomplete payment found:", payment);
-          });
-          console.log("✅ Pi authenticated in payments page:", authResult?.user?.username);
-          
-          // Verify payments scope
-          const grantedScopes = authResult?.user?.credentials?.scopes || [];
-          if (!grantedScopes.includes("payments")) {
-            console.error("❌ Payments scope not granted");
-          }
         } catch (err) {
-          console.error("❌ Pi SDK init/auth failed:", err);
+          console.error("❌ Pi SDK init failed:", err);
         }
       }
 

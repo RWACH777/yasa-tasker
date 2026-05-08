@@ -60,6 +60,13 @@ export default function ChatPage() {
   const [transaction, setTransaction] = useState<any>(null);
   const [payoutRequest, setPayoutRequest] = useState<any>(null);
   const [requestingPayout, setRequestingPayout] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentDetails, setPaymentDetails] = useState<{
+    amount: number;
+    memoRef: string;
+    recipientUsername: string;
+    freelancerProfile: any;
+  } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -1051,6 +1058,106 @@ export default function ChatPage() {
     }
   };
 
+  // Function to proceed with Pi payment after modal confirmation
+  const proceedWithPayment = async () => {
+    if (!paymentDetails || !taskId) return;
+
+    const { amount, memoRef, recipientUsername, freelancerProfile } = paymentDetails;
+
+    const Pi = (window as any).Pi;
+    if (!Pi) {
+      alert("Pi SDK not available");
+      setShowPaymentModal(false);
+      return;
+    }
+
+    // Create payment data
+    const paymentData = {
+      amount: amount,
+      memo: memoRef,
+      metadata: {
+        task_id: taskId,
+        freelancer_username: freelancerProfile?.username || "unknown",
+        tasker_username: user?.username || "unknown",
+        recipient: recipientUsername,
+      },
+    };
+
+    console.log("Creating Pi payment:", paymentData);
+
+    try {
+      const payment = await Pi.createPayment(paymentData, {
+        onReadyForServerApproval: async (paymentId: string) => {
+          console.log("Payment ready for approval:", paymentId);
+          
+          // Save transaction record
+          await supabase.from("transactions").insert({
+            payment_id: paymentId,
+            task_id: taskId,
+            tasker_id: user?.id,
+            freelancer_id: otherUserId,
+            amount: amount,
+            memo: memoRef,
+            status: "payment_pending",
+            created_at: new Date().toISOString(),
+          });
+
+          // Update task status
+          await supabase
+            .from("tasks")
+            .update({ status: "payment_pending" })
+            .eq("id", taskId);
+        },
+        onReadyForServerCompletion: async (paymentId: string, txid: string) => {
+          console.log("Payment ready for completion:", { paymentId, txid });
+          
+          // Update transaction with TXID
+          await supabase
+            .from("transactions")
+            .update({ 
+              txid: txid,
+              status: "payment_submitted",
+              submitted_at: new Date().toISOString(),
+            })
+            .eq("payment_id", paymentId);
+
+          // Close modal and redirect to payment summary
+          setShowPaymentModal(false);
+          setPaymentDetails(null);
+          router.push(`/payment-summary?task=${taskId}&txid=${txid}&memo=${memoRef}&amount=${amount}&to=${recipientUsername}`);
+        },
+        onCancel: async (paymentId: string) => {
+          console.log("Payment cancelled:", paymentId);
+          await supabase
+            .from("transactions")
+            .update({ status: "cancelled" })
+            .eq("payment_id", paymentId);
+          setShowPaymentModal(false);
+          setPaymentDetails(null);
+          alert("Payment was cancelled");
+        },
+        onError: async (error: any, paymentId?: string) => {
+          console.error("Payment error:", error);
+          await supabase.from("payment_errors").insert({
+            payment_id: paymentId || "unknown",
+            error: JSON.stringify(error),
+            created_at: new Date().toISOString(),
+          });
+          setShowPaymentModal(false);
+          setPaymentDetails(null);
+          alert("Payment failed: " + (error?.message || "Unknown error"));
+        },
+      });
+
+      console.log("Payment created:", payment);
+    } catch (err) {
+      console.error("Failed to create payment:", err);
+      setShowPaymentModal(false);
+      setPaymentDetails(null);
+      alert("Failed to create payment: " + (err as Error).message);
+    }
+  };
+
   if (loading || !user) {
     return (
       <div className="app-background min-h-screen text-white flex items-center justify-center">
@@ -1117,11 +1224,54 @@ export default function ChatPage() {
           <div className="flex gap-1 md:gap-2 items-center overflow-hidden">
             {taskId && taskStatus === "active" && String(user?.id) === String(taskPosterId) && (
               <button
-                onClick={() => {
-                  // Redirect to payments page with pre-filled data
+                onClick={async () => {
+                  // Show pre-payment modal with instructions
+                  if (!task || !otherUser) {
+                    alert("Task or freelancer information not loaded");
+                    return;
+                  }
+
                   const amount = task?.price || 0;
-                  const otherUsername = otherUser?.username || "tasker";
-                  router.push(`/payments?task=${taskId}&amount=${amount}&to=${otherUsername}&to_uid=${otherUserId}&memo=Payment for task: ${task?.title || "Task"}`);
+                  if (amount <= 0) {
+                    alert("Invalid task amount");
+                    return;
+                  }
+
+                  // Generate unique memo reference
+                  const timestamp = Date.now();
+                  const memoRef = `YASA-${taskId}-${timestamp}`;
+
+                  // Save memo reference to task record
+                  const { error: updateError } = await supabase
+                    .from("tasks")
+                    .update({ payment_memo: memoRef })
+                    .eq("id", taskId);
+
+                  if (updateError) {
+                    console.error("Failed to save memo:", updateError);
+                  }
+
+                  // Get freelancer's Pi username from their profile
+                  const { data: freelancerProfile } = await supabase
+                    .from("profiles")
+                    .select("pi_username, username")
+                    .eq("id", otherUserId)
+                    .single();
+
+                  const recipientUsername = freelancerProfile?.pi_username || freelancerProfile?.username;
+                  if (!recipientUsername) {
+                    alert("Freelancer Pi username not found");
+                    return;
+                  }
+
+                  // Store payment details and show modal
+                  setPaymentDetails({
+                    amount,
+                    memoRef,
+                    recipientUsername,
+                    freelancerProfile,
+                  });
+                  setShowPaymentModal(true);
                 }}
                 className="glass-button glass-button-primary px-2 md:px-4 py-1 md:py-2 text-xs md:text-sm animate-pulse"
                 title="Pay freelancer and complete task"
@@ -1129,6 +1279,91 @@ export default function ChatPage() {
                 Pay & Complete
               </button>
             )}
+            {/* Freelancer Payment Received Confirmation - when tasker has confirmed payment */}
+            {taskId && taskStatus === "payment_confirmed" && 
+             String(user?.id) !== String(taskPosterId) && (
+              <div className="flex flex-col gap-2">
+                <span className="text-xs text-yellow-400">Payment sent by tasker. Have you received it?</span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={async () => {
+                      try {
+                        // Mark task as fully completed
+                        await supabase
+                          .from("tasks")
+                          .update({ 
+                            status: "completed",
+                            freelancer_confirmed_at: new Date().toISOString(),
+                          })
+                          .eq("id", taskId);
+
+                        // Update transaction
+                        await supabase
+                          .from("transactions")
+                          .update({ status: "completed" })
+                          .eq("task_id", taskId);
+
+                        // Trigger rating flow for freelancer
+                        router.push(`/rate?task=${taskId}&type=freelancer`);
+                      } catch (err) {
+                        console.error("Error confirming receipt:", err);
+                        alert("Failed to confirm. Please try again.");
+                      }
+                    }}
+                    className="glass-button glass-button-success px-2 py-1 text-xs animate-pulse"
+                  >
+                    Yes, I Received It
+                  </button>
+                  <button
+                    onClick={async () => {
+                      // Get transaction details for dispute
+                      const { data: txData } = await supabase
+                        .from("transactions")
+                        .select("*")
+                        .eq("task_id", taskId)
+                        .single();
+
+                      if (!txData) {
+                        alert("Transaction data not found");
+                        return;
+                      }
+
+                      // Create payout dispute request
+                      const { error } = await supabase.from("payout_disputes").insert({
+                        task_id: taskId,
+                        transaction_id: txData.id,
+                        freelancer_uid: user?.id,
+                        freelancer_username: user?.username,
+                        tasker_id: taskPosterId,
+                        amount: txData.amount,
+                        txid: txData.txid,
+                        memo: txData.memo,
+                        status: "pending_review",
+                        created_at: new Date().toISOString(),
+                      });
+
+                      if (error) {
+                        console.error("Failed to create dispute:", error);
+                        alert("Failed to submit dispute. Please try again.");
+                        return;
+                      }
+
+                      // Update task status
+                      await supabase
+                        .from("tasks")
+                        .update({ status: "payout_disputed" })
+                        .eq("id", taskId);
+
+                      alert("Payout dispute submitted. Admin will review it soon.");
+                    }}
+                    className="glass-button bg-red-500/50 hover:bg-red-500/70 px-2 py-1 text-xs"
+                  >
+                    No, Request Payout
+                  </button>
+                </div>
+              </div>
+            )}
+
             {taskId && taskStatus === "completed" && (
               <button
                 onClick={() => setShowRatingModal(true)}
@@ -1519,6 +1754,51 @@ export default function ChatPage() {
         otherUserName={otherUser?.username || "User"}
         loading={ratingLoading}
       />
+
+      {/* Pre-Payment Instruction Modal */}
+      {showPaymentModal && paymentDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 max-w-md w-full">
+            <h2 className="text-xl font-bold text-white mb-4">Complete Your Payment in Pi</h2>
+            <p className="text-white/80 mb-4">
+              You will be redirected to Pi&apos;s payment screen. Please enter these details manually:
+            </p>
+
+            <div className="bg-black/20 rounded-xl p-4 mb-4 space-y-3">
+              <div className="flex justify-between">
+                <span className="text-white/60">Freelancer:</span>
+                <span className="text-white font-medium">{paymentDetails.recipientUsername}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-white/60">Amount:</span>
+                <span className="text-white font-medium">{paymentDetails.amount} π</span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-white/60">Memo (Important for tracking):</span>
+                <span className="text-white font-mono text-sm bg-black/30 rounded p-2">{paymentDetails.memoRef}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowPaymentModal(false);
+                  setPaymentDetails(null);
+                }}
+                className="flex-1 bg-white/10 hover:bg-white/20 text-white py-3 px-4 rounded-xl transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={proceedWithPayment}
+                className="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-xl transition-all"
+              >
+                Proceed to Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

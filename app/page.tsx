@@ -13,6 +13,8 @@ export default function Home() {
 
   const [piReady, setPiReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showMembershipModal, setShowMembershipModal] = useState(false);
+  const [membershipStatus, setMembershipStatus] = useState<any>(null);
 
   // On mount: Just show landing page - no auto-login
   useEffect(() => {
@@ -214,6 +216,54 @@ export default function Home() {
         throw new Error("No tokens received from server");
       }
 
+      // Check membership status before redirecting
+      const { data: membershipData } = await supabase
+        .from("memberships")
+        .select("*")
+        .eq("user_id", result.user?.id)
+        .single();
+
+      // Check if user is admin (admins are exempt from membership)
+      const { data: adminData } = await supabase
+        .from("admin_users")
+        .select("*")
+        .eq("user_id", result.user?.id)
+        .single();
+
+      const isAdmin = !!adminData;
+
+      if (!isAdmin && membershipData) {
+        const now = new Date();
+        const startedAt = new Date(membershipData.started_at);
+        const lastPaidAt = membershipData.last_paid_at ? new Date(membershipData.last_paid_at) : null;
+        
+        // Calculate if 30 days have passed since started_at
+        const daysSinceStart = Math.floor((now.getTime() - startedAt.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Check if last payment was more than 30 days ago or never paid
+        let isExpired = false;
+        if (daysSinceStart > 30) {
+          if (!lastPaidAt) {
+            // Never paid and free trial expired
+            isExpired = true;
+          } else {
+            const daysSinceLastPayment = Math.floor((now.getTime() - lastPaidAt.getTime()) / (1000 * 60 * 60 * 24));
+            if (daysSinceLastPayment > 30) {
+              isExpired = true;
+            }
+          }
+        }
+
+        if (isExpired || membershipData.status === "expired") {
+          // Show membership modal instead of redirecting
+          setMembershipStatus(membershipData);
+          setShowMembershipModal(true);
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // If not expired or is admin, proceed to dashboard
       alert(" Welcome " + username + "!");
       router.push("/dashboard");
     } catch (err: any) {
@@ -370,6 +420,36 @@ export default function Home() {
           </button>
         </div>
       </div>
+
+      {/* Membership Required Modal */}
+      {showMembershipModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 max-w-md w-full">
+            <h2 className="text-2xl font-bold text-white mb-4">Membership Required</h2>
+            <p className="text-white/80 mb-6">
+              Your free month has ended. Pay 1 Pi to continue using YASA Tasker.
+            </p>
+            
+            <div className="bg-blue-500/10 rounded-xl p-4 mb-6 border border-blue-500/20">
+              <p className="text-white/80 text-sm mb-2">Send exactly <strong className="text-white">1 π</strong> to:</p>
+              <div className="bg-black/30 rounded-lg p-3 mb-3">
+                <span className="text-white font-mono text-sm">yair777</span>
+              </div>
+              <p className="text-white/80 text-sm mb-2">With memo:</p>
+              <div className="bg-black/30 rounded-lg p-3">
+                <span className="text-white font-mono text-sm">MEMBERSHIP-{membershipStatus?.username || "USER"}</span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => window.location.href = "/membership"}
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-xl transition-all"
+            >
+              Pay Membership — 1 Pi
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
