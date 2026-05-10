@@ -14,6 +14,8 @@ export default function MembershipPage() {
   const [txid, setTxid] = useState("");
   const [memo, setMemo] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -43,6 +45,110 @@ export default function MembershipPage() {
 
     loadData();
   }, [router]);
+
+  // Function to initiate Pi payment for membership
+  const initiatePiPayment = async () => {
+    if (!user) return;
+
+    const Pi = (window as any).Pi;
+    if (!Pi) {
+      alert("Pi SDK not available. Please open this in Pi Browser.");
+      return;
+    }
+
+    setPaymentProcessing(true);
+
+    // Generate unique memo for membership payment
+    const timestamp = Date.now();
+    const memoRef = `MEMBERSHIP-${user.user_metadata?.username || user.id.slice(0, 8)}-${timestamp}`;
+    setMemo(memoRef);
+
+    const paymentData = {
+      amount: 1, // 1 Pi for membership
+      memo: memoRef,
+      metadata: {
+        membership_payment: true,
+        user_id: user.id,
+        username: user.user_metadata?.username || user.id.slice(0, 8),
+        recipient: "yair777",
+      },
+    };
+
+    console.log("Creating Pi membership payment:", paymentData);
+
+    try {
+      const payment = await Pi.createPayment(paymentData, {
+        onReadyForServerApproval: async (paymentId: string) => {
+          console.log("Membership payment ready for approval:", paymentId);
+          
+          // Save payment record
+          await supabase.from("transactions").insert({
+            payment_id: paymentId,
+            tasker_id: user.id,
+            amount: 1,
+            memo: memoRef,
+            status: "payment_pending",
+            type: "membership",
+            created_at: new Date().toISOString(),
+          });
+        },
+        onReadyForServerCompletion: async (paymentId: string, receivedTxid: string) => {
+          console.log("Membership payment completed:", { paymentId, txid: receivedTxid });
+          
+          // Update transaction with TXID
+          await supabase
+            .from("transactions")
+            .update({ 
+              txid: receivedTxid,
+              status: "payment_submitted",
+              submitted_at: new Date().toISOString(),
+            })
+            .eq("payment_id", paymentId);
+
+          // Update membership record
+          await supabase
+            .from("memberships")
+            .update({
+              payment_txid: receivedTxid,
+              status: "pending_review",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("user_id", user.id);
+
+          setTxid(receivedTxid);
+          setSubmitted(true);
+          setShowPaymentModal(false);
+          setPaymentProcessing(false);
+        },
+        onCancel: async (paymentId: string) => {
+          console.log("Membership payment cancelled:", paymentId);
+          await supabase
+            .from("transactions")
+            .update({ status: "cancelled" })
+            .eq("payment_id", paymentId);
+          setPaymentProcessing(false);
+          alert("Payment was cancelled");
+        },
+        onError: async (error: any, paymentId?: string) => {
+          console.error("Membership payment error:", error);
+          await supabase.from("payment_errors").insert({
+            payment_id: paymentId || "unknown",
+            error: JSON.stringify(error),
+            type: "membership",
+            created_at: new Date().toISOString(),
+          });
+          setPaymentProcessing(false);
+          alert("Payment failed: " + (error?.message || "Unknown error"));
+        },
+      });
+
+      console.log("Membership payment created:", payment);
+    } catch (err) {
+      console.error("Failed to create membership payment:", err);
+      setPaymentProcessing(false);
+      alert("Failed to create payment: " + (err as Error).message);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,14 +201,14 @@ export default function MembershipPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="app-background min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 p-4">
+    <div className="app-background min-h-screen p-4">
       <div className="max-w-md mx-auto pt-8">
         <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
           <h1 className="text-2xl font-bold text-white mb-6 text-center">Membership</h1>
@@ -156,7 +262,37 @@ export default function MembershipPage() {
                 </div>
               </div>
 
-              {/* Submit Form */}
+              {/* Pi Payment Button */}
+              <button
+                onClick={initiatePiPayment}
+                disabled={paymentProcessing}
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-4 px-6 rounded-xl transition-all disabled:opacity-50 mb-4 flex items-center justify-center gap-2"
+              >
+                {paymentProcessing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                    </svg>
+                    Pay with Pi
+                  </>
+                )}
+              </button>
+
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/20"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white/10 text-white/60 rounded">Or submit manually</span>
+                </div>
+              </div>
+
+              {/* Manual Submit Form */}
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-white/60 text-sm mb-2">TXID (from your Pi app)</label>
