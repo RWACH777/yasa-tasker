@@ -458,7 +458,7 @@ export default function ChatPage() {
         console.log("🔄 Loading task status for taskId:", taskId);
         const { data, error } = await supabase
           .from("tasks")
-          .select("id, title, status, poster_id, budget")
+          .select("id, title, status, poster_id, price, budget")
           .eq("id", taskId)
           .single();
 
@@ -578,7 +578,7 @@ export default function ChatPage() {
       try {
         const { data } = await supabase
           .from("tasks")
-          .select("id, title, status, poster_id, budget")
+          .select("id, title, status, poster_id, price, budget")
           .eq("id", taskId)
           .single();
 
@@ -1231,7 +1231,7 @@ export default function ChatPage() {
                     return;
                   }
 
-                  const amount = task?.price || 0;
+                  const amount = task?.budget || task?.price || 0;
                   if (amount <= 0) {
                     alert("Invalid task amount");
                     return;

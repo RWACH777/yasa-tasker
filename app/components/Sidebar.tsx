@@ -81,6 +81,17 @@ export default function Sidebar({ isOpen, onClose, onNotificationsClick, notific
         </div>
 
         <div className="glass-panel p-4">
+          <h3 className="text-lg font-semibold glass-text mb-3">Membership</h3>
+          <Link
+            href="/membership"
+            onClick={onClose}
+            className="glass-button w-full px-4 py-2 text-sm block text-center"
+          >
+            View Membership
+          </Link>
+        </div>
+
+        <div className="glass-panel p-4">
           <h3 className="text-lg font-semibold glass-text mb-3">Support</h3>
           <a
             href="mailto:YasaTasker@gmail.com"
