@@ -22,6 +22,23 @@ export default function MembershipPage() {
     // Inject mock Pi SDK for local testing
     injectMockPiSDK();
     
+    // Initialize Pi SDK on mount
+    const initPi = () => {
+      const Pi = (window as any).Pi;
+      if (Pi) {
+        try {
+          Pi.init({ version: "2.0", sandbox: false });
+          console.log("✅ Pi SDK initialized on mount");
+        } catch (err) {
+          console.error("❌ Pi SDK init on mount failed:", err);
+        }
+      }
+    };
+    
+    // Try to init immediately and after a delay
+    initPi();
+    setTimeout(initPi, 1000);
+    
     const loadData = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -63,6 +80,14 @@ export default function MembershipPage() {
         alert("Pi SDK not available. Please open this in Pi Browser.");
       }
       return;
+    }
+
+    // Initialize Pi SDK before creating payment
+    try {
+      Pi.init({ version: "2.0", sandbox: false });
+      console.log("✅ Pi SDK initialized");
+    } catch (err) {
+      console.error("❌ Pi SDK init failed:", err);
     }
 
     setPaymentProcessing(true);

@@ -1080,6 +1080,14 @@ export default function ChatPage() {
       return;
     }
 
+    // Initialize Pi SDK before creating payment
+    try {
+      Pi.init({ version: "2.0", sandbox: false });
+      console.log("✅ Pi SDK initialized");
+    } catch (err) {
+      console.error("❌ Pi SDK init failed:", err);
+    }
+
     // Create payment data
     const paymentData = {
       amount: amount,
