@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useUser } from "@/context/UserContext";
 import { supabase } from "@/lib/supabaseClient";
+import { injectMockPiSDK } from "@/lib/piMock";
 
 export default function Home() {
   const router = useRouter();
@@ -15,12 +16,69 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [showMembershipModal, setShowMembershipModal] = useState(false);
   const [membershipStatus, setMembershipStatus] = useState<any>(null);
+  const [autoRedirecting, setAutoRedirecting] = useState(false);
 
-  // On mount: Just show landing page - no auto-login
+  // On mount: Check for existing session and inject mock Pi SDK
   useEffect(() => {
-    console.log("📍 Landing page - manual login required");
-    setPiReady(true);
+    console.log("📍 Landing page - checking session...");
+    
+    // Inject mock Pi SDK for local testing
+    injectMockPiSDK();
+    
+    // Check for existing Supabase session
+    const checkExistingSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        console.log("✅ Existing session found, auto-redirecting...");
+        setAutoRedirecting(true);
+        
+        // Wait a moment to show the redirecting state
+        setTimeout(() => {
+          // Check membership and admin status before redirecting
+          checkUserAccessAndRedirect(session.user.id);
+        }, 1500);
+      } else {
+        console.log("📍 No existing session, showing login page");
+        setPiReady(true);
+      }
+    };
+    
+    checkExistingSession();
   }, []);
+  
+  // Check membership and redirect
+  const checkUserAccessAndRedirect = async (userId: string) => {
+    try {
+      // Check membership status
+      const { data: membershipData } = await supabase
+        .from("memberships")
+        .select("*")
+        .eq("user_id", userId)
+        .single();
+      
+      // Check if admin (exempt from membership)
+      const { data: adminData } = await supabase
+        .from("admin_users")
+        .select("*")
+        .eq("user_id", userId)
+        .single();
+      
+      const isAdmin = !!adminData;
+      const membershipExpired = membershipData?.status === 'expired' || !membershipData;
+      
+      if (membershipExpired && !isAdmin) {
+        // Redirect to membership page
+        router.push("/membership");
+      } else {
+        // Redirect to dashboard
+        router.push("/dashboard");
+      }
+    } catch (err) {
+      console.error("Error checking access:", err);
+      router.push("/dashboard");
+    }
+  };
 
   // Initialize Pi SDK
   useEffect(() => {
@@ -93,14 +151,28 @@ export default function Home() {
       setIsLoading(true);
       console.log("🔵 handlePiLogin started");
 
-      const isLocal = window.location.hostname === "localhost";
+      const isLocal = window.location.hostname === "localhost" || 
+                      window.location.hostname === "127.0.0.1";
       let username, pi_uid, avatar_url, wallet_address;
 
       if (isLocal) {
         step = "Local mode";
-        console.log("🔧 Local mode: Using fake Pi user");
-        username = "LocalUser";
-        pi_uid = "local_user_123";
+        console.log("🔧 Local mode: Using mock Pi SDK");
+        // In local mode, we'll use a mock user but still need to authenticate via mock SDK
+        const Pi = (window as any).Pi;
+        if (Pi?.authenticate) {
+          try {
+            const mockAuth = await Pi.authenticate(["username"], () => {});
+            username = mockAuth.user?.username || "LocalUser";
+            pi_uid = mockAuth.user?.uid || "local_user_123";
+          } catch (e) {
+            username = "LocalUser";
+            pi_uid = "local_user_123";
+          }
+        } else {
+          username = "LocalUser";
+          pi_uid = "local_user_123";
+        }
         avatar_url = null;
         wallet_address = null;
       } else {
@@ -385,39 +457,46 @@ export default function Home() {
           </div>
 
           {/* Login with Pi Button - White Background */}
-          <button
-            onClick={handlePiLogin}
-            disabled={!piReady || isLoading}
-            className="mt-4 px-8 py-3 rounded-full font-semibold text-sm transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{
-              background: "rgba(255, 255, 255, 0.95)",
-              color: "#000",
-              boxShadow: "0 4px 15px rgba(0, 0, 0, 0.2)",
-              border: "none",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(255, 255, 255, 1)";
-              e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.boxShadow = "0 6px 20px rgba(0, 0, 0, 0.25)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "rgba(255, 255, 255, 0.95)";
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "0 4px 15px rgba(0, 0, 0, 0.2)";
-            }}
-            onMouseDown={(e) => {
-              e.currentTarget.style.transform = "translateY(0) scale(0.98)";
-            }}
-            onMouseUp={(e) => {
-              e.currentTarget.style.transform = "translateY(-2px) scale(1)";
-            }}
-          >
-            {isLoading
-              ? "Connecting..."
-              : piReady
-              ? "Login with Pi"
-              : "Loading Pi SDK..."}
-          </button>
+          {autoRedirecting ? (
+            <div className="mt-4 flex flex-col items-center gap-2">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+              <span className="text-white/80 text-sm">Logging you in...</span>
+            </div>
+          ) : (
+            <button
+              onClick={handlePiLogin}
+              disabled={!piReady || isLoading}
+              className="mt-4 px-8 py-3 rounded-full font-semibold text-sm transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{
+                background: "rgba(255, 255, 255, 0.95)",
+                color: "#000",
+                boxShadow: "0 4px 15px rgba(0, 0, 0, 0.2)",
+                border: "none",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 1)";
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 6px 20px rgba(0, 0, 0, 0.25)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.95)";
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 4px 15px rgba(0, 0, 0, 0.2)";
+              }}
+              onMouseDown={(e) => {
+                e.currentTarget.style.transform = "translateY(0) scale(0.98)";
+              }}
+              onMouseUp={(e) => {
+                e.currentTarget.style.transform = "translateY(-2px) scale(1)";
+              }}
+            >
+              {isLoading
+                ? "Connecting..."
+                : piReady
+                ? "Login with Pi"
+                : "Loading Pi SDK..."}
+            </button>
+          )}
         </div>
       </div>
 
