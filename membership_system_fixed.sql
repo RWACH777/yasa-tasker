@@ -13,8 +13,9 @@ ALTER TABLE tasks ADD COLUMN IF NOT EXISTS freelancer_confirmed_at TIMESTAMP WIT
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMP WITH TIME ZONE;
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS resolved_by UUID;
 
--- Add pi_username column to profiles
+-- Add pi_username and wallet_address columns to profiles
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS pi_username TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS wallet_address TEXT;
 
 -- ============================================
 -- PART 2: Create new tables (no FKs first)

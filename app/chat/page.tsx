@@ -1251,14 +1251,15 @@ export default function ChatPage() {
                     console.error("Failed to save memo:", updateError);
                   }
 
-                  // Get freelancer's Pi username from their profile
+                  // Get freelancer's Pi username and wallet from their profile
                   const { data: freelancerProfile } = await supabase
                     .from("profiles")
-                    .select("pi_username, username")
+                    .select("pi_username, username, wallet_address")
                     .eq("id", otherUserId)
                     .single();
 
-                  const recipientUsername = freelancerProfile?.pi_username || freelancerProfile?.username;
+                  // Use wallet_address if available, otherwise fallback to pi_username or username
+                  const recipientUsername = freelancerProfile?.wallet_address || freelancerProfile?.pi_username || freelancerProfile?.username;
                   if (!recipientUsername) {
                     alert("Freelancer Pi username not found");
                     return;

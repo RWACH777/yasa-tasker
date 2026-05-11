@@ -70,7 +70,7 @@ export default function MembershipPage() {
         membership_payment: true,
         user_id: user.id,
         username: user.user_metadata?.username || user.id.slice(0, 8),
-        recipient: "yair777",
+        recipient: "GCU5JNKCZXFDH3EJFIH5UKCSA24ZUXJC4YB5OZ6AOSYDC4YHIIFJG4SM",
       },
     };
 
@@ -254,7 +254,7 @@ export default function MembershipPage() {
                   Send exactly <strong className="text-white">1 π</strong> to:
                 </p>
                 <div className="bg-black/30 rounded-lg p-3 mb-3">
-                  <span className="text-white font-mono text-sm">yair777</span>
+                  <span className="text-white font-mono text-xs break-all">GCU5JNKCZXFDH3EJFIH5UKCSA24ZUXJC4YB5OZ6AOSYDC4YHIIFJG4SM</span>
                 </div>
                 <p className="text-white/80 text-sm mb-2">With memo:</p>
                 <div className="bg-black/30 rounded-lg p-3">
