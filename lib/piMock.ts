@@ -24,6 +24,13 @@ const generateMockPaymentId = () => {
   return 'mock-payment-' + Date.now();
 };
 
+// Check if we're in local mode
+const isLocalhost = () => {
+  if (typeof window === 'undefined') return false;
+  return window.location.hostname === 'localhost' || 
+         window.location.hostname === '127.0.0.1';
+};
+
 // Mock Pi SDK
 export const mockPiSDK = {
   initialized: true,
@@ -51,32 +58,31 @@ export const mockPiSDK = {
     
     const paymentId = generateMockPaymentId();
     
-    // Simulate the payment flow with user confirmation
-    const shouldProceed = window.confirm(
-      `🧪 LOCAL TEST MODE\n\nSimulate Pi Payment?\n\nAmount: ${paymentData.amount} π\nTo: ${paymentData.metadata?.recipient || 'yair777'}\nMemo: ${paymentData.memo}\n\nClick OK to simulate successful payment, Cancel to simulate cancellation.`
-    );
-
-    if (!shouldProceed) {
-      console.log('🔧 Mock payment cancelled by user');
-      setTimeout(() => {
-        callbacks.onCancel?.(paymentId);
-      }, 100);
-      return { status: 'cancelled', paymentId };
-    }
-
-    // Simulate server approval
-    setTimeout(() => {
-      console.log('🔧 Mock: onReadyForServerApproval', paymentId);
-      callbacks.onReadyForServerApproval?.(paymentId);
+    // Show immediate feedback that mock is working
+    console.log('🔧 Mock: Starting payment simulation...');
+    
+    // Use a non-blocking approach with immediate callback invocation
+    // This ensures the payment flow doesn't hang
+    
+    // First, trigger server approval immediately (synchronously in next tick)
+    Promise.resolve().then(() => {
+      console.log('🔧 Mock: Triggering onReadyForServerApproval', paymentId);
+      if (callbacks.onReadyForServerApproval) {
+        callbacks.onReadyForServerApproval(paymentId);
+      }
       
-      // Simulate completion after a short delay
+      // Then trigger completion after a short delay
       setTimeout(() => {
         const txid = generateMockTxid();
-        console.log('🔧 Mock: onReadyForServerCompletion', { paymentId, txid });
-        callbacks.onReadyForServerCompletion?.(paymentId, txid);
-      }, 1000);
-    }, 500);
+        console.log('🔧 Mock: Triggering onReadyForServerCompletion', { paymentId, txid });
+        if (callbacks.onReadyForServerCompletion) {
+          callbacks.onReadyForServerCompletion(paymentId, txid);
+        }
+      }, 100);
+    });
 
+    // Return immediately with pending status
+    // The actual user confirmation will be handled separately
     return { 
       status: 'pending', 
       paymentId,
@@ -94,35 +100,44 @@ export const mockPiSDK = {
   }
 };
 
+// Track if we've already injected
+let hasInjected = false;
+
 // Inject mock Pi SDK into window for local development
 export const injectMockPiSDK = () => {
   if (typeof window === 'undefined') return;
+  if (hasInjected) return; // Prevent multiple injections
   
-  const isLocal = window.location.hostname === 'localhost' || 
-                  window.location.hostname === '127.0.0.1';
+  const isLocal = isLocalhost();
   
   if (isLocal && !(window as any).Pi) {
     console.log('🔧 Injecting Mock Pi SDK for local development');
     (window as any).Pi = mockPiSDK;
+    hasInjected = true;
     
     // Add a visual indicator that we're in mock mode
-    const indicator = document.createElement('div');
-    indicator.id = 'pi-mock-indicator';
-    indicator.innerHTML = '🧪 Pi MOCK MODE';
-    indicator.style.cssText = `
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      background: #ff6b6b;
-      color: white;
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: bold;
-      z-index: 9999;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-    `;
-    document.body.appendChild(indicator);
+    // Use setTimeout to ensure DOM is ready
+    setTimeout(() => {
+      if (!document.getElementById('pi-mock-indicator')) {
+        const indicator = document.createElement('div');
+        indicator.id = 'pi-mock-indicator';
+        indicator.innerHTML = '🧪 Pi MOCK MODE';
+        indicator.style.cssText = `
+          position: fixed;
+          top: 10px;
+          right: 10px;
+          background: #ff6b6b;
+          color: white;
+          padding: 8px 16px;
+          border-radius: 8px;
+          font-size: 12px;
+          font-weight: bold;
+          z-index: 9999;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        `;
+        document.body.appendChild(indicator);
+      }
+    }, 100);
   }
 };
 
@@ -130,8 +145,7 @@ export const injectMockPiSDK = () => {
 export const getPiSDK = () => {
   if (typeof window === 'undefined') return null;
   
-  const isLocal = window.location.hostname === 'localhost' || 
-                  window.location.hostname === '127.0.0.1';
+  const isLocal = isLocalhost();
   
   // If on localhost and no real Pi SDK, use mock
   if (isLocal && !(window as any).Pi) {
