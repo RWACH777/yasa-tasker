@@ -1231,6 +1231,20 @@ export default function ChatPage() {
             )}
           </div>
           <div className="flex gap-1 md:gap-2 items-center overflow-hidden">
+            {/* DEBUG: Show button state */}
+            {(() => {
+              console.log("🔍 Pay & Complete button check:", {
+                taskId,
+                taskStatus,
+                userId: user?.id,
+                taskPosterId,
+                condition1: !!taskId,
+                condition2: taskStatus === "active",
+                condition3: String(user?.id) === String(taskPosterId),
+                willShow: taskId && taskStatus === "active" && String(user?.id) === String(taskPosterId)
+              });
+              return null;
+            })()}
             {taskId && taskStatus === "active" && String(user?.id) === String(taskPosterId) && (
               <button
                 onClick={async () => {
