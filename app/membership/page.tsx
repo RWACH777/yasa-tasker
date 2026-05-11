@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
+import { injectMockPiSDK } from "@/lib/piMock";
 
 export default function MembershipPage() {
   const router = useRouter();
@@ -18,6 +19,9 @@ export default function MembershipPage() {
   const [paymentProcessing, setPaymentProcessing] = useState(false);
 
   useEffect(() => {
+    // Inject mock Pi SDK for local testing
+    injectMockPiSDK();
+    
     const loadData = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -52,7 +56,12 @@ export default function MembershipPage() {
 
     const Pi = (window as any).Pi;
     if (!Pi) {
-      alert("Pi SDK not available. Please open this in Pi Browser.");
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      if (isLocal) {
+        alert("🔧 Mock Pi SDK not initialized. Please refresh the page.");
+      } else {
+        alert("Pi SDK not available. Please open this in Pi Browser.");
+      }
       return;
     }
 

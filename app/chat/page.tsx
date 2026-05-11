@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import { setUserOnline, setUserOffline, getUserOnlineStatus } from "@/app/utils/presenceHelpers";
 import RatingModal from "@/app/components/RatingModal";
+import { injectMockPiSDK } from "@/lib/piMock";
 
 interface Message {
   id: string;
@@ -77,6 +78,9 @@ export default function ChatPage() {
 
   // Load current user
   useEffect(() => {
+    // Inject mock Pi SDK for local testing
+    injectMockPiSDK();
+    
     const loadUser = async () => {
       const { data } = await supabase.auth.getSession();
       if (data.session?.user) {
@@ -1066,7 +1070,12 @@ export default function ChatPage() {
 
     const Pi = (window as any).Pi;
     if (!Pi) {
-      alert("Pi SDK not available");
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      if (isLocal) {
+        alert("🔧 Mock Pi SDK not initialized. Please refresh the page.");
+      } else {
+        alert("Pi SDK not available");
+      }
       setShowPaymentModal(false);
       return;
     }

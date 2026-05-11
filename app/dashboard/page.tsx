@@ -8,6 +8,7 @@ import Sidebar from "@/app/components/Sidebar";
 import ApplicationModal, { ApplicationFormData } from "@/app/components/ApplicationModal";
 import ApplicationReviewModal from "@/app/components/ApplicationReviewModal";
 import { sendApprovalNotification, sendDenialNotification, sendApplicationNotification } from "@/app/utils/notificationHelpers";
+import { injectMockPiSDK } from "@/lib/piMock";
 
 interface Task {
   id: string;
@@ -95,6 +96,10 @@ export default function DashboardPage() {
   // Notifications state
   const [notificationCount, setNotificationCount] = useState(0);
   const [messageCount, setMessageCount] = useState(0);
+
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [showMyTasks, setShowMyTasks] = useState(false);
+  const [isLocalMode, setIsLocalMode] = useState(false);
 
   const handleContactTasker = async (task: Task) => {
     if (!user?.id) {
@@ -966,6 +971,14 @@ const handleUpdateFreelancerUsername = async () => {
           )}
         </button>
       </div>
+
+      {/* Local Testing Mode Banner */}
+      {isLocalMode && (
+        <div className="w-full max-w-3xl mb-4 bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3 text-center">
+          <p className="text-yellow-200 text-sm font-semibold">🧪 LOCAL TESTING MODE</p>
+          <p className="text-yellow-100 text-xs mt-1">Pi SDK is mocked. Payments will show confirmation dialogs.</p>
+        </div>
+      )}
       <div
         onClick={() => {
           if (user?.id) {
