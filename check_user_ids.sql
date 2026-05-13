@@ -46,6 +46,6 @@ SELECT
     p.pi_username,
     a.email as auth_email
 FROM admin_users au
-LEFT JOIN profiles p ON au.user_id = p.id
-LEFT JOIN auth.users a ON au.user_id = a.id
+LEFT JOIN profiles p ON au.user_id::text = p.id::text
+LEFT JOIN auth.users a ON au.user_id::text = a.id::text
 ORDER BY au.created_at;
