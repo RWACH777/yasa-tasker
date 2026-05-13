@@ -680,23 +680,6 @@ export default function ChatPage() {
       return;
     }
 
-    // Verify task exists before sending message
-    try {
-      const { data: taskCheck, error: taskError } = await supabase
-        .from("tasks")
-        .select("id")
-        .eq("id", taskId)
-        .single();
-      
-      if (taskError || !taskCheck) {
-        alert("Cannot send message: Task not found. Please start a chat from a valid task.");
-        return;
-      }
-    } catch (err) {
-      alert("Cannot send message: Error verifying task.");
-      return;
-    }
-
     const messageData: any = {
       task_id: taskId,
       sender_id: user.id,
