@@ -41,11 +41,18 @@ export default function AdminMembershipPaymentsPage() {
         .from("admin_users")
         .select("*")
         .eq("user_id", userData.id)
-        .single();
+        .maybeSingle();
 
-      if (adminError || !adminData) {
+      if (adminError) {
         console.error("Admin check error:", adminError);
-        setError(`Access denied. User ID: ${userData.id}`);
+        setError(`Access denied. User ID: ${userData.id}. Error: ${adminError?.message}`);
+        setLoading(false);
+        return;
+      }
+
+      if (!adminData) {
+        console.error("Admin check: User not found in admin_users table");
+        setError(`Access denied. User ID: ${userData.id} is not an admin`);
         setLoading(false);
         return;
       }

@@ -82,12 +82,19 @@ export default function MembershipPage() {
       return;
     }
 
-    // Initialize Pi SDK before creating payment
+    // Initialize Pi SDK and authenticate with payment scope
     try {
       Pi.init({ version: "2.0", sandbox: false });
       console.log("✅ Pi SDK initialized");
+      
+      // Authenticate with payment scope
+      const authResult = await Pi.authenticate(["username", "payments", "wallet_address"]);
+      console.log("✅ Pi authenticated with payment scope:", authResult);
     } catch (err) {
-      console.error("❌ Pi SDK init failed:", err);
+      console.error("❌ Pi SDK init or auth failed:", err);
+      alert("Failed to authenticate with Pi Network. Please try again.");
+      setPaymentProcessing(false);
+      return;
     }
 
     setPaymentProcessing(true);

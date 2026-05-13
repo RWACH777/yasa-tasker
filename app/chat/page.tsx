@@ -674,6 +674,29 @@ export default function ChatPage() {
       return;
     }
 
+    // Ensure we have a valid task_id
+    if (!taskId) {
+      alert("Cannot send message: No active task found. Please start a chat from a task.");
+      return;
+    }
+
+    // Verify task exists before sending message
+    try {
+      const { data: taskCheck, error: taskError } = await supabase
+        .from("tasks")
+        .select("id")
+        .eq("id", taskId)
+        .single();
+      
+      if (taskError || !taskCheck) {
+        alert("Cannot send message: Task not found. Please start a chat from a valid task.");
+        return;
+      }
+    } catch (err) {
+      alert("Cannot send message: Error verifying task.");
+      return;
+    }
+
     const messageData: any = {
       task_id: taskId,
       sender_id: user.id,
@@ -1253,7 +1276,7 @@ export default function ChatPage() {
               });
               return null;
             })()}
-            {taskId && taskStatus === "active" && String(user?.id) === String(taskPosterId) && (
+            {taskId && ["active", "assigned", "in_progress"].includes(taskStatus || "") && String(user?.id) === String(taskPosterId) && (
               <button
                 onClick={async () => {
                   // Show pre-payment modal with instructions

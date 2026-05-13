@@ -425,6 +425,31 @@ export default function DashboardPage() {
       return;
     }
 
+    // Check if user is admin (admins are exempt from membership)
+    const { data: adminData } = await supabase
+      .from("admin_users")
+      .select("*")
+      .eq("user_id", user.id)
+      .single();
+
+    const isAdmin = !!adminData;
+
+    // Check membership status if not admin
+    if (!isAdmin) {
+      const { data: membershipData } = await supabase
+        .from("memberships")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+
+      const membershipExpired = !membershipData || membershipData?.status === 'expired';
+      
+      if (membershipExpired) {
+        setMessage("🚫 Your membership has expired. Please renew your membership to post tasks.");
+        return;
+      }
+    }
+
     if (
       !form.title ||
       !form.description ||
@@ -700,6 +725,31 @@ export default function DashboardPage() {
     if (!user?.id || !selectedTaskId) {
       setMessage("⚠️ Error: Missing user or task information.");
       return;
+    }
+
+    // Check if user is admin (admins are exempt from membership)
+    const { data: adminData } = await supabase
+      .from("admin_users")
+      .select("*")
+      .eq("user_id", user.id)
+      .single();
+
+    const isAdmin = !!adminData;
+
+    // Check membership status if not admin
+    if (!isAdmin) {
+      const { data: membershipData } = await supabase
+        .from("memberships")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+
+      const membershipExpired = !membershipData || membershipData?.status === 'expired';
+      
+      if (membershipExpired) {
+        setMessage("🚫 Your membership has expired. Please renew your membership to apply for tasks.");
+        return;
+      }
     }
 
     if (
