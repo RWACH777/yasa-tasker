@@ -36,13 +36,14 @@ export default function PaymentPage() {
   const [error, setError] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<"idle" | "processing" | "success" | "failed">("idle");
   const [transactionId, setTransactionId] = useState<string | null>(null);
+  const [customAmount, setCustomAmount] = useState<number>(0);
 
   // Platform fee settings
   const PLATFORM_FEE_PERCENT = 5;
   const [platformWallet, setPlatformWallet] = useState<string>("");
 
   // Calculate amounts
-  const taskAmount = task?.budget || 0;
+  const taskAmount = customAmount || task?.budget || 0;
   const platformFee = (taskAmount * PLATFORM_FEE_PERCENT) / 100;
   const freelancerAmount = taskAmount - platformFee;
 
@@ -58,15 +59,24 @@ export default function PaymentPage() {
   }, [user, taskId]);
 
   const loadUser = async () => {
-    const stored = localStorage.getItem("pi_user");
-    if (stored) {
-      const userData = JSON.parse(stored);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", session.user.id)
+        .single();
+
+      const userData = profile || {
+        id: session.user.id,
+        username: session.user.user_metadata?.username || session.user.email?.split("@")[0] || "User",
+        wallet_address: session.user.user_metadata?.wallet_address || null,
+      };
+
+      localStorage.setItem("pi_user", JSON.stringify(userData));
       setUser(userData);
-      // Load wallet balance from Pi SDK or local storage
       const balance = localStorage.getItem(`wallet_balance_${userData.id}`);
-      if (balance) {
-        setWalletBalance(parseFloat(balance));
-      }
+      if (balance) setWalletBalance(parseFloat(balance));
     } else {
       setError("Please login first");
       setLoading(false);
@@ -101,6 +111,7 @@ export default function PaymentPage() {
       }
 
       setTask(taskData);
+      setCustomAmount(Number(taskData.budget) || 0);
 
       // Verify user is the task poster
       if (taskData.poster_id !== user.id) {
@@ -109,17 +120,29 @@ export default function PaymentPage() {
         return;
       }
 
-      // Load freelancer details
-      if (taskData.assignee_id) {
+      let freelancerId = taskData.assignee_id;
+
+      if (!freelancerId) {
+        const { data: approvedApplication } = await supabase
+          .from("applications")
+          .select("applicant_id")
+          .eq("task_id", taskId)
+          .eq("status", "approved")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        freelancerId = approvedApplication?.applicant_id;
+      }
+
+      if (freelancerId) {
         const { data: freelancerData } = await supabase
           .from("profiles")
           .select("id, username, freelancer_username, wallet_address")
-          .eq("id", taskData.assignee_id)
+          .eq("id", freelancerId)
           .single();
 
-        if (freelancerData) {
-          setFreelancer(freelancerData);
-        }
+        if (freelancerData) setFreelancer(freelancerData);
       }
 
       // Check if payment already completed
@@ -136,8 +159,14 @@ export default function PaymentPage() {
   };
 
   const handlePayment = async () => {
-    if (!task || !freelancer || !platformWallet) {
+    if (!task || !freelancer) {
       setError("Missing payment information");
+      return;
+    }
+
+    const Pi = (window as any).Pi;
+    if (!Pi) {
+      setError("Pi SDK not available. Please open YASA Tasker in Pi Browser.");
       return;
     }
 
@@ -146,7 +175,6 @@ export default function PaymentPage() {
     setError(null);
 
     try {
-      // Step 1: Create transaction record
       const { data: transaction, error: txnError } = await supabase
         .from("transactions")
         .insert({
@@ -157,7 +185,7 @@ export default function PaymentPage() {
           receiver_uid: freelancer.id,
           receiver_username: freelancer.freelancer_username || freelancer.username,
           receiver_wallet_address: freelancer.wallet_address,
-          platform_fee_recipient: platformWallet,
+          platform_fee_recipient: platformWallet || null,
           total_amount: taskAmount,
           platform_fee_percent: PLATFORM_FEE_PERCENT,
           platform_fee_amount: platformFee,
@@ -174,65 +202,93 @@ export default function PaymentPage() {
 
       setTransactionId(transaction.id);
 
-      // Step 2: Call Pi Payment API
-      const paymentResponse = await fetch("/api/pi-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          transactionId: transaction.id,
-          taskId: task.id,
+      Pi.init({ version: "2.0", sandbox: false });
+      await Pi.authenticate(["username", "payments", "wallet_address"], () => {});
+
+      await Pi.createPayment(
+        {
           amount: taskAmount,
-          freelancerAmount: freelancerAmount,
-          platformFee: platformFee,
-          freelancerWallet: freelancer.wallet_address,
-          platformWallet: platformWallet,
-          memo: `Task payment: ${task.title}`,
-        }),
-      });
+          memo: `YASA task payment: ${task.title}`,
+          metadata: {
+            task_id: task.id,
+            transaction_id: transaction.id,
+            freelancer_id: freelancer.id,
+            freelancer_username: freelancer.freelancer_username || freelancer.username,
+          },
+        },
+        {
+          onReadyForServerApproval: async (paymentId: string) => {
+            await supabase
+              .from("transactions")
+              .update({
+                pi_payment_id: paymentId,
+                status: "processing",
+              })
+              .eq("id", transaction.id);
+          },
+          onReadyForServerCompletion: async (paymentId: string, txid: string) => {
+            await supabase
+              .from("transactions")
+              .update({
+                status: "success",
+                pi_payment_id: paymentId,
+                pi_txid: txid,
+                completed_at: new Date().toISOString(),
+              })
+              .eq("id", transaction.id);
 
-      const paymentResult = await paymentResponse.json();
+            await supabase
+              .from("tasks")
+              .update({
+                payment_status: "completed",
+                transaction_id: transaction.id,
+                payment_completed_at: new Date().toISOString(),
+                payment_txid: txid,
+                status: "payment_confirmed",
+              })
+              .eq("id", task.id);
 
-      if (!paymentResponse.ok) {
-        throw new Error(paymentResult.error || "Payment failed");
-      }
+            await supabase.from("notifications").insert({
+              user_id: freelancer.id,
+              type: "payment_received",
+              message: `Payment was sent for "${task.title}". Please check your Pi wallet and confirm receipt in chat.`,
+              related_task_id: task.id,
+              read: false,
+            });
 
-      // Step 3: Update transaction with Pi payment ID
-      await supabase
-        .from("transactions")
-        .update({
-          status: "success",
-          pi_payment_id: paymentResult.paymentId,
-          pi_txid: paymentResult.txid,
-          completed_at: new Date().toISOString(),
-        })
-        .eq("id", transaction.id);
+            setPaymentStatus("success");
+            setProcessingPayment(false);
+            router.push(`/payment-summary?task=${task.id}&txid=${txid}&memo=${encodeURIComponent(`YASA task payment: ${task.title}`)}&amount=${taskAmount}&to=${encodeURIComponent(freelancer.freelancer_username || freelancer.username)}&to_uid=${freelancer.id}`);
+          },
+          onCancel: async (paymentId: string) => {
+            await supabase
+              .from("transactions")
+              .update({
+                status: "cancelled",
+                pi_payment_id: paymentId,
+              })
+              .eq("id", transaction.id);
 
-      // Step 4: Update task payment status
-      await supabase
-        .from("tasks")
-        .update({
-          payment_status: "completed",
-          transaction_id: transaction.id,
-          payment_completed_at: new Date().toISOString(),
-          status: "completed",
-        })
-        .eq("id", task.id);
+            setPaymentStatus("idle");
+            setProcessingPayment(false);
+            setError("Payment was cancelled. The task was not marked as paid.");
+          },
+          onError: async (paymentError: any, paymentId?: string) => {
+            await supabase
+              .from("transactions")
+              .update({
+                status: "failed",
+                pi_payment_id: paymentId || null,
+                error_message: paymentError?.message || String(paymentError),
+              })
+              .eq("id", transaction.id);
 
-      // Step 5: Send notification to freelancer
-      await supabase.from("notifications").insert({
-        user_id: freelancer.id,
-        type: "payment_received",
-        message: `You have received ${freelancerAmount.toFixed(2)} Pi from ${user.username} for task: ${task.title}`,
-        related_task_id: task.id,
-        read: false,
-      });
-
-      setPaymentStatus("success");
-      
-      // Update wallet balance (deduct sent amount)
-      const newBalance = (walletBalance || 0) - taskAmount;
-      localStorage.setItem(`wallet_balance_${user.id}`, newBalance.toString());
-      setWalletBalance(newBalance);
+            setPaymentStatus("failed");
+            setProcessingPayment(false);
+            setError(paymentError?.message || "Payment failed. Please try again.");
+          },
+        }
+      );
 
     } catch (err: any) {
       console.error("Payment error:", err);
@@ -255,8 +311,7 @@ export default function PaymentPage() {
   };
 
   const handleContinueToRating = () => {
-    // Redirect to rating page
-    router.push(`/rating?task=${taskId}&role=tasker`);
+    router.push(`/rate?task=${taskId}&user=${freelancer?.id}&role=tasker`);
   };
 
   if (loading) {
@@ -277,7 +332,7 @@ export default function PaymentPage() {
           <div className="text-4xl mb-4 text-center">⚠️</div>
           <h2 className="text-xl font-bold text-red-400 mb-4 text-center">Error</h2>
           <p className="glass-text mb-6">{error}</p>
-          <Link href={returnUrl} className="glass-button glass-button-primary w-full block text-center">
+          <Link href={returnUrl as any} className="glass-button glass-button-primary w-full block text-center">
             Go Back
           </Link>
         </div>
@@ -290,7 +345,7 @@ export default function PaymentPage() {
       {/* Header */}
       <div className="glass-nav sticky top-0 z-50 p-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <Link href={returnUrl} className="text-xl">← Back</Link>
+          <Link href={returnUrl as any} className="text-xl">← Back</Link>
           <h1 className="text-lg font-bold">Pi Payment</h1>
           <div className="w-8"></div>
         </div>
@@ -380,7 +435,18 @@ export default function PaymentPage() {
               
               <div className="flex justify-between items-center py-2 border-b border-white/10">
                 <span className="glass-text-muted text-sm">Task Amount</span>
-                <span className="glass-text font-semibold">{taskAmount.toFixed(2)} π</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={customAmount}
+                    onChange={(e) => setCustomAmount(Number(e.target.value))}
+                    className="glass-input w-24 px-2 py-1 text-right text-sm"
+                    disabled={processingPayment}
+                  />
+                  <span className="glass-text font-semibold">π</span>
+                </div>
               </div>
               
               <div className="flex justify-between items-center py-2 border-b border-white/10">
@@ -458,7 +524,7 @@ export default function PaymentPage() {
         {/* Cancel Button */}
         {paymentStatus === "idle" && (
           <Link
-            href={returnUrl}
+            href={returnUrl as any}
             className="glass-button w-full mt-4 text-center block"
           >
             Cancel Payment

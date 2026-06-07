@@ -252,6 +252,31 @@ export async function POST(req: Request) {
 
     console.log("✅ Profile upserted successfully");
 
+    step = "Ensuring membership";
+    const { data: existingMembership, error: membershipLookupError } = await adminClient
+      .from("memberships")
+      .select("id")
+      .eq("user_id", authUser.id)
+      .maybeSingle();
+
+    if (membershipLookupError) {
+      console.error("❌ Membership lookup error:", membershipLookupError);
+    }
+
+    if (!existingMembership) {
+      const { error: membershipInsertError } = await adminClient.from("memberships").insert({
+        user_id: authUser.id,
+        username,
+        status: "active",
+        started_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+
+      if (membershipInsertError) {
+        console.error("❌ Membership insert error:", membershipInsertError);
+      }
+    }
+
     // 7️⃣ Success response
     return NextResponse.json({
       success: true,

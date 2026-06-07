@@ -35,7 +35,7 @@ export default function ChatPage() {
   
   // STEP 3: Resolved taskId from multiple sources (URL -> localStorage -> database)
   const [resolvedTaskId, setResolvedTaskId] = useState<string | null>(null);
-  const taskId = resolvedTaskId || urlTaskId;
+  const taskId = resolvedTaskId;
 
   const [user, setUser] = useState<any>(null);
   const [otherUser, setOtherUser] = useState<any>(null);
@@ -141,74 +141,112 @@ export default function ChatPage() {
 
     loadOtherUser();
 
-    // STEP 3 & 4: Resolve taskId from multiple sources
     const resolveTaskId = async () => {
-      // Source 1: URL params
+      const isValidTaskForPair = async (candidateTaskId: string) => {
+        const { data: candidateTask } = await supabase
+          .from("tasks")
+          .select("id, poster_id, assignee_id, status")
+          .eq("id", candidateTaskId)
+          .maybeSingle();
+
+        if (!candidateTask) return false;
+
+        const currentUserIsPoster = candidateTask.poster_id === user.id;
+        const otherUserIsPoster = candidateTask.poster_id === otherUserId;
+        const assignedToCurrentPair =
+          candidateTask.assignee_id === user.id || candidateTask.assignee_id === otherUserId;
+
+        if ((currentUserIsPoster || otherUserIsPoster) && assignedToCurrentPair) {
+          return true;
+        }
+
+        const applicantId = currentUserIsPoster ? otherUserId : otherUserIsPoster ? user.id : null;
+        if (!applicantId) return false;
+
+        const { data: approvedApplication } = await supabase
+          .from("applications")
+          .select("id")
+          .eq("task_id", candidateTaskId)
+          .eq("applicant_id", applicantId)
+          .eq("status", "approved")
+          .maybeSingle();
+
+        return !!approvedApplication;
+      };
+
+      const acceptTask = async (candidateTaskId: string | null, source: string) => {
+        if (!candidateTaskId) return false;
+        const valid = await isValidTaskForPair(candidateTaskId);
+        if (!valid) return false;
+
+        setResolvedTaskId(candidateTaskId);
+        setTaskResolutionSource(source);
+        localStorage.setItem("activeTaskId", candidateTaskId);
+        if (otherUserId) localStorage.setItem("activeChatUserId", otherUserId);
+        return true;
+      };
+
+      if (await acceptTask(urlTaskId, "url")) return;
+
       if (urlTaskId) {
-        setResolvedTaskId(urlTaskId);
-        setTaskResolutionSource("url");
-        return;
+        localStorage.removeItem("activeTaskId");
       }
-      
-      // Source 2: localStorage
+
       const storedTaskId = localStorage.getItem("activeTaskId");
-      if (storedTaskId) {
-        setResolvedTaskId(storedTaskId);
-        setTaskResolutionSource("localStorage");
-        return;
-      }
-      
-      // Source 3: Messages - get task_id from most recent message
+      if (await acceptTask(storedTaskId, "localStorage")) return;
+
       try {
         const { data: msgData, error: msgError } = await supabase
           .from("messages")
           .select("task_id, sender_id, receiver_id")
-          .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+          .or(`and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`)
           .not("task_id", "is", null)
           .order("created_at", { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
         
-        if (msgData?.task_id) {
-          console.log("✅ Found task_id in messages:", msgData.task_id);
-          setResolvedTaskId(msgData.task_id);
-          setTaskResolutionSource("messages");
-          localStorage.setItem("activeTaskId", msgData.task_id);
-          // Also store the other user from this message
-          const otherParticipant = msgData.sender_id === user.id ? msgData.receiver_id : msgData.sender_id;
-          localStorage.setItem("activeChatUserId", otherParticipant);
-          return;
-        }
+        if (await acceptTask(msgData?.task_id || null, "messages")) return;
       } catch (err) {
         console.log("No task found in messages");
       }
-      
-      // Source 4: Database - get latest approved task for current user
+
       try {
-        // Query as tasker (current user is poster)
-        const { data: asTasker, error: err1 } = await supabase
+        const { data: approvedAsFreelancer } = await supabase
+          .from("applications")
+          .select("task_id")
+          .eq("applicant_id", user.id)
+          .eq("status", "approved")
+          .order("created_at", { ascending: false });
+
+        if (approvedAsFreelancer && approvedAsFreelancer.length > 0) {
+          const taskIds = approvedAsFreelancer.map((app) => app.task_id);
+          const { data: taskAsFreelancer } = await supabase
+            .from("tasks")
+            .select("id")
+            .in("id", taskIds)
+            .eq("poster_id", otherUserId)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (await acceptTask(taskAsFreelancer?.id || null, "applications-freelancer")) return;
+        }
+
+        const { data: taskAsTasker } = await supabase
           .from("tasks")
           .select("id")
           .eq("poster_id", user.id)
-          .eq("status", "active")
+          .eq("assignee_id", otherUserId)
           .order("created_at", { ascending: false })
           .limit(1)
-          .single();
-        
-        if (asTasker?.id) {
-          console.log("✅ Found active task as tasker:", asTasker.id);
-          setResolvedTaskId(asTasker.id);
-          setTaskResolutionSource("db-tasker");
-          localStorage.setItem("activeTaskId", asTasker.id);
-          return;
-        }
-        
-        // NOTE: assignee_id column doesn't exist in tasks table
-        // Task resolution for freelancers should work via messages or applications table
+          .maybeSingle();
+
+        if (await acceptTask(taskAsTasker?.id || null, "tasks-assignee")) return;
       } catch (err) {
-        console.log("No active tasks found in database as tasker");
+        console.log("No approved task found for chat pair");
       }
       
+      setResolvedTaskId(null);
       setTaskResolutionSource("none");
     };
     
@@ -1262,7 +1300,6 @@ export default function ChatPage() {
             {taskId && ["active", "assigned", "in_progress"].includes(taskStatus || "") && String(user?.id) === String(taskPosterId) && (
               <button
                 onClick={async () => {
-                  // Show pre-payment modal with instructions
                   if (!task || !otherUser) {
                     alert("Task or freelancer information not loaded");
                     return;
@@ -1274,42 +1311,7 @@ export default function ChatPage() {
                     return;
                   }
 
-                  // Generate unique memo reference
-                  const timestamp = Date.now();
-                  const memoRef = `YASA-${taskId}-${timestamp}`;
-
-                  // Save memo reference to task record
-                  const { error: updateError } = await supabase
-                    .from("tasks")
-                    .update({ payment_memo: memoRef })
-                    .eq("id", taskId);
-
-                  if (updateError) {
-                    console.error("Failed to save memo:", updateError);
-                  }
-
-                  // Get freelancer's Pi username and wallet from their profile
-                  const { data: freelancerProfile } = await supabase
-                    .from("profiles")
-                    .select("pi_username, username, wallet_address")
-                    .eq("id", otherUserId)
-                    .single();
-
-                  // Use wallet_address if available, otherwise fallback to pi_username or username
-                  const recipientUsername = freelancerProfile?.wallet_address || freelancerProfile?.pi_username || freelancerProfile?.username;
-                  if (!recipientUsername) {
-                    alert("Freelancer Pi username not found");
-                    return;
-                  }
-
-                  // Store payment details and show modal
-                  setPaymentDetails({
-                    amount,
-                    memoRef,
-                    recipientUsername,
-                    freelancerProfile,
-                  });
-                  setShowPaymentModal(true);
+                  router.push(`/payment?task=${taskId}&return=/chat?user=${otherUserId}%26task=${taskId}`);
                 }}
                 className="glass-button glass-button-primary px-2 md:px-4 py-1 md:py-2 text-xs md:text-sm animate-pulse"
                 title="Pay freelancer and complete task"
@@ -1341,8 +1343,7 @@ export default function ChatPage() {
                           .update({ status: "completed" })
                           .eq("task_id", taskId);
 
-                        // Trigger rating flow for freelancer
-                        router.push(`/rate?task=${taskId}&type=freelancer`);
+                        router.push(`/rate?task=${taskId}&user=${taskPosterId}&role=freelancer`);
                       } catch (err) {
                         console.error("Error confirming receipt:", err);
                         alert("Failed to confirm. Please try again.");

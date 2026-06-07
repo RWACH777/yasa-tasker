@@ -17,6 +17,7 @@ export default function PaymentSummaryPage() {
   const memo = searchParams.get("memo");
   const amount = searchParams.get("amount");
   const to = searchParams.get("to");
+  const toUid = searchParams.get("to_uid");
 
   useEffect(() => {
     const loadUser = async () => {
@@ -58,7 +59,7 @@ export default function PaymentSummaryPage() {
         .eq("task_id", taskId);
 
       // Redirect to rating flow
-      router.push(`/rate?task=${taskId}&type=tasker`);
+      router.push(`/rate?task=${taskId}&user=${toUid}&role=tasker`);
     } catch (err) {
       console.error("Error confirming payment:", err);
       alert("An error occurred. Please try again.");

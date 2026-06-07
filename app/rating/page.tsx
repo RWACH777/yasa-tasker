@@ -17,9 +17,19 @@ interface TaskDetails {
 
 interface UserProfile {
   id: string;
-  username: string;
+  username?: string;
   freelancer_username?: string;
 }
+
+interface ExistingRating {
+  id: string;
+  rating: number;
+  comment?: string | null;
+}
+
+const getErrorMessage = (err: unknown) => {
+  return err instanceof Error ? err.message : String(err);
+};
 
 export default function RatingPage() {
   const searchParams = useSearchParams();
@@ -28,7 +38,7 @@ export default function RatingPage() {
   const role = searchParams.get("role") || "tasker"; // 'tasker' or 'freelancer'
 
   const [task, setTask] = useState<TaskDetails | null>(null);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [otherUser, setOtherUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -41,7 +51,7 @@ export default function RatingPage() {
 
   // Check if user already rated
   const [hasRated, setHasRated] = useState(false);
-  const [existingRating, setExistingRating] = useState<any>(null);
+  const [existingRating, setExistingRating] = useState<ExistingRating | null>(null);
 
   useEffect(() => {
     loadUser();
@@ -54,10 +64,15 @@ export default function RatingPage() {
   }, [user, taskId]);
 
   const loadUser = async () => {
-    const stored = localStorage.getItem("pi_user");
-    if (stored) {
-      const userData = JSON.parse(stored);
-      setUser(userData);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", session.user.id)
+        .single();
+
+      setUser(profile || { id: session.user.id });
     } else {
       setError("Please login first");
       setLoading(false);
@@ -81,9 +96,25 @@ export default function RatingPage() {
 
       setTask(taskData);
 
-      // Verify user has access to rate this task
+      let assigneeId = taskData.assignee_id;
+      if (!assigneeId) {
+        const { data: approvedApplication } = await supabase
+          .from("applications")
+          .select("applicant_id")
+          .eq("task_id", taskId)
+          .eq("status", "approved")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        assigneeId = approvedApplication?.applicant_id;
+        if (assigneeId) {
+          taskData.assignee_id = assigneeId;
+        }
+      }
+
       const isTasker = user.id === taskData.poster_id;
-      const isFreelancer = user.id === taskData.assignee_id;
+      const isFreelancer = user.id === assigneeId;
 
       if (!isTasker && !isFreelancer) {
         setError("You are not authorized to rate this task");
@@ -94,7 +125,7 @@ export default function RatingPage() {
       // Determine who to rate (the other party)
       let otherUserId: string;
       if (isTasker) {
-        otherUserId = taskData.assignee_id;
+        otherUserId = assigneeId;
       } else {
         otherUserId = taskData.poster_id;
       }
@@ -157,8 +188,9 @@ export default function RatingPage() {
       const ratingData = {
         task_id: taskId,
         rater_id: user.id,
-        rated_id: otherUser.id,
+        rated_user_id: otherUser.id,
         rating: rating,
+        rating_type: task.poster_id === user.id ? "freelancer" : "tasker",
         comment: comment.trim(),
         created_at: new Date().toISOString(),
       };
@@ -233,9 +265,9 @@ export default function RatingPage() {
         }
       }, 2000);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Rating submission error:", err);
-      setError(err.message || "Failed to submit rating");
+      setError(getErrorMessage(err) || "Failed to submit rating");
     } finally {
       setSubmitting(false);
     }

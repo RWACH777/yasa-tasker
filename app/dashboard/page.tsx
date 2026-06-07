@@ -34,6 +34,19 @@ interface Profile {
   total_ratings?: number;
 }
 
+const membershipIsExpired = (membership: any) => {
+  if (!membership) return true;
+  if (membership.status === "expired") return true;
+  if (membership.status === "pending_review") return true;
+
+  const now = Date.now();
+  const baseDate = membership.last_paid_at || membership.started_at || membership.created_at;
+  if (!baseDate) return true;
+
+  const daysSinceBase = Math.floor((now - new Date(baseDate).getTime()) / (1000 * 60 * 60 * 24));
+  return daysSinceBase >= 30;
+};
+
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<Profile | null>(null);
@@ -442,10 +455,10 @@ export default function DashboardPage() {
         .eq("user_id", user.id)
         .single();
 
-      const membershipExpired = !membershipData || membershipData?.status === 'expired';
+      const membershipExpired = membershipIsExpired(membershipData);
       
       if (membershipExpired) {
-        setMessage("🚫 Your membership has expired. Please renew your membership to post tasks.");
+        setMessage("🚫 Your free month or paid membership has expired. Please renew your membership with 1 Pi before posting tasks.");
         return;
       }
     }
@@ -744,10 +757,10 @@ export default function DashboardPage() {
         .eq("user_id", user.id)
         .single();
 
-      const membershipExpired = !membershipData || membershipData?.status === 'expired';
+      const membershipExpired = membershipIsExpired(membershipData);
       
       if (membershipExpired) {
-        setMessage("🚫 Your membership has expired. Please renew your membership to apply for tasks.");
+        setMessage("🚫 Your free month or paid membership has expired. Please renew your membership with 1 Pi before applying for tasks.");
         return;
       }
     }
@@ -873,6 +886,7 @@ export default function DashboardPage() {
     // Send system message to chat
     if (user?.id && taskId) {
       const systemMessage = {
+        task_id: taskId,
         sender_id: user.id,
         receiver_id: applicantId,
         text: "✅ Application approved - chat started",
@@ -893,8 +907,8 @@ export default function DashboardPage() {
       // Update task status to active
       await supabase
         .from("tasks")
-        .update({ status: "active" })
-        .eq("id", reviewTaskId);
+        .update({ status: "active", assignee_id: applicantId })
+        .eq("id", taskId);
     }
     
     loadProfileTasks();
@@ -904,8 +918,7 @@ export default function DashboardPage() {
       localStorage.setItem("activeChatUserId", applicantId);
       console.log("Stored in localStorage:", { taskId, applicantId });
     }
-    // STEP 2: Navigate without query params (clean URL for Pi Browser)
-    router.push("/chat");
+    router.push(`/chat?user=${applicantId}&task=${taskId}`);
   }
   setReviewLoading(false);
 };

@@ -105,7 +105,7 @@ export default function NotificationsPage() {
 
       if (task) {
         await markAsRead(notification.id);
-        router.push(`/chat?user=${task.poster_id}`);
+        router.push(`/chat?user=${task.poster_id}&task=${notification.related_task_id}`);
       }
     }
   };
@@ -163,7 +163,7 @@ export default function NotificationsPage() {
     // Update task status to active
     await supabase
       .from("tasks")
-      .update({ status: "active" })
+      .update({ status: "active", assignee_id: applicantId })
       .eq("id", taskId);
 
     // Send notification to freelancer
@@ -181,6 +181,7 @@ export default function NotificationsPage() {
     // Send system message to chat
     if (user?.id) {
       const systemMessage = {
+        task_id: taskId,
         sender_id: user.id,
         receiver_id: applicantId,
         text: "✅ Application approved - chat started",

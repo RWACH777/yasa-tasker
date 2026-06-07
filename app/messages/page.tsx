@@ -24,6 +24,7 @@ interface Conversation {
   isOnline: boolean;
   unreadCount: number;
   isCleared?: boolean;
+  taskId?: string;
 }
 
 export default function MessagesPage() {
@@ -110,6 +111,7 @@ export default function MessagesPage() {
           isOnline: false,
           unreadCount: unreadMessages.length,
           isCleared: clearedUserIds.has(otherUserId),
+          taskId: msg.task_id,
         });
       }
     }
@@ -316,7 +318,7 @@ export default function MessagesPage() {
                   onMouseLeave={handleConvMouseUp}
                 >
                   <button
-                    onClick={() => router.push(`/chat?user=${conv.userId}`)}
+                    onClick={() => router.push(`/chat?user=${conv.userId}${conv.taskId ? `&task=${conv.taskId}` : ""}`)}
                     className="flex-1 text-left flex items-center gap-3"
                   >
                     {/* Profile Picture with Online Status */}

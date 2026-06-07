@@ -5,6 +5,17 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import RatingModal from "@/app/components/RatingModal";
 
+interface UserProfile {
+  id: string;
+  username?: string;
+  freelancer_username?: string;
+  avatar_url?: string | null;
+}
+
+const getErrorMessage = (err: unknown) => {
+  return err instanceof Error ? err.message : String(err);
+};
+
 export default function RatePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -14,21 +25,28 @@ export default function RatePage() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState<any>(null);
-  const [otherUser, setOtherUser] = useState<any>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [otherUser, setOtherUser] = useState<UserProfile | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Get current user from localStorage
-        const stored = localStorage.getItem("pi_user");
-        if (!stored) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const sessionUser = sessionData.session?.user;
+        if (!sessionUser) {
           router.push("/");
           return;
         }
-        const currentUser = JSON.parse(stored);
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", sessionUser.id)
+          .single();
+
+        const currentUser = profile || { id: sessionUser.id };
         setUser(currentUser);
 
         if (!taskId || !userId) {
@@ -53,7 +71,7 @@ export default function RatePage() {
         setOtherUser(otherUserData);
 
         // Check if already rated
-        const { data: existingRating, error: ratingError } = await supabase
+        const { data: existingRating } = await supabase
           .from("ratings")
           .select("id")
           .eq("rater_id", currentUser.id)
@@ -73,8 +91,8 @@ export default function RatePage() {
 
         setShowModal(true);
         setLoading(false);
-      } catch (err: any) {
-        setError("Error loading page: " + err.message);
+      } catch (err: unknown) {
+        setError("Error loading page: " + getErrorMessage(err));
         setLoading(false);
       }
     };
@@ -92,7 +110,8 @@ export default function RatePage() {
         rater_id: user.id,
         rated_user_id: otherUser.id,
         task_id: taskId,
-        stars: stars,
+        rating: stars,
+        rating_type: role === "tasker" ? "freelancer" : "tasker",
         comment: comment,
         created_at: new Date().toISOString(),
       });
@@ -102,12 +121,12 @@ export default function RatePage() {
       // Update rated user's average rating
       const { data: userRatings } = await supabase
         .from("ratings")
-        .select("stars")
+        .select("rating")
         .eq("rated_user_id", otherUser.id);
 
       if (userRatings && userRatings.length > 0) {
         const avgRating =
-          userRatings.reduce((sum, r) => sum + r.stars, 0) / userRatings.length;
+          userRatings.reduce((sum, r) => sum + (r.rating || 0), 0) / userRatings.length;
 
         await supabase
           .from("profiles")
@@ -131,9 +150,9 @@ export default function RatePage() {
         alert("Thank you for rating! Your feedback helps the community.");
         router.push(`/chat?task=${taskId}&user=${otherUser.id}`);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setSubmitting(false);
-      alert("Failed to submit rating: " + err.message);
+      alert("Failed to submit rating: " + getErrorMessage(err));
     }
   };
 

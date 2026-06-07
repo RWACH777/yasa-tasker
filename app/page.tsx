@@ -7,6 +7,18 @@ import { useUser } from "@/context/UserContext";
 import { supabase } from "@/lib/supabaseClient";
 import { injectMockPiSDK } from "@/lib/piMock";
 
+const membershipIsExpired = (membership: any) => {
+  if (!membership) return true;
+  if (membership.status === "expired") return true;
+  if (membership.status === "pending_review") return true;
+
+  const baseDate = membership.last_paid_at || membership.started_at || membership.created_at;
+  if (!baseDate) return true;
+
+  const daysSinceBase = Math.floor((Date.now() - new Date(baseDate).getTime()) / (1000 * 60 * 60 * 24));
+  return daysSinceBase >= 30;
+};
+
 export default function Home() {
   const router = useRouter();
   const userCtx = useUser();
@@ -55,17 +67,17 @@ export default function Home() {
         .from("memberships")
         .select("*")
         .eq("user_id", userId)
-        .single();
+        .maybeSingle();
       
       // Check if admin (exempt from membership)
       const { data: adminData } = await supabase
         .from("admin_users")
         .select("*")
         .eq("user_id", userId)
-        .single();
+        .maybeSingle();
       
       const isAdmin = !!adminData;
-      const membershipExpired = membershipData?.status === 'expired' || !membershipData;
+      const membershipExpired = membershipIsExpired(membershipData);
       
       if (membershipExpired && !isAdmin) {
         // Redirect to membership page
@@ -275,7 +287,8 @@ export default function Home() {
         
         // Save pi_user data for other pages to access
         const userData = {
-          id: pi_uid,
+          id: result.user.id,
+          pi_uid: pi_uid,
           username: username,
           avatar_url: avatar_url,
           wallet_address: wallet_address,
@@ -293,46 +306,22 @@ export default function Home() {
         .from("memberships")
         .select("*")
         .eq("user_id", result.user?.id)
-        .single();
+        .maybeSingle();
 
       // Check if user is admin (admins are exempt from membership)
       const { data: adminData } = await supabase
         .from("admin_users")
         .select("*")
         .eq("user_id", result.user?.id)
-        .single();
+        .maybeSingle();
 
       const isAdmin = !!adminData;
 
-      if (!isAdmin && membershipData) {
-        const now = new Date();
-        const startedAt = new Date(membershipData.started_at);
-        const lastPaidAt = membershipData.last_paid_at ? new Date(membershipData.last_paid_at) : null;
-        
-        // Calculate if 30 days have passed since started_at
-        const daysSinceStart = Math.floor((now.getTime() - startedAt.getTime()) / (1000 * 60 * 60 * 24));
-        
-        // Check if last payment was more than 30 days ago or never paid
-        let isExpired = false;
-        if (daysSinceStart > 30) {
-          if (!lastPaidAt) {
-            // Never paid and free trial expired
-            isExpired = true;
-          } else {
-            const daysSinceLastPayment = Math.floor((now.getTime() - lastPaidAt.getTime()) / (1000 * 60 * 60 * 24));
-            if (daysSinceLastPayment > 30) {
-              isExpired = true;
-            }
-          }
-        }
-
-        if (isExpired || membershipData.status === "expired") {
-          // Show membership modal instead of redirecting
-          setMembershipStatus(membershipData);
-          setShowMembershipModal(true);
-          setIsLoading(false);
-          return;
-        }
+      if (!isAdmin && membershipIsExpired(membershipData)) {
+        setMembershipStatus(membershipData);
+        setShowMembershipModal(true);
+        setIsLoading(false);
+        return;
       }
 
       // If not expired or is admin, proceed to dashboard
