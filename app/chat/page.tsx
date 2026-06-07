@@ -109,6 +109,24 @@ export default function ChatPage() {
     };
   }, [user?.id]);
 
+  // Dismiss the message action overlay when tapping elsewhere so a lingering
+  // selection cannot block subsequent interactions.
+  useEffect(() => {
+    if (!selectedMessageId && !longPressedMessageId) return;
+    const clearSelection = () => {
+      setSelectedMessageId(null);
+      setLongPressedMessageId(null);
+    };
+    // Defer attaching so the opening tap/right-click doesn't immediately clear it.
+    const timer = setTimeout(() => {
+      document.addEventListener("click", clearSelection);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("click", clearSelection);
+    };
+  }, [selectedMessageId, longPressedMessageId]);
+
 
   // Load other user info and check online status
   useEffect(() => {
@@ -420,6 +438,22 @@ export default function ChatPage() {
       });
     }, 5000);
 
+    // Supabase realtime postgres_changes only supports a single equality
+    // filter, so we use a valid single-column filter and verify the pair
+    // client-side. (Invalid or(and(...)) filters silently break the channel.)
+    const insertFilter = taskId
+      ? `task_id=eq.${taskId}`
+      : `receiver_id=eq.${user.id}`;
+
+    const belongsToConversation = (row: any) => {
+      if (!row) return false;
+      if (taskId && row.task_id && row.task_id !== taskId) return false;
+      const isPair =
+        (row.sender_id === user.id && row.receiver_id === otherUserId) ||
+        (row.sender_id === otherUserId && row.receiver_id === user.id);
+      return isPair;
+    };
+
     // Subscribe to new messages and updates
     const subscription = supabase
       .channel(`chat:${user.id}:${otherUserId}`)
@@ -429,11 +463,10 @@ export default function ChatPage() {
           event: "INSERT",
           schema: "public",
           table: "messages",
-          filter: taskId 
-            ? `task_id=eq.${taskId}`
-            : `or(and(sender_id=eq.${user.id},receiver_id=eq.${otherUserId}),and(sender_id=eq.${otherUserId},receiver_id=eq.${user.id}))`,
+          filter: insertFilter,
         },
         async (payload) => {
+          if (!belongsToConversation(payload.new)) return;
           console.log("✅ New message received from subscription:", payload.new);
           if (payload.new.sender_id === otherUserId && payload.new.receiver_id === user.id) {
             await supabase
@@ -494,13 +527,14 @@ export default function ChatPage() {
           event: "UPDATE",
           schema: "public",
           table: "messages",
-          filter: `or(and(sender_id=eq.${user.id},receiver_id=eq.${otherUserId}),and(sender_id=eq.${otherUserId},receiver_id=eq.${user.id}))`,
+          filter: insertFilter,
         },
         (payload) => {
+          if (!belongsToConversation(payload.new)) return;
           console.log("Message updated:", payload.new);
           // Update the message (e.g., read status)
           setMessages((prev) =>
-            prev.map((m) => (m.id === payload.new.id ? (payload.new as Message) : m))
+            prev.map((m) => (m.id === payload.new.id ? { ...m, ...(payload.new as Message) } : m))
           );
         }
       )
@@ -510,7 +544,6 @@ export default function ChatPage() {
           event: "DELETE",
           schema: "public",
           table: "messages",
-          filter: `or(and(sender_id=eq.${user.id},receiver_id=eq.${otherUserId}),and(sender_id=eq.${otherUserId},receiver_id=eq.${user.id}))`,
         },
         (payload) => {
           console.log("Message deleted:", payload.old);
@@ -1159,12 +1192,28 @@ export default function ChatPage() {
       return;
     }
 
-    // Initialize Pi SDK before creating payment
+    // Initialize Pi SDK and authenticate with the payments scope before
+    // creating a payment. Per Pi Platform docs, createPayment requires a prior
+    // successful authenticate(["payments"], onIncompletePaymentFound).
     try {
       Pi.init({ version: "2.0", sandbox: false });
-      console.log("✅ Pi SDK initialized");
+      const authResult = await Pi.authenticate(
+        ["username", "payments", "wallet_address"],
+        (payment: any) => {
+          console.warn("⚠️ Incomplete Pi payment found:", payment);
+        }
+      );
+      if (!authResult?.accessToken) {
+        alert("Pi did not grant the 'payments' permission. Please approve it in Pi Browser and try again.");
+        setShowPaymentModal(false);
+        return;
+      }
+      console.log("✅ Pi SDK initialized and authenticated for payments");
     } catch (err) {
-      console.error("❌ Pi SDK init failed:", err);
+      console.error("❌ Pi SDK init/auth failed:", err);
+      alert("Failed to authenticate with Pi Network. Please try again.");
+      setShowPaymentModal(false);
+      return;
     }
 
     // Create payment data
@@ -1798,7 +1847,7 @@ export default function ChatPage() {
           <div className="w-full h-full flex flex-col items-center justify-center">
             <button
               onClick={() => setMediaView(null)}
-              className="absolute top-4 left-4 glass-button glass-button-primary px-4 py-2 text-sm"
+              className="absolute top-4 left-4 z-[60] glass-button glass-button-primary px-4 py-2 text-sm"
               title="Back to chat"
             >
               ← Back

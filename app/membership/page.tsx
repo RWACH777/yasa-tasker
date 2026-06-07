@@ -87,9 +87,21 @@ export default function MembershipPage() {
       Pi.init({ version: "2.0", sandbox: false });
       console.log("✅ Pi SDK initialized");
       
-      // Authenticate with payment scope
-      const authResult = await Pi.authenticate(["username", "payments", "wallet_address"]);
+      // Authenticate with payment scope. The onIncompletePaymentFound callback
+      // is required by the Pi Platform SDK when requesting the "payments" scope.
+      const authResult = await Pi.authenticate(
+        ["username", "payments", "wallet_address"],
+        (payment: any) => {
+          console.warn("⚠️ Incomplete Pi payment found:", payment);
+        }
+      );
       console.log("✅ Pi authenticated with payment scope:", authResult);
+
+      if (!authResult?.accessToken) {
+        alert("Pi did not grant the 'payments' permission. Please approve it in Pi Browser and try again.");
+        setPaymentProcessing(false);
+        return;
+      }
     } catch (err) {
       console.error("❌ Pi SDK init or auth failed:", err);
       alert("Failed to authenticate with Pi Network. Please try again.");

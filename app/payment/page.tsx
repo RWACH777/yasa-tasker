@@ -203,7 +203,33 @@ export default function PaymentPage() {
       setTransactionId(transaction.id);
 
       Pi.init({ version: "2.0", sandbox: false });
-      await Pi.authenticate(["username", "payments", "wallet_address"], () => {});
+
+      // Per Pi Platform docs, authenticate with the "payments" scope BEFORE
+      // calling createPayment, and provide an onIncompletePaymentFound handler.
+      // Omitting either causes a "payments scope missing" / pending-payment error.
+      const onIncompletePaymentFound = (payment: any) => {
+        console.warn("⚠️ Incomplete Pi payment found:", payment);
+        // Record it so it can be reconciled instead of silently blocking new payments.
+        supabase
+          .from("payment_errors")
+          .insert({
+            payment_id: payment?.identifier || "unknown",
+            error: JSON.stringify({ reason: "incomplete_payment_found", payment }),
+            created_at: new Date().toISOString(),
+          })
+          .then(() => {});
+      };
+
+      const authResult = await Pi.authenticate(
+        ["username", "payments", "wallet_address"],
+        onIncompletePaymentFound
+      );
+
+      if (!authResult?.accessToken) {
+        throw new Error(
+          "Pi authentication did not return a payments-enabled session. Please approve the 'payments' permission in Pi Browser and try again."
+        );
+      }
 
       await Pi.createPayment(
         {
