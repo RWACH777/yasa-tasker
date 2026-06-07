@@ -163,7 +163,7 @@ export default function DashboardPage() {
       .from("messages")
       .select("sender_id")
       .eq("receiver_id", userId)
-      .eq("read", false);
+      .or("read.eq.false,read.is.null");
     
     // Count unique senders with unread messages (conversations with new messages)
     const uniqueSenders = new Set(received?.map((msg) => msg.sender_id) || []);
@@ -342,13 +342,32 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user?.id) return;
 
+    const messageSubscription = supabase
+      .channel(`dashboard-messages:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "messages",
+          filter: `receiver_id=eq.${user.id}`,
+        },
+        () => {
+          loadMessageCount(user.id);
+        }
+      )
+      .subscribe();
+
     // Refresh notification and message count every 10 seconds (optimized)
     const interval = setInterval(() => {
       loadNotificationCount(user.id);
       loadMessageCount(user.id);
     }, 10000);
 
-    return () => clearInterval(interval);
+    return () => {
+      messageSubscription.unsubscribe();
+      clearInterval(interval);
+    };
   }, [user?.id]);
 
   useEffect(() => {

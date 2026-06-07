@@ -10,8 +10,11 @@ interface Message {
   sender_id: string;
   receiver_id: string;
   text: string;
+  content?: string;
   file_url?: string;
   voice_url?: string;
+  read?: boolean | null;
+  task_id?: string;
   created_at: string;
 }
 
@@ -81,8 +84,28 @@ export default function MessagesPage() {
       .eq("receiver_id", user.id)
       .order("created_at", { ascending: false });
 
-    const allMessages = [...(sent || []), ...(received || [])];
-    const uniqueUsers = new Map();
+    const allMessages = [...((sent || []) as Message[]), ...((received || []) as Message[])];
+    const otherUserIds = Array.from(
+      new Set(allMessages.map((msg) => (msg.sender_id === user.id ? msg.receiver_id : msg.sender_id)))
+    );
+
+    const { data: profiles } = otherUserIds.length > 0
+      ? await supabase
+          .from("profiles")
+          .select("id, username, avatar_url")
+          .in("id", otherUserIds)
+      : { data: [] };
+
+    const { data: presenceRows } = otherUserIds.length > 0
+      ? await supabase
+          .from("presence")
+          .select("user_id, is_online")
+          .in("user_id", otherUserIds)
+      : { data: [] };
+
+    const profileMap = new Map((profiles || []).map((profile) => [profile.id, profile]));
+    const presenceMap = new Map((presenceRows || []).map((presence) => [presence.user_id, presence]));
+    const uniqueUsers = new Map<string, Conversation>();
 
     for (const msg of allMessages) {
       const otherUserId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
@@ -91,24 +114,21 @@ export default function MessagesPage() {
       if (!showDeleted && clearedUserIds.has(otherUserId)) continue;
 
       if (!uniqueUsers.has(otherUserId)) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("username, avatar_url")
-          .eq("id", otherUserId)
-          .single();
+        const profile = profileMap.get(otherUserId);
+        const presence = presenceMap.get(otherUserId);
 
         // Count only unread messages from this user (messages received from them with read=false)
         const unreadMessages = (received || []).filter(
-          (m) => m.sender_id === otherUserId && m.read === false
+          (m) => m.sender_id === otherUserId && (m.read === false || m.read === null)
         );
 
         uniqueUsers.set(otherUserId, {
           userId: otherUserId,
           username: profile?.username || "Unknown",
           avatar_url: profile?.avatar_url,
-          lastMessage: msg.text || (msg.file_url ? "[File shared]" : "[Voice message]"),
+          lastMessage: msg.text || msg.content || (msg.file_url ? "[File shared]" : "[Voice message]"),
           lastMessageTime: msg.created_at,
-          isOnline: false,
+          isOnline: !!presence?.is_online,
           unreadCount: unreadMessages.length,
           isCleared: clearedUserIds.has(otherUserId),
           taskId: msg.task_id,

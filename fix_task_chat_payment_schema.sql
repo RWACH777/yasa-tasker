@@ -20,6 +20,12 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS total_ratings INTEGER DEFAULT 0;
 ALTER TABLE memberships ADD COLUMN IF NOT EXISTS last_paid_at TIMESTAMP WITH TIME ZONE;
 ALTER TABLE memberships ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
 
+CREATE TABLE IF NOT EXISTS presence (
+  user_id UUID PRIMARY KEY,
+  is_online BOOLEAN DEFAULT false,
+  last_seen TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -33,7 +39,15 @@ END $$;
 
 CREATE INDEX IF NOT EXISTS idx_tasks_assignee_id ON tasks(assignee_id);
 CREATE INDEX IF NOT EXISTS idx_messages_task_id ON messages(task_id);
+CREATE INDEX IF NOT EXISTS idx_messages_receiver_read ON messages(receiver_id, read);
 CREATE INDEX IF NOT EXISTS idx_applications_task_applicant_status ON applications(task_id, applicant_id, status);
+
+UPDATE tasks t
+SET assignee_id = a.applicant_id
+FROM applications a
+WHERE a.task_id = t.id
+AND a.status = 'approved'
+AND t.assignee_id IS NULL;
 
 DROP POLICY IF EXISTS "Poster can update own tasks" ON tasks;
 CREATE POLICY "Poster can update own tasks" ON tasks
@@ -74,6 +88,17 @@ DROP POLICY IF EXISTS "Users can read own messages" ON messages;
 CREATE POLICY "Users can read own messages" ON messages
   FOR SELECT USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
 
+DROP POLICY IF EXISTS "Receiver can update message read status" ON messages;
+CREATE POLICY "Receiver can update message read status" ON messages
+  FOR UPDATE USING (auth.uid() = receiver_id)
+  WITH CHECK (auth.uid() = receiver_id);
+
+DROP POLICY IF EXISTS "Sender can delete own messages" ON messages;
+CREATE POLICY "Sender can delete own messages" ON messages
+  FOR DELETE USING (auth.uid() = sender_id);
+
+DROP POLICY IF EXISTS "Users can delete messages" ON messages;
+
 DROP POLICY IF EXISTS "Users can send messages" ON messages;
 CREATE POLICY "Users can send messages" ON messages
   FOR INSERT WITH CHECK (
@@ -96,5 +121,20 @@ CREATE POLICY "Users can send messages" ON messages
       )
     )
   );
+
+ALTER TABLE presence ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can read presence" ON presence;
+CREATE POLICY "Users can read presence" ON presence
+  FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Users can upsert own presence" ON presence;
+CREATE POLICY "Users can upsert own presence" ON presence
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own presence" ON presence;
+CREATE POLICY "Users can update own presence" ON presence
+  FOR UPDATE USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
 SELECT 'task/chat/payment schema fixed' AS status;

@@ -232,6 +232,27 @@ export default function ChatPage() {
           if (await acceptTask(taskAsFreelancer?.id || null, "applications-freelancer")) return;
         }
 
+        const { data: approvedBetweenPair } = await supabase
+          .from("applications")
+          .select("task_id")
+          .eq("applicant_id", otherUserId)
+          .eq("status", "approved")
+          .order("created_at", { ascending: false });
+
+        if (approvedBetweenPair && approvedBetweenPair.length > 0) {
+          const taskIds = approvedBetweenPair.map((app) => app.task_id);
+          const { data: taskFromApprovedApplication } = await supabase
+            .from("tasks")
+            .select("id")
+            .in("id", taskIds)
+            .eq("poster_id", user.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (await acceptTask(taskFromApprovedApplication?.id || null, "applications-tasker")) return;
+        }
+
         const { data: taskAsTasker } = await supabase
           .from("tasks")
           .select("id")
@@ -344,12 +365,18 @@ export default function ChatPage() {
     const markMessagesAsRead = async () => {
       try {
         // Update messages where read is false OR null/undefined (unread)
-        const { error } = await supabase
+        let readQuery = supabase
           .from("messages")
           .update({ read: true })
           .eq("sender_id", otherUserId)
           .eq("receiver_id", user.id)
           .or("read.eq.false,read.is.null");
+
+        if (taskId) {
+          readQuery = readQuery.eq("task_id", taskId);
+        }
+
+        const { error } = await readQuery;
 
         if (error) {
           console.error("Error marking messages as read:", error.message || error);
@@ -363,7 +390,7 @@ export default function ChatPage() {
 
     markMessagesAsRead();
 
-    // Poll for new messages every 5 seconds (optimized, real-time subscription is primary)
+    // Poll for new messages as a fallback; real-time subscription is primary.
     const pollInterval = setInterval(async () => {
       let pollQuery = supabase
         .from("messages")
@@ -391,7 +418,7 @@ export default function ChatPage() {
         }
         return prev;
       });
-    }, 1000);
+    }, 5000);
 
     // Subscribe to new messages and updates
     const subscription = supabase
@@ -408,6 +435,13 @@ export default function ChatPage() {
         },
         async (payload) => {
           console.log("✅ New message received from subscription:", payload.new);
+          if (payload.new.sender_id === otherUserId && payload.new.receiver_id === user.id) {
+            await supabase
+              .from("messages")
+              .update({ read: true })
+              .eq("id", payload.new.id)
+              .eq("receiver_id", user.id);
+          }
           
           // Fetch sender info for the new message
           let messageWithSender = payload.new as any;
@@ -714,7 +748,7 @@ export default function ChatPage() {
 
     // Ensure we have a valid task_id
     if (!taskId) {
-      alert("Cannot send message: No active task found. Please start a chat from a task.");
+      alert("Cannot send message: No active approved task found. Only a tasker can open a task chat after approving an application.");
       return;
     }
 
@@ -928,7 +962,8 @@ export default function ChatPage() {
     const { error } = await supabase
       .from("messages")
       .delete()
-      .eq("id", messageId);
+      .eq("id", messageId)
+      .eq("sender_id", user.id);
 
     if (!error) {
       setMessages(messages.filter((m) => m.id !== messageId));
@@ -1595,7 +1630,7 @@ export default function ChatPage() {
                             download
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="absolute bottom-2 right-2 p-2 rounded-lg bg-black/50 hover:bg-black/70 text-white opacity-0 group-hover:opacity-100 transition flex items-center gap-1"
+                            className="absolute bottom-2 right-2 p-2 rounded-lg bg-black/50 hover:bg-black/70 text-white opacity-100 transition flex items-center gap-1"
                             onClick={(e) => e.stopPropagation()}
                             title="Download image"
                           >
