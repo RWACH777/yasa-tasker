@@ -166,7 +166,17 @@ export default function PaymentPage() {
 
     const Pi = (window as any).Pi;
     if (!Pi) {
-      setError("Pi SDK not available. Please open YASA Tasker in Pi Browser.");
+      setError("⚠️ Pi SDK not loaded. Please ensure you are using Pi Browser. If the issue persists, close and reopen the app.");
+      setPaymentStatus("failed");
+      return;
+    }
+
+    // Check Pi SDK is properly initialized
+    try {
+      Pi.init({ version: "2.0", sandbox: false });
+    } catch (err) {
+      setError("⚠️ Pi SDK initialization failed. Please refresh the page.");
+      setPaymentStatus("failed");
       return;
     }
 
@@ -201,8 +211,6 @@ export default function PaymentPage() {
       }
 
       setTransactionId(transaction.id);
-
-      Pi.init({ version: "2.0", sandbox: false });
 
       // Per Pi Platform docs, authenticate with the "payments" scope BEFORE
       // calling createPayment, and provide an onIncompletePaymentFound handler.
@@ -244,6 +252,17 @@ export default function PaymentPage() {
         },
         {
           onReadyForServerApproval: async (paymentId: string) => {
+            // Server-side approval (required by Pi before the user can submit
+            // the transaction to the blockchain).
+            const res = await fetch("/api/payments/approve", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ paymentId }),
+            });
+            if (!res.ok) {
+              const err = await res.json().catch(() => ({}));
+              throw new Error(err?.error || "Server approval failed");
+            }
             await supabase
               .from("transactions")
               .update({
@@ -253,6 +272,16 @@ export default function PaymentPage() {
               .eq("id", transaction.id);
           },
           onReadyForServerCompletion: async (paymentId: string, txid: string) => {
+            // Server-side completion (proves to Pi the app has the txid).
+            const res = await fetch("/api/payments/complete", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ paymentId, txid }),
+            });
+            if (!res.ok) {
+              const err = await res.json().catch(() => ({}));
+              throw new Error(err?.error || "Server completion failed");
+            }
             await supabase
               .from("transactions")
               .update({

@@ -49,7 +49,8 @@ export const setUserOffline = async (userId: string) => {
 };
 
 /**
- * Get user online status
+ * Get user online status - considers stale data (user closed app without updating status)
+ * If last_seen is more than 2 minutes ago, consider user offline even if is_online=true
  */
 export const getUserOnlineStatus = async (userId: string) => {
   try {
@@ -65,7 +66,24 @@ export const getUserOnlineStatus = async (userId: string) => {
       return { is_online: false, last_seen: null };
     }
 
-    return data || { is_online: false, last_seen: null };
+    if (!data) {
+      return { is_online: false, last_seen: null };
+    }
+
+    // Check if last_seen is stale (more than 2 minutes ago)
+    // This handles cases where user closed app without setting offline
+    if (data.is_online && data.last_seen) {
+      const lastSeen = new Date(data.last_seen).getTime();
+      const now = Date.now();
+      const twoMinutesMs = 2 * 60 * 1000;
+      
+      if (now - lastSeen > twoMinutesMs) {
+        // Status is stale, user is actually offline
+        return { is_online: false, last_seen: data.last_seen };
+      }
+    }
+
+    return data;
   } catch (err) {
     console.warn("⚠️ Error getting user status:", err);
     return { is_online: false, last_seen: null };

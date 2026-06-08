@@ -109,6 +109,18 @@ export default function ChatPage() {
     };
   }, [user?.id]);
 
+  // Heartbeat: Update online status every 30 seconds while in chat
+  // This ensures presence data doesn't go stale while user is active
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    const heartbeat = setInterval(async () => {
+      await setUserOnline(user.id);
+    }, 30000); // Every 30 seconds
+    
+    return () => clearInterval(heartbeat);
+  }, [user?.id]);
+
   // Dismiss the message action overlay when tapping elsewhere so a lingering
   // selection cannot block subsequent interactions.
   useEffect(() => {
@@ -303,8 +315,21 @@ export default function ChatPage() {
           filter: `user_id=eq.${otherUserId}`,
         },
         (payload: any) => {
-          console.log("Presence update for", otherUserId, ":", payload.new);
-          setOtherUserOnline(payload.new?.is_online || false);
+          const data = payload.new;
+          if (!data) return;
+          
+          // Check if last_seen is stale (more than 2 minutes ago)
+          let isOnline = data.is_online || false;
+          if (isOnline && data.last_seen) {
+            const lastSeen = new Date(data.last_seen).getTime();
+            const now = Date.now();
+            const twoMinutesMs = 2 * 60 * 1000;
+            if (now - lastSeen > twoMinutesMs) {
+              isOnline = false; // Status is stale
+            }
+          }
+          
+          setOtherUserOnline(isOnline);
         }
       )
       .subscribe();
@@ -1389,29 +1414,6 @@ export default function ChatPage() {
             )}
           </div>
           <div className="flex gap-1 md:gap-2 items-center overflow-hidden">
-            {/* DEBUG: Show button state - VISIBLE FOR DIAGNOSTICS */}
-            {(() => {
-              const validStatuses = ["active", "assigned", "in_progress"];
-              const isValidStatus = validStatuses.includes(taskStatus || "");
-              const hasTaskId = !!taskId;
-              const isTasker = String(user?.id) === String(taskPosterId);
-              const willShow = hasTaskId && isValidStatus && isTasker;
-
-              // Only show debug info if button WON'T show (to diagnose why)
-              if (!willShow && user?.id) {
-                let reason = "";
-                if (!hasTaskId) reason = "No task ID";
-                else if (!isValidStatus) reason = `Status: ${taskStatus} (need active/assigned/in_progress)`;
-                else if (!isTasker) reason = "Not the task poster";
-
-                return (
-                  <span className="text-[10px] text-yellow-400 mr-2" title={`taskId:${taskId}, status:${taskStatus}, userId:${user?.id?.slice(0,8)}, posterId:${taskPosterId?.slice(0,8)}`}>
-                    [DEBUG: {reason}]
-                  </span>
-                );
-              }
-              return null;
-            })()}
             {taskId && ["active", "assigned", "in_progress"].includes(taskStatus || "") && String(user?.id) === String(taskPosterId) && (
               <button
                 onClick={async () => {

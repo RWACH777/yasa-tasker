@@ -133,7 +133,18 @@ export default function MembershipPage() {
       const payment = await Pi.createPayment(paymentData, {
         onReadyForServerApproval: async (paymentId: string) => {
           console.log("Membership payment ready for approval:", paymentId);
-          
+
+          // Server-side approval (required by Pi before submitting to blockchain).
+          const res = await fetch("/api/payments/approve", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paymentId }),
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err?.error || "Server approval failed");
+          }
+
           // Save payment record
           await supabase.from("transactions").insert({
             payment_id: paymentId,
@@ -147,7 +158,18 @@ export default function MembershipPage() {
         },
         onReadyForServerCompletion: async (paymentId: string, receivedTxid: string) => {
           console.log("Membership payment completed:", { paymentId, txid: receivedTxid });
-          
+
+          // Server-side completion (proves to Pi the app has the txid).
+          const res = await fetch("/api/payments/complete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paymentId, txid: receivedTxid }),
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err?.error || "Server completion failed");
+          }
+
           // Update transaction with TXID
           await supabase
             .from("transactions")
