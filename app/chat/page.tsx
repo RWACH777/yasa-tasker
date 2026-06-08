@@ -1234,7 +1234,18 @@ export default function ChatPage() {
       const payment = await Pi.createPayment(paymentData, {
         onReadyForServerApproval: async (paymentId: string) => {
           console.log("Payment ready for approval:", paymentId);
-          
+
+          // Server-side approval (required by Pi before submitting to blockchain).
+          const res = await fetch("/api/payments/approve", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paymentId }),
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err?.error || "Server approval failed");
+          }
+
           // Save transaction record
           await supabase.from("transactions").insert({
             payment_id: paymentId,
@@ -1255,7 +1266,18 @@ export default function ChatPage() {
         },
         onReadyForServerCompletion: async (paymentId: string, txid: string) => {
           console.log("Payment ready for completion:", { paymentId, txid });
-          
+
+          // Server-side completion (proves to Pi the app has the txid).
+          const res = await fetch("/api/payments/complete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paymentId, txid }),
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err?.error || "Server completion failed");
+          }
+
           // Update transaction with TXID
           await supabase
             .from("transactions")
@@ -1369,15 +1391,17 @@ export default function ChatPage() {
           <div className="flex gap-1 md:gap-2 items-center overflow-hidden">
             {/* DEBUG: Show button state */}
             {(() => {
+              const validStatuses = ["active", "assigned", "in_progress"];
+              const isValidStatus = validStatuses.includes(taskStatus || "");
               console.log("🔍 Pay & Complete button check:", {
                 taskId,
                 taskStatus,
                 userId: user?.id,
                 taskPosterId,
                 condition1: !!taskId,
-                condition2: taskStatus === "active",
+                condition2: isValidStatus,
                 condition3: String(user?.id) === String(taskPosterId),
-                willShow: taskId && taskStatus === "active" && String(user?.id) === String(taskPosterId)
+                willShow: taskId && isValidStatus && String(user?.id) === String(taskPosterId)
               });
               return null;
             })()}
