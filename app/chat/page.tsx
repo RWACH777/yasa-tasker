@@ -567,7 +567,7 @@ export default function ChatPage() {
         console.log("🔄 Loading task status for taskId:", taskId);
         const { data, error } = await supabase
           .from("tasks")
-          .select("id, title, status, poster_id, price, budget")
+          .select("id, title, status, poster_id, budget")
           .eq("id", taskId)
           .single();
 
