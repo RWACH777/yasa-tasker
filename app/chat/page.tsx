@@ -1389,20 +1389,27 @@ export default function ChatPage() {
             )}
           </div>
           <div className="flex gap-1 md:gap-2 items-center overflow-hidden">
-            {/* DEBUG: Show button state */}
+            {/* DEBUG: Show button state - VISIBLE FOR DIAGNOSTICS */}
             {(() => {
               const validStatuses = ["active", "assigned", "in_progress"];
               const isValidStatus = validStatuses.includes(taskStatus || "");
-              console.log("🔍 Pay & Complete button check:", {
-                taskId,
-                taskStatus,
-                userId: user?.id,
-                taskPosterId,
-                condition1: !!taskId,
-                condition2: isValidStatus,
-                condition3: String(user?.id) === String(taskPosterId),
-                willShow: taskId && isValidStatus && String(user?.id) === String(taskPosterId)
-              });
+              const hasTaskId = !!taskId;
+              const isTasker = String(user?.id) === String(taskPosterId);
+              const willShow = hasTaskId && isValidStatus && isTasker;
+
+              // Only show debug info if button WON'T show (to diagnose why)
+              if (!willShow && user?.id) {
+                let reason = "";
+                if (!hasTaskId) reason = "No task ID";
+                else if (!isValidStatus) reason = `Status: ${taskStatus} (need active/assigned/in_progress)`;
+                else if (!isTasker) reason = "Not the task poster";
+
+                return (
+                  <span className="text-[10px] text-yellow-400 mr-2" title={`taskId:${taskId}, status:${taskStatus}, userId:${user?.id?.slice(0,8)}, posterId:${taskPosterId?.slice(0,8)}`}>
+                    [DEBUG: {reason}]
+                  </span>
+                );
+              }
               return null;
             })()}
             {taskId && ["active", "assigned", "in_progress"].includes(taskStatus || "") && String(user?.id) === String(taskPosterId) && (
