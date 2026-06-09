@@ -143,20 +143,32 @@ export default function WorkspacePage() {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
-    setUploadingFile(true);
-    const filePath = `submissions/${taskId}/${user.id}/${Date.now()}_${file.name}`;
-
-    const { error: uploadErr } = await supabase.storage.from("submissions").upload(filePath, file);
-    if (uploadErr) {
-      alert("Upload failed: " + uploadErr.message);
-      setUploadingFile(false);
+    const MAX_SIZE = 5 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      alert("File too large. Maximum 5MB allowed.");
       return;
     }
 
-    const { data: urlData } = supabase.storage.from("submissions").getPublicUrl(filePath);
-    if (urlData?.publicUrl) setFileUrls((prev) => [...prev, urlData.publicUrl]);
-    setUploadingFile(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    setUploadingFile(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("userId", user.id);
+      formData.append("chatId", `workspace_${taskId}`);
+
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const result = await res.json();
+
+      if (!res.ok) throw new Error(result.error || "Upload failed");
+
+      setFileUrls((prev) => [...prev, result.url]);
+    } catch (err: any) {
+      alert("Upload failed: " + err.message);
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   const handleRemoveFile = (url: string) => setFileUrls((prev) => prev.filter((u) => u !== url));
