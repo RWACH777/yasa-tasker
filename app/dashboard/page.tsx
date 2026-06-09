@@ -21,6 +21,8 @@ interface Task {
   status: string;
   created_at: string;
   updated_at: string;
+  ai_allowed?: boolean;
+  completion_type?: string;
 }
 
 interface Profile {
@@ -58,6 +60,8 @@ export default function DashboardPage() {
     category: "",
     budget: "",
     deadline: "",
+    completion_type: "ai_plus_human",
+    ai_allowed: true,
   });
   const [message, setMessage] = useState("");
   const [filter, setFilter] = useState("all");
@@ -523,6 +527,8 @@ export default function DashboardPage() {
       budget: parseFloat(form.budget),
       deadline: deadlineIso,
       status: "open",
+      completion_type: form.completion_type,
+      ai_allowed: form.ai_allowed,
       updated_at: new Date().toISOString(),
     };
 
@@ -559,6 +565,8 @@ export default function DashboardPage() {
       category: "",
       budget: "",
       deadline: "",
+      completion_type: "ai_plus_human",
+      ai_allowed: true,
     });
     fetchTasks();
     loadProfileTasks();
@@ -572,6 +580,8 @@ export default function DashboardPage() {
       category: task.category,
       budget: String(task.budget),
       deadline: task.deadline.split("T")[0],
+      completion_type: task.completion_type || "ai_plus_human",
+      ai_allowed: task.ai_allowed ?? true,
     });
   };
 
@@ -1315,16 +1325,31 @@ const handleUpdateFreelancerUsername = async () => {
                         <div className="flex justify-between items-start gap-2">
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-sm glass-text truncate">{task.title}</p>
-                            <p className="text-xs glass-text-muted">Budget: {task.budget} π</p>
+                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                              <p className="text-xs glass-text-muted">Budget: {task.budget} π</p>
+                              {task.ai_allowed && (
+                                <span className="text-xs bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded-full">⚡ AI</span>
+                              )}
+                            </div>
                           </div>
-                          {profileView === "tasker" && (
-                            <button
-                              onClick={() => handleOpenCompleteModal(task)}
-                              className="glass-button glass-button-primary flex-shrink-0 px-3 py-1 text-xs"
-                            >
-                              Complete
-                            </button>
-                          )}
+                          <div className="flex gap-1 flex-shrink-0">
+                            {profileView === "freelancer" && (
+                              <button
+                                onClick={() => { setShowProfileModal(false); router.push(`/workspace/${task.id}`); }}
+                                className="glass-button px-3 py-1 text-xs"
+                              >
+                                Open Workspace
+                              </button>
+                            )}
+                            {profileView === "tasker" && (
+                              <button
+                                onClick={() => handleOpenCompleteModal(task)}
+                                className="glass-button glass-button-primary px-3 py-1 text-xs"
+                              >
+                                Complete
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -1734,6 +1759,43 @@ const handleUpdateFreelancerUsername = async () => {
             className="w-full glass-input px-4 py-2 text-sm"
           />
 
+          {/* Completion Type */}
+          <div className="space-y-1">
+            <label className="text-xs glass-text-muted">Task Completion Type</label>
+            <select
+              value={form.completion_type}
+              onChange={(e) => setForm({ ...form, completion_type: e.target.value })}
+              className="w-full glass-select px-4 py-2 text-sm"
+            >
+              <option value="ai_plus_human">⚡ AI + Human (Recommended)</option>
+              <option value="human_only">👤 Human Only</option>
+            </select>
+            <p className="text-xs glass-text-muted">
+              {form.completion_type === "ai_plus_human"
+                ? "AI + Human combines AI speed with human expertise and verification."
+                : "Worker must complete this task without any AI assistance."}
+            </p>
+          </div>
+
+          {/* AI Allowed Toggle */}
+          <div className="flex items-center justify-between py-2 px-3 glass-card">
+            <div>
+              <p className="text-sm glass-text">Allow AI assistance?</p>
+              <p className="text-xs glass-text-muted">Workers can use built-in AI tools</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, ai_allowed: !form.ai_allowed })}
+              className={`relative w-12 h-6 rounded-full transition-colors ${
+                form.ai_allowed ? "bg-yellow-500" : "bg-white/20"
+              }`}
+            >
+              <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                form.ai_allowed ? "translate-x-7" : "translate-x-1"
+              }`} />
+            </button>
+          </div>
+
           <button
             type="submit"
             className="w-full glass-button glass-button-primary py-2"
@@ -1774,11 +1836,16 @@ const handleUpdateFreelancerUsername = async () => {
                   <p className="glass-text-muted text-sm mb-2">
                     {task.description}
                   </p>
-                  <p className="text-xs glass-text-muted">
-                    Category: {task.category} • Budget: {task.budget} π •
-                    Deadline:{" "}
-                    {new Date(task.deadline).toLocaleDateString()}
-                  </p>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span className="text-xs glass-text-muted">
+                      {task.category} • {task.budget} π • {new Date(task.deadline).toLocaleDateString()}
+                    </span>
+                    {task.ai_allowed ? (
+                      <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">⚡ AI Allowed</span>
+                    ) : (
+                      <span className="text-xs bg-white/10 text-white/60 px-2 py-0.5 rounded-full">👤 Human Only</span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex gap-2 mt-3 sm:mt-0 flex-wrap sm:flex-nowrap">

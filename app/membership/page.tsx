@@ -117,7 +117,7 @@ export default function MembershipPage() {
     setMemo(memoRef);
 
     const paymentData = {
-      amount: 1, // 1 Pi for membership
+      amount: 155, // 155 Pi (~$20 USD) for membership
       memo: memoRef,
       metadata: {
         membership_payment: true,
@@ -149,7 +149,7 @@ export default function MembershipPage() {
           await supabase.from("transactions").insert({
             payment_id: paymentId,
             tasker_id: user.id,
-            amount: 1,
+            amount: 155,
             memo: memoRef,
             status: "payment_pending",
             type: "membership",
@@ -326,7 +326,7 @@ export default function MembershipPage() {
               <div className="bg-blue-500/10 rounded-xl p-4 mb-6 border border-blue-500/20">
                 <h3 className="text-blue-400 font-medium mb-2">Payment Instructions</h3>
                 <p className="text-white/80 text-sm mb-3">
-                  Send exactly <strong className="text-white">1 π</strong> to:
+                  Send exactly <strong className="text-white">155 π</strong> (~$20 USD) to:
                 </p>
                 <div className="bg-black/30 rounded-lg p-3 mb-3">
                   <span className="text-white font-mono text-xs break-all">GCU5JNKCZXFDH3EJFIH5UKCSA24ZUXJC4YB5OZ6AOSYDC4YHIIFJG4SM</span>
