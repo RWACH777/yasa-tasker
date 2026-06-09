@@ -221,13 +221,13 @@ export default function WorkspacePage() {
   };
 
   if (loading) return (
-    <div className="min-h-screen glass-dark flex items-center justify-center">
+    <div className="min-h-screen app-background flex items-center justify-center">
       <div className="glass-loading"></div>
     </div>
   );
 
   if (error) return (
-    <div className="min-h-screen glass-dark flex items-center justify-center p-4">
+    <div className="min-h-screen app-background flex items-center justify-center p-4">
       <div className="glass-card p-8 max-w-md text-center">
         <p className="text-red-400 mb-4">{error}</p>
         <Link href="/dashboard" className="glass-button">Back to Dashboard</Link>
@@ -290,10 +290,101 @@ export default function WorkspacePage() {
 
       {/* Main Layout */}
       {!isAccepted && (
-        <div className={`max-w-6xl mx-auto w-full px-4 pb-6 flex gap-4 flex-1 ${aiPanelOpen && task?.ai_allowed ? "flex-col md:flex-row" : ""}`}>
+        <div className="max-w-6xl mx-auto w-full px-4 pb-6 flex flex-col gap-4 flex-1">
+
+          {/* AI Toolbar (horizontal, above editor) */}
+          {aiPanelOpen && task?.ai_allowed && (
+            <div className="glass-card p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Category tabs */}
+                <div className="flex gap-1">
+                  {CATEGORIES.map((cat) => (
+                    <button
+                      key={cat.id}
+                      onClick={() => setActiveCategory(cat.id)}
+                      className={`text-xs px-2 py-1 rounded-lg transition-all ${activeCategory === cat.id ? "bg-yellow-500/30 text-yellow-400" : "glass-text-muted hover:bg-white/5"}`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="w-px h-5 bg-white/10 hidden sm:block"></div>
+
+                {/* Tool buttons (horizontal wrap) */}
+                {AI_TOOLS.filter((t) => t.category === activeCategory).map((tool) => (
+                  <button
+                    key={tool.id}
+                    onClick={() => handleRunAiTool(tool.id)}
+                    disabled={aiLoading || isPending}
+                    className="text-xs glass-button px-2 py-1 disabled:opacity-50 hover:bg-white/10 whitespace-nowrap"
+                  >
+                    {tool.label}
+                  </button>
+                ))}
+
+                {activeCategory === "writing" && (
+                  <input
+                    type="text"
+                    value={translateLang}
+                    onChange={(e) => setTranslateLang(e.target.value)}
+                    placeholder="Language"
+                    className="glass-input px-2 py-1 text-xs w-24"
+                    title="Target language for Translate"
+                  />
+                )}
+              </div>
+
+              {/* Selected text indicator */}
+              {selectedText && (
+                <div className="flex items-center gap-2 mt-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-2 py-1">
+                  <p className="text-xs text-yellow-400 flex-1 truncate">Selected: "{selectedText.slice(0, 60)}{selectedText.length > 60 ? "..." : ""}"</p>
+                  <button onClick={() => setSelectedText("")} className="text-xs text-white/40 hover:text-white/70">Clear</button>
+                </div>
+              )}
+
+              {/* AI Loading */}
+              {aiLoading && (
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="glass-loading w-4 h-4"></div>
+                  <p className="text-xs glass-text-muted">Thinking...</p>
+                </div>
+              )}
+
+              {/* AI Error */}
+              {aiError && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-2 mt-2">
+                  <p className="text-red-400 text-xs">{aiError}</p>
+                </div>
+              )}
+
+              {/* AI Result */}
+              {aiResult && (
+                <div className="mt-2 space-y-2">
+                  <div className="bg-white/5 rounded-lg p-3 max-h-40 overflow-y-auto">
+                    <p className="text-xs glass-text whitespace-pre-wrap">{aiResult}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={handleInsertResult} className="glass-button glass-button-primary text-xs py-1.5 px-3">Insert into Doc</button>
+                    <button onClick={() => setAiResult(null)} className="glass-button text-xs py-1.5 px-3">✕ Dismiss</button>
+                  </div>
+                </div>
+              )}
+
+              {!aiLoading && !aiError && !aiResult && !selectedText && (
+                <p className="text-[10px] glass-text-muted mt-2">💡 Select text in the editor and click a tool, or just click a tool to process all content.</p>
+              )}
+            </div>
+          )}
+
+          {aiPanelOpen && !task?.ai_allowed && (
+            <div className="glass-card p-3 text-center">
+              <p className="text-sm glass-text-muted">🔒 AI tools are disabled for this task.</p>
+            </div>
+          )}
 
           {/* Editor */}
-          <div className={`flex flex-col gap-3 ${aiPanelOpen && task?.ai_allowed ? "flex-1" : "w-full"}`}>
+          <div className="flex flex-col gap-3 w-full">
             <div className="glass-card p-1">
               <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10">
                 <span className="text-xs glass-text-muted">Your Work</span>
@@ -306,7 +397,7 @@ export default function WorkspacePage() {
                 onChange={(e) => setContent(e.target.value)}
                 onMouseUp={handleTextSelect}
                 onKeyUp={handleTextSelect}
-                placeholder={`Start writing your work here...\n\nTip: Select any text, then use an AI tool on the right to improve it.`}
+                placeholder={`Start writing your work here...\n\nTip: Select any text, then use an AI tool above to improve it.`}
                 className="w-full bg-transparent p-4 text-sm glass-text resize-none focus:outline-none min-h-[300px]"
                 rows={16}
                 disabled={isPending}
@@ -366,112 +457,6 @@ export default function WorkspacePage() {
               )
             )}
           </div>
-
-          {/* AI Panel */}
-          {aiPanelOpen && task?.ai_allowed && (
-            <div className="w-full md:w-72 flex-shrink-0">
-              <div className="glass-card p-4 sticky top-20">
-                <h3 className="text-sm font-semibold glass-text mb-3">🤖 AI Assistant</h3>
-
-                {/* Category tabs */}
-                <div className="flex gap-1 mb-3">
-                  {CATEGORIES.map((cat) => (
-                    <button
-                      key={cat.id}
-                      onClick={() => setActiveCategory(cat.id)}
-                      className={`flex-1 text-xs py-1 rounded-lg transition-all ${activeCategory === cat.id ? "bg-yellow-500/30 text-yellow-400" : "glass-text-muted"}`}
-                    >
-                      {cat.label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Translate lang input */}
-                {activeCategory === "writing" && (
-                  <input
-                    type="text"
-                    value={translateLang}
-                    onChange={(e) => setTranslateLang(e.target.value)}
-                    placeholder="Target language (for Translate)"
-                    className="glass-input w-full px-2 py-1 text-xs mb-2"
-                  />
-                )}
-
-                {selectedText && (
-                  <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-2 py-1 mb-2">
-                    <p className="text-xs text-yellow-400">Selected: "{selectedText.slice(0, 50)}{selectedText.length > 50 ? "..." : ""}"</p>
-                    <button onClick={() => setSelectedText("")} className="text-xs text-white/40 mt-0.5">Clear selection</button>
-                  </div>
-                )}
-
-                {/* Tool buttons */}
-                <div className="space-y-1 mb-3">
-                  {AI_TOOLS.filter((t) => t.category === activeCategory).map((tool) => (
-                    <button
-                      key={tool.id}
-                      onClick={() => handleRunAiTool(tool.id)}
-                      disabled={aiLoading || isPending}
-                      className="w-full text-left text-xs glass-button px-3 py-2 disabled:opacity-50 hover:bg-white/10"
-                    >
-                      {tool.label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* AI Loading */}
-                {aiLoading && (
-                  <div className="text-center py-3">
-                    <div className="glass-loading mx-auto mb-2"></div>
-                    <p className="text-xs glass-text-muted">Thinking...</p>
-                  </div>
-                )}
-
-                {/* AI Error */}
-                {aiError && (
-                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-2 mb-2">
-                    <p className="text-red-400 text-xs">{aiError}</p>
-                  </div>
-                )}
-
-                {/* AI Result */}
-                {aiResult && (
-                  <div className="space-y-2">
-                    <div className="bg-white/5 rounded-lg p-3 max-h-48 overflow-y-auto">
-                      <p className="text-xs glass-text whitespace-pre-wrap">{aiResult}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleInsertResult}
-                        className="flex-1 glass-button glass-button-primary text-xs py-2"
-                      >
-                        Insert into Doc
-                      </button>
-                      <button
-                        onClick={() => setAiResult(null)}
-                        className="glass-button text-xs py-2 px-3"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <p className="text-xs glass-text-muted mt-3 text-center">
-                  AI is a tool — you verify the output.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {aiPanelOpen && !task?.ai_allowed && (
-            <div className="w-full md:w-64 flex-shrink-0">
-              <div className="glass-card p-4 sticky top-20 text-center">
-                <p className="text-2xl mb-2">🔒</p>
-                <p className="text-sm glass-text-muted">AI tools are disabled for this task.</p>
-                <p className="text-xs glass-text-muted mt-1">The tasker set this as Human Only.</p>
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>
