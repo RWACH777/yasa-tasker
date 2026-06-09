@@ -277,7 +277,7 @@ export default function MembershipPage() {
   if (loading) {
     return (
       <div className="app-background min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <div className="glass-card p-8"><p className="glass-text">Loading membership...</p></div>
       </div>
     );
   }

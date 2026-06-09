@@ -12,7 +12,8 @@ interface MembershipPayment {
   payment_txid: string;
   status: string;
   started_at: string;
-  submitted_at: string;
+  submitted_at?: string;
+  updated_at?: string;
 }
 
 export default function AdminMembershipPaymentsPage() {
@@ -144,106 +145,87 @@ export default function AdminMembershipPaymentsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className="app-background min-h-screen flex items-center justify-center">
+        <div className="glass-card p-8"><p className="glass-text">Loading...</p></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-red-500">{error}</div>
+      <div className="app-background min-h-screen flex items-center justify-center">
+        <div className="glass-card p-8 max-w-md text-center">
+          <p className="text-red-400 mb-4">{error}</p>
+          <Link href="/dashboard" className="glass-button">Go Home</Link>
+        </div>
       </div>
     );
   }
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-red-500">Access denied</div>
+      <div className="app-background min-h-screen flex items-center justify-center">
+        <div className="glass-card p-8 text-center"><p className="text-red-400">Access denied</p></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 p-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-white">Membership Payments</h1>
-          <Link 
-            href="/admin/payouts"
-            className="text-blue-400 hover:text-blue-300"
-          >
-            ← Back to Admin
-          </Link>
+    <div className="app-background min-h-screen text-white">
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-2xl font-bold glass-text">🏅 Membership Payments</h1>
+            <p className="text-sm glass-text-muted mt-1">Approve pending membership payment submissions</p>
+          </div>
+          <div className="flex gap-2">
+            <Link href="/admin/disputes" className="glass-button text-sm">Disputes</Link>
+            <Link href="/admin/payouts" className="glass-button text-sm">Payouts</Link>
+          </div>
         </div>
 
         {payments.length === 0 ? (
-          <div className="bg-white/10 backdrop-blur-lg rounded-xl p-8 text-center">
-            <p className="text-white/60">No pending membership payments</p>
+          <div className="glass-card p-10 text-center">
+            <p className="text-3xl mb-3">✅</p>
+            <p className="glass-text-muted">No pending membership payments</p>
           </div>
         ) : (
           <div className="space-y-4">
             {payments.map((payment) => (
-              <div 
-                key={payment.id}
-                className="bg-white/10 backdrop-blur-lg rounded-xl p-6 border border-white/20"
-              >
+              <div key={payment.id} className="glass-card p-5">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                   <div>
-                    <span className="text-white/60 text-sm">Username</span>
-                    <p className="text-white font-medium">{payment.username}</p>
+                    <span className="text-xs glass-text-muted">Username</span>
+                    <p className="glass-text font-semibold">{payment.username}</p>
                   </div>
                   <div>
-                    <span className="text-white/60 text-sm">Amount</span>
-                    <p className="text-white font-medium">1 π</p>
+                    <span className="text-xs glass-text-muted">Amount</span>
+                    <p className="text-yellow-400 font-semibold">155 π</p>
                   </div>
                   <div>
-                    <span className="text-white/60 text-sm">Submitted</span>
-                    <p className="text-white font-medium">
-                      {new Date(payment.submitted_at || payment.updated_at).toLocaleDateString()}
-                    </p>
+                    <span className="text-xs glass-text-muted">Submitted</span>
+                    <p className="glass-text text-sm">{new Date(payment.submitted_at || payment.updated_at).toLocaleDateString()}</p>
                   </div>
                   <div>
-                    <span className="text-white/60 text-sm">Member Since</span>
-                    <p className="text-white font-medium">
-                      {new Date(payment.started_at).toLocaleDateString()}
-                    </p>
+                    <span className="text-xs glass-text-muted">Member Since</span>
+                    <p className="glass-text text-sm">{new Date(payment.started_at).toLocaleDateString()}</p>
                   </div>
                 </div>
-
-                <div className="bg-black/20 rounded-lg p-3 mb-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-white/60 text-sm">TXID:</span>
-                    <div className="flex items-center gap-2">
-                      <a 
-                        href={`https://blockexplorer.minepi.com/tx/${payment.payment_txid}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-400 hover:text-blue-300 text-sm"
-                      >
-                        {payment.payment_txid?.slice(0, 20)}... ↗
-                      </a>
-                    </div>
-                  </div>
+                <div className="glass-card p-3 mb-4 flex justify-between items-center">
+                  <span className="text-xs glass-text-muted">TXID:</span>
+                  <a href={`https://blockexplorer.minepi.com/tx/${payment.payment_txid}`} target="_blank" rel="noopener noreferrer"
+                    className="text-blue-400 text-sm hover:underline">
+                    {payment.payment_txid?.slice(0, 24)}... ↗
+                  </a>
                 </div>
-
                 <div className="flex gap-2">
-                  <a
-                    href={`https://blockexplorer.minepi.com/tx/${payment.payment_txid}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 py-2 px-4 rounded-lg text-center transition-all"
-                  >
+                  <a href={`https://blockexplorer.minepi.com/tx/${payment.payment_txid}`} target="_blank" rel="noopener noreferrer"
+                    className="flex-1 glass-button text-sm text-blue-400 text-center py-2">
                     Verify on Blockchain ↗
                   </a>
-                  <button
-                    onClick={() => handleApprove(payment)}
-                    disabled={approving === payment.id}
-                    className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg transition-all disabled:opacity-50"
-                  >
-                    {approving === payment.id ? "Approving..." : "Approve"}
+                  <button onClick={() => handleApprove(payment)} disabled={approving === payment.id}
+                    className="flex-1 glass-button glass-button-success text-sm disabled:opacity-50">
+                    {approving === payment.id ? "Approving..." : "✅ Approve"}
                   </button>
                 </div>
               </div>

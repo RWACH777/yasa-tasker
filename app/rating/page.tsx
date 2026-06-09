@@ -216,6 +216,22 @@ export default function RatingPage() {
         if (insertError) throw insertError;
       }
 
+      // Update the rated user's average_rating and total_ratings in profiles
+      const { data: ratedUserRatings } = await supabase
+        .from("ratings")
+        .select("rating")
+        .eq("rated_user_id", otherUser.id);
+
+      if (ratedUserRatings && ratedUserRatings.length > 0) {
+        const newAvg = parseFloat(
+          (ratedUserRatings.reduce((sum, r) => sum + (r.rating || 0), 0) / ratedUserRatings.length).toFixed(2)
+        );
+        await supabase
+          .from("profiles")
+          .update({ average_rating: newAvg, total_ratings: ratedUserRatings.length })
+          .eq("id", otherUser.id);
+      }
+
       // Check if both parties have rated
       const { data: allRatings } = await supabase
         .from("ratings")
@@ -294,7 +310,7 @@ export default function RatingPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen glass-dark flex items-center justify-center">
+      <div className="min-h-screen app-background flex items-center justify-center">
         <div className="glass-card p-8">
           <div className="glass-loading mx-auto mb-4"></div>
           <p className="glass-text-accent">Loading rating details...</p>
@@ -305,7 +321,7 @@ export default function RatingPage() {
 
   if (error && !task) {
     return (
-      <div className="min-h-screen glass-dark flex items-center justify-center">
+      <div className="min-h-screen app-background flex items-center justify-center">
         <div className="glass-card p-8 max-w-md">
           <div className="text-4xl mb-4 text-center">⚠️</div>
           <h2 className="text-xl font-bold text-red-400 mb-4 text-center">Error</h2>

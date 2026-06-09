@@ -1230,6 +1230,14 @@ const handleDenyApplication = async (applicationId: string) => {
   setReviewLoading(false);
 };
 
+// Logout handler - clears session and local storage
+const handleLogout = async () => {
+  await supabase.auth.signOut();
+  localStorage.removeItem("pi_user");
+  localStorage.removeItem("supabase.auth.token");
+  router.push("/");
+};
+
 // Update freelancer username
 const handleUpdateFreelancerUsername = async () => {
   if (!user?.id || !freelancerUsername.trim()) {
@@ -1269,6 +1277,7 @@ const handleUpdateFreelancerUsername = async () => {
         onClose={() => setSidebarOpen(false)}
         notificationCount={notificationCount}
         messageCount={messageCount}
+        onLogout={handleLogout}
       />
       
       {/* Navigation Bar */}

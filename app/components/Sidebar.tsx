@@ -9,9 +9,10 @@ interface SidebarProps {
   notificationCount?: number;
   messageCount?: number;
   transactionCount?: number;
+  onLogout?: () => void;
 }
 
-export default function Sidebar({ isOpen, onClose, onNotificationsClick, notificationCount = 0, messageCount = 0, transactionCount = 0 }: SidebarProps) {
+export default function Sidebar({ isOpen, onClose, onNotificationsClick, notificationCount = 0, messageCount = 0, transactionCount = 0, onLogout }: SidebarProps) {
   return (
     <div
       className={`fixed left-0 top-0 h-screen glass-nav transition-all duration-300 z-40 ${
@@ -99,6 +100,17 @@ export default function Sidebar({ isOpen, onClose, onNotificationsClick, notific
           >
             Contact Support
           </a>
+        </div>
+
+        <div className="mt-auto pt-4 border-t border-white/10">
+          {onLogout && (
+            <button
+              onClick={() => { onClose(); onLogout(); }}
+              className="w-full px-4 py-2 text-sm rounded-lg text-red-400 border border-red-500/30 hover:bg-red-500/10 transition text-center"
+            >
+              🚪 Log Out
+            </button>
+          )}
         </div>
       </div>
     </div>
