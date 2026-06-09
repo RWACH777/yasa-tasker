@@ -38,14 +38,14 @@ export default function PaymentPage() {
   const [transactionId, setTransactionId] = useState<string | null>(null);
   const [customAmount, setCustomAmount] = useState<number>(0);
 
-  // Platform fee settings
-  const PLATFORM_FEE_PERCENT = 5;
+  // Platform fee settings - set to 0 since users pay via monthly membership
+  const PLATFORM_FEE_PERCENT = 0;
   const [platformWallet, setPlatformWallet] = useState<string>("");
 
-  // Calculate amounts
+  // Calculate amounts - full amount goes to freelancer
   const taskAmount = customAmount || task?.budget || 0;
-  const platformFee = (taskAmount * PLATFORM_FEE_PERCENT) / 100;
-  const freelancerAmount = taskAmount - platformFee;
+  const platformFee = 0;
+  const freelancerAmount = taskAmount;
 
   useEffect(() => {
     loadUser();
@@ -185,6 +185,7 @@ export default function PaymentPage() {
     setError(null);
 
     try {
+      // Step 1: Create transaction record
       const { data: transaction, error: txnError } = await supabase
         .from("transactions")
         .insert({
@@ -212,12 +213,12 @@ export default function PaymentPage() {
 
       setTransactionId(transaction.id);
 
-      // Per Pi Platform docs, authenticate with the "payments" scope BEFORE
+      // Step 2: Per Pi Platform docs, authenticate with the "payments" scope BEFORE
       // calling createPayment, and provide an onIncompletePaymentFound handler.
-      // Omitting either causes a "payments scope missing" / pending-payment error.
+      setError("Connecting to Pi Network... Please approve the payment permission when prompted.");
+      
       const onIncompletePaymentFound = (payment: any) => {
         console.warn("⚠️ Incomplete Pi payment found:", payment);
-        // Record it so it can be reconciled instead of silently blocking new payments.
         supabase
           .from("payment_errors")
           .insert({
@@ -228,10 +229,15 @@ export default function PaymentPage() {
           .then(() => {});
       };
 
-      const authResult = await Pi.authenticate(
-        ["username", "payments", "wallet_address"],
-        onIncompletePaymentFound
-      );
+      let authResult;
+      try {
+        authResult = await Pi.authenticate(
+          ["username", "payments", "wallet_address"],
+          onIncompletePaymentFound
+        );
+      } catch (authErr: any) {
+        throw new Error("Pi authentication failed: " + (authErr?.message || "Please approve the payments permission in Pi Browser"));
+      }
 
       if (!authResult?.accessToken) {
         throw new Error(
@@ -239,6 +245,9 @@ export default function PaymentPage() {
         );
       }
 
+      // Step 3: Create the Pi payment
+      setError("Opening Pi payment dialog...");
+      
       await Pi.createPayment(
         {
           amount: taskAmount,
@@ -252,6 +261,8 @@ export default function PaymentPage() {
         },
         {
           onReadyForServerApproval: async (paymentId: string) => {
+            // Clear the "Opening Pi payment dialog..." message
+            setError(null);
             // Server-side approval (required by Pi before the user can submit
             // the transaction to the blockchain).
             const res = await fetch("/api/payments/approve", {
@@ -504,15 +515,13 @@ export default function PaymentPage() {
                 </div>
               </div>
               
-              <div className="flex justify-between items-center py-2 border-b border-white/10">
-                <span className="glass-text-muted text-sm">Platform Fee ({PLATFORM_FEE_PERCENT}%)</span>
-                <span className="glass-text-accent">-{platformFee.toFixed(2)} π</span>
-              </div>
-              
               <div className="flex justify-between items-center py-3 border-t-2 border-yellow-400/30">
                 <span className="glass-text font-semibold">Freelancer Receives</span>
                 <span className="text-yellow-400 font-bold text-lg">{freelancerAmount.toFixed(2)} π</span>
               </div>
+              <p className="text-xs glass-text-muted text-center">
+                No platform fee - you keep 100% (membership covers fees)
+              </p>
             </div>
           </div>
         )}
@@ -533,7 +542,7 @@ export default function PaymentPage() {
               {freelancerAmount.toFixed(2)} π has been sent to {freelancer?.username}
             </p>
             <p className="text-sm glass-text-muted mb-6">
-              Platform fee of {platformFee.toFixed(2)} π applied.
+              Full payment received - no fees deducted.
             </p>
             <button
               onClick={handleContinueToRating}
@@ -570,7 +579,6 @@ export default function PaymentPage() {
             ) : (
               <span>
                 Pay {freelancerAmount.toFixed(2)} π
-                <span className="text-sm opacity-70 ml-2">(+{platformFee.toFixed(2)} fee)</span>
               </span>
             )}
           </button>
