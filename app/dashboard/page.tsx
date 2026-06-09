@@ -116,6 +116,10 @@ export default function DashboardPage() {
   const [disputeReason, setDisputeReason] = useState("");
   const [showDisputeInput, setShowDisputeInput] = useState(false);
 
+  // AI description helper state
+  const [aiDescLoading, setAiDescLoading] = useState(false);
+  const [aiDescSuggestion, setAiDescSuggestion] = useState<string | null>(null);
+
   // Application modal state
   const [showApplicationModal, setShowApplicationModal] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -1849,15 +1853,65 @@ const handleUpdateFreelancerUsername = async () => {
             autoComplete="off"
             className="w-full glass-input px-4 py-2 text-sm"
           />
-          <textarea
-            placeholder="Task description"
-            value={form.description}
-            onChange={(e) =>
-              setForm({ ...form, description: e.target.value })
-            }
-            className="w-full glass-input px-4 py-2 text-sm"
-            rows={3}
-          />
+          <div className="relative">
+            <textarea
+              placeholder="Task description — what do you need done?"
+              value={form.description}
+              onChange={(e) => {
+                setForm({ ...form, description: e.target.value });
+                setAiDescSuggestion(null);
+              }}
+              className="w-full glass-input px-4 py-2 text-sm pr-28"
+              rows={3}
+            />
+            <button
+              type="button"
+              disabled={aiDescLoading || !form.title.trim()}
+              onClick={async () => {
+                setAiDescLoading(true);
+                setAiDescSuggestion(null);
+                try {
+                  const prompt = form.description.trim()
+                    ? `Improve this task description for a freelance marketplace. Task title: "${form.title}". Current description: "${form.description}". Make it clear, specific, and professional. Return only the improved description.`
+                    : `Write a clear, specific task description for a freelance marketplace task titled: "${form.title}". Be professional and mention what deliverables are expected. Return only the description text.`;
+                  const res = await fetch("/api/ai", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ tool: "improve_writing", content: prompt }),
+                  });
+                  const data = await res.json();
+                  if (data.result) setAiDescSuggestion(data.result);
+                } catch {}
+                setAiDescLoading(false);
+              }}
+              className="absolute top-2 right-2 text-xs px-2 py-1 rounded-lg bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/30 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              title={!form.title.trim() ? "Add a title first" : "Generate description with AI"}
+            >
+              {aiDescLoading ? "..." : "✨ AI Help"}
+            </button>
+          </div>
+          {aiDescSuggestion && (
+            <div className="glass-card p-3 border border-yellow-500/30 space-y-2">
+              <p className="text-xs text-yellow-400 font-semibold">✨ AI Suggestion</p>
+              <p className="text-sm glass-text">{aiDescSuggestion}</p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setForm({ ...form, description: aiDescSuggestion }); setAiDescSuggestion(null); }}
+                  className="glass-button glass-button-primary text-xs px-3 py-1"
+                >
+                  Use This
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAiDescSuggestion(null)}
+                  className="glass-button text-xs px-3 py-1 text-white/50"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
           <select
             value={form.category}
             onChange={(e) =>
