@@ -1431,9 +1431,9 @@ export default function ChatPage() {
                   router.push(`/payment?task=${taskId}&return=/chat?user=${otherUserId}%26task=${taskId}`);
                 }}
                 className="glass-button glass-button-primary px-2 md:px-4 py-1 md:py-2 text-xs md:text-sm animate-pulse"
-                title="Pay freelancer and complete task"
+                title="View payment details for this task"
               >
-                Pay & Complete
+                Pay
               </button>
             )}
             {/* Freelancer Payment Received Confirmation - when tasker has confirmed payment */}

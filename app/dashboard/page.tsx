@@ -90,6 +90,15 @@ export default function DashboardPage() {
   // Profile view state
   const [profileView, setProfileView] = useState<"tasker" | "freelancer">("tasker");
 
+  // Complete task modal state (txid verification)
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [completingTask, setCompletingTask] = useState<any>(null);
+  const [completingFreelancer, setCompletingFreelancer] = useState<any>(null);
+  const [txidInput, setTxidInput] = useState("");
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [verifySuccess, setVerifySuccess] = useState(false);
+
   // Application modal state
   const [showApplicationModal, setShowApplicationModal] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -213,6 +222,7 @@ export default function DashboardPage() {
         body: JSON.stringify({
           username: piUser.username,
           pi_uid: piUser.uid,
+          wallet_address: piUser.wallet_address || null,
         }),
       });
 
@@ -612,6 +622,107 @@ export default function DashboardPage() {
       } else {
         setProfileTasks({ active: [], pending: [], completed: [] });
       }
+    }
+  };
+
+  // Open the complete-task modal for a specific task (tasker view)
+  const handleOpenCompleteModal = async (task: any) => {
+    setCompletingTask(task);
+    setCompletingFreelancer(null);
+    setTxidInput("");
+    setVerifyError(null);
+    setVerifySuccess(false);
+
+    if (task.assignee_id) {
+      const { data: freelancer } = await supabase
+        .from("profiles")
+        .select("id, username, freelancer_username, wallet_address")
+        .eq("id", task.assignee_id)
+        .single();
+      setCompletingFreelancer(freelancer || null);
+    }
+    setShowCompleteModal(true);
+  };
+
+  // Verify the txid on Pi blockchain then mark task complete
+  const handleVerifyAndComplete = async () => {
+    if (!txidInput.trim()) {
+      setVerifyError("Please enter the Transaction ID.");
+      return;
+    }
+    if (!completingFreelancer?.wallet_address) {
+      setVerifyError("Freelancer wallet address not found. Ask them to re-login to update their profile.");
+      return;
+    }
+
+    setVerifyLoading(true);
+    setVerifyError(null);
+
+    try {
+      const res = await fetch("/api/payments/verify-txid", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          txid: txidInput.trim(),
+          expectedRecipient: completingFreelancer.wallet_address,
+          expectedAmount: completingTask.budget,
+        }),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok || !result.verified) {
+        setVerifyError(result.error || "Transaction verification failed. Please check your Transaction ID.");
+        setVerifyLoading(false);
+        return;
+      }
+
+      // Mark task as completed
+      await supabase
+        .from("tasks")
+        .update({
+          status: "completed",
+          payment_txid: txidInput.trim(),
+          payment_status: "completed",
+          payment_completed_at: new Date().toISOString(),
+        })
+        .eq("id", completingTask.id);
+
+      // Create transaction record
+      await supabase.from("transactions").insert({
+        task_id: completingTask.id,
+        sender_uid: user.id,
+        sender_username: user.username,
+        receiver_uid: completingFreelancer.id,
+        receiver_username: completingFreelancer.freelancer_username || completingFreelancer.username,
+        receiver_wallet_address: completingFreelancer.wallet_address,
+        total_amount: completingTask.budget,
+        net_amount: completingTask.budget,
+        status: "success",
+        pi_txid: txidInput.trim(),
+        payment_memo: `Payment for task: ${completingTask.title}`,
+      });
+
+      // Notify freelancer
+      await supabase.from("notifications").insert({
+        user_id: completingFreelancer.id,
+        type: "payment_received",
+        message: `Payment confirmed for "${completingTask.title}". Please rate your experience!`,
+        related_task_id: completingTask.id,
+        read: false,
+      });
+
+      setVerifySuccess(true);
+      setVerifyLoading(false);
+      loadProfileTasks();
+
+      setTimeout(() => {
+        setShowCompleteModal(false);
+        router.push(`/rating?task=${completingTask.id}&role=tasker`);
+      }, 2000);
+    } catch (err: any) {
+      setVerifyError("Verification error: " + (err.message || "Please try again."));
+      setVerifyLoading(false);
     }
   };
 
@@ -1199,12 +1310,22 @@ const handleUpdateFreelancerUsername = async () => {
                   <p className="glass-text-muted text-sm">No active tasks</p>
                 ) : (
                   <div className="space-y-2">
-                    {profileTasks.active.map((task) => (
+                    {profileTasks.active.map((task: any) => (
                       <div key={task.id} className="glass-list-item p-3">
-                        <p className="font-semibold text-sm glass-text">{task.title}</p>
-                        <p className="text-xs glass-text-muted">
-                          Budget: {task.budget} π
-                        </p>
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm glass-text truncate">{task.title}</p>
+                            <p className="text-xs glass-text-muted">Budget: {task.budget} π</p>
+                          </div>
+                          {profileView === "tasker" && (
+                            <button
+                              onClick={() => handleOpenCompleteModal(task)}
+                              className="glass-button glass-button-primary flex-shrink-0 px-3 py-1 text-xs"
+                            >
+                              Complete
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1332,6 +1453,87 @@ const handleUpdateFreelancerUsername = async () => {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* COMPLETE TASK MODAL (txid verification) */}
+      {showCompleteModal && completingTask && (
+        <div className="fixed inset-0 glass-overlay flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-md glass-modal p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold glass-text">Verify & Complete Task</h2>
+              <button
+                onClick={() => setShowCompleteModal(false)}
+                className="glass-close"
+              >
+                ✕
+              </button>
+            </div>
+
+            {verifySuccess ? (
+              <div className="text-center py-6">
+                <div className="text-5xl mb-3">✅</div>
+                <p className="text-green-400 font-semibold text-lg mb-1">Payment Verified!</p>
+                <p className="glass-text-muted text-sm">Task marked as completed. Redirecting to rating...</p>
+              </div>
+            ) : (
+              <>
+                <div className="glass-card p-4 mb-4">
+                  <p className="text-sm glass-text-muted">Task</p>
+                  <p className="font-semibold glass-text">{completingTask.title}</p>
+                  <p className="text-sm glass-text-muted mt-1">
+                    Amount: <span className="text-yellow-400 font-bold">{completingTask.budget} π</span>
+                  </p>
+                  {completingFreelancer && (
+                    <p className="text-sm glass-text-muted mt-1">
+                      Paid to: <span className="glass-text">{completingFreelancer.freelancer_username || completingFreelancer.username}</span>
+                    </p>
+                  )}
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm glass-text-muted mb-2">
+                    Pi Transaction ID (txid)
+                  </label>
+                  <input
+                    type="text"
+                    value={txidInput}
+                    onChange={(e) => setTxidInput(e.target.value)}
+                    placeholder="Paste the blockchain transaction ID here"
+                    className="glass-input w-full px-3 py-2 text-sm font-mono"
+                  />
+                  <p className="text-xs glass-text-muted mt-1">
+                    Find this in your Pi Wallet after sending payment.
+                  </p>
+                </div>
+
+                {verifyError && (
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-4">
+                    <p className="text-red-400 text-sm">⚠️ {verifyError}</p>
+                  </div>
+                )}
+
+                <button
+                  onClick={handleVerifyAndComplete}
+                  disabled={verifyLoading || !txidInput.trim()}
+                  className="glass-button glass-button-primary w-full py-3 font-semibold disabled:opacity-50"
+                >
+                  {verifyLoading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="glass-loading w-4 h-4"></span>
+                      Verifying on blockchain...
+                    </span>
+                  ) : (
+                    "Verify & Complete Task"
+                  )}
+                </button>
+
+                <p className="text-xs glass-text-muted text-center mt-3">
+                  YASA Tasker will verify your payment on the Pi blockchain before completing the task.
+                </p>
+              </>
+            )}
           </div>
         </div>
       )}
