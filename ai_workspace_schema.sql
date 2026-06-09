@@ -69,11 +69,7 @@ CREATE POLICY "Users can view their own disputes" ON disputes
     task_id IN (SELECT id FROM tasks WHERE poster_id = auth.uid())
   );
 
--- Admins can see all disputes (if you have an admin role)
-CREATE POLICY "Admins can manage disputes" ON disputes
-  FOR ALL USING (
-    auth.uid() IN (SELECT id FROM profiles WHERE is_admin = true)
-  );
+-- Note: Add admin policy later when is_admin column exists in profiles
 
 -- 5. Storage bucket for submission files (run separately if needed)
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('submissions', 'submissions', true)

@@ -53,7 +53,10 @@ export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<Profile | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    id: string; title: string; description: string; category: string;
+    budget: string; deadline: string; completion_type: string; ai_allowed: boolean;
+  }>({
     id: "",
     title: "",
     description: "",
@@ -102,6 +105,16 @@ export default function DashboardPage() {
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const [verifySuccess, setVerifySuccess] = useState(false);
+
+  // Submission review state
+  const [taskSubmissions, setTaskSubmissions] = useState<Record<string, any>>({});
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
+  const [reviewingSubmission, setReviewingSubmission] = useState<any>(null);
+  const [reviewingTask, setReviewingTask] = useState<any>(null);
+  const [revisionNote, setRevisionNote] = useState("");
+  const [submissionReviewLoading, setSubmissionReviewLoading] = useState(false);
+  const [disputeReason, setDisputeReason] = useState("");
+  const [showDisputeInput, setShowDisputeInput] = useState(false);
 
   // Application modal state
   const [showApplicationModal, setShowApplicationModal] = useState(false);
@@ -607,6 +620,7 @@ export default function DashboardPage() {
         const pending = tasks.filter((t) => t.status === "open");
         const completed = tasks.filter((t) => t.status === "completed");
         setProfileTasks({ active, pending, completed });
+        if (active.length > 0) loadSubmissionsForTasks(active.map((t) => t.id));
       }
     } else {
       // FREELANCER VIEW: Load tasks I applied to, grouped by task status (same as tasker)
@@ -633,6 +647,99 @@ export default function DashboardPage() {
         setProfileTasks({ active: [], pending: [], completed: [] });
       }
     }
+  };
+
+  // Load latest submission for each active task (tasker view)
+  const loadSubmissionsForTasks = async (taskIds: string[]) => {
+    if (!taskIds.length) return;
+    const { data } = await supabase
+      .from("submissions")
+      .select("*, freelancer:freelancer_id(id, username, freelancer_username)")
+      .in("task_id", taskIds)
+      .order("submitted_at", { ascending: false });
+
+    if (data) {
+      const map: Record<string, any> = {};
+      data.forEach((s) => {
+        if (!map[s.task_id]) map[s.task_id] = s;
+      });
+      setTaskSubmissions(map);
+    }
+  };
+
+  const handleOpenReviewModal = (task: any) => {
+    const sub = taskSubmissions[task.id];
+    if (!sub) return;
+    setReviewingTask(task);
+    setReviewingSubmission(sub);
+    setRevisionNote("");
+    setDisputeReason("");
+    setShowDisputeInput(false);
+    setShowSubmissionModal(true);
+  };
+
+  const handleAcceptSubmission = async () => {
+    if (!reviewingSubmission || !reviewingTask) return;
+    setSubmissionReviewLoading(true);
+    await supabase.from("submissions").update({ status: "accepted", reviewed_at: new Date().toISOString() }).eq("id", reviewingSubmission.id);
+    await supabase.from("notifications").insert({
+      user_id: reviewingSubmission.freelancer_id,
+      type: "submission_accepted",
+      message: `Your submission for "${reviewingTask.title}" was accepted! The tasker will now proceed with payment.`,
+      related_task_id: reviewingTask.id,
+      read: false,
+    });
+    setTaskSubmissions((prev) => ({ ...prev, [reviewingTask.id]: { ...reviewingSubmission, status: "accepted" } }));
+    setSubmissionReviewLoading(false);
+    setShowSubmissionModal(false);
+  };
+
+  const handleRequestRevision = async () => {
+    if (!reviewingSubmission || !reviewingTask || !revisionNote.trim()) return;
+    const newCount = (reviewingSubmission.revision_count || 0) + 1;
+    if (newCount > (reviewingSubmission.max_revisions || 3)) {
+      alert("Maximum revisions reached. You must Accept or Dispute.");
+      return;
+    }
+    setSubmissionReviewLoading(true);
+    await supabase.from("submissions").update({
+      status: "revision_requested",
+      revision_count: newCount,
+      revision_note: revisionNote.trim(),
+      updated_at: new Date().toISOString(),
+    }).eq("id", reviewingSubmission.id);
+    await supabase.from("notifications").insert({
+      user_id: reviewingSubmission.freelancer_id,
+      type: "revision_requested",
+      message: `Revision ${newCount}/${reviewingSubmission.max_revisions || 3} requested for "${reviewingTask.title}": ${revisionNote.trim()}`,
+      related_task_id: reviewingTask.id,
+      read: false,
+    });
+    setTaskSubmissions((prev) => ({ ...prev, [reviewingTask.id]: { ...reviewingSubmission, status: "revision_requested", revision_count: newCount } }));
+    setSubmissionReviewLoading(false);
+    setShowSubmissionModal(false);
+  };
+
+  const handleDisputeSubmission = async () => {
+    if (!reviewingSubmission || !reviewingTask || !disputeReason.trim()) return;
+    setSubmissionReviewLoading(true);
+    await supabase.from("disputes").insert({
+      task_id: reviewingTask.id,
+      raised_by: user!.id,
+      reason: disputeReason.trim(),
+      status: "open",
+    });
+    await supabase.from("submissions").update({ status: "disputed", updated_at: new Date().toISOString() }).eq("id", reviewingSubmission.id);
+    await supabase.from("notifications").insert({
+      user_id: reviewingSubmission.freelancer_id,
+      type: "dispute_raised",
+      message: `A dispute was raised for "${reviewingTask.title}". An admin will review it shortly.`,
+      related_task_id: reviewingTask.id,
+      read: false,
+    });
+    setTaskSubmissions((prev) => ({ ...prev, [reviewingTask.id]: { ...reviewingSubmission, status: "disputed" } }));
+    setSubmissionReviewLoading(false);
+    setShowSubmissionModal(false);
   };
 
   // Open the complete-task modal for a specific task (tasker view)
@@ -1335,20 +1442,44 @@ const handleUpdateFreelancerUsername = async () => {
                           <div className="flex gap-1 flex-shrink-0">
                             {profileView === "freelancer" && (
                               <button
-                                onClick={() => { setShowProfileModal(false); router.push(`/workspace/${task.id}`); }}
+                                onClick={() => { setShowProfileModal(false); router.push(`/workspace/${task.id}` as any); }}
                                 className="glass-button px-3 py-1 text-xs"
                               >
                                 Open Workspace
                               </button>
                             )}
-                            {profileView === "tasker" && (
-                              <button
-                                onClick={() => handleOpenCompleteModal(task)}
-                                className="glass-button glass-button-primary px-3 py-1 text-xs"
-                              >
-                                Complete
-                              </button>
-                            )}
+                            {profileView === "tasker" && (() => {
+                              const sub = taskSubmissions[task.id];
+                              const subStatus = sub?.status;
+                              if (sub && subStatus !== "accepted" && subStatus !== "disputed") {
+                                return (
+                                  <button
+                                    onClick={() => handleOpenReviewModal(task)}
+                                    className="glass-button glass-button-primary px-3 py-1 text-xs"
+                                  >
+                                    {subStatus === "revision_requested" ? "⏳ Revision Sent" : "📋 Review"}
+                                  </button>
+                                );
+                              }
+                              if (subStatus === "accepted") {
+                                return (
+                                  <button
+                                    onClick={() => handleOpenCompleteModal(task)}
+                                    className="glass-button glass-button-success px-3 py-1 text-xs"
+                                  >
+                                    💰 Pay & Complete
+                                  </button>
+                                );
+                              }
+                              return (
+                                <button
+                                  onClick={() => handleOpenCompleteModal(task)}
+                                  className="glass-button glass-button-primary px-3 py-1 text-xs"
+                                >
+                                  Complete
+                                </button>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
@@ -1746,7 +1877,7 @@ const handleUpdateFreelancerUsername = async () => {
             placeholder="Budget (in π)"
             value={form.budget || ""}
             onChange={(e) =>
-              setForm({ ...form, budget: e.target.value ? parseFloat(e.target.value) : "" })
+              setForm({ ...form, budget: e.target.value })
             }
             className="w-full glass-input px-4 py-2 text-sm"
           />
@@ -2061,6 +2192,130 @@ const handleUpdateFreelancerUsername = async () => {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* SUBMISSION REVIEW MODAL */}
+      {showSubmissionModal && reviewingSubmission && reviewingTask && (
+        <div className="fixed inset-0 glass-overlay flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-lg glass-modal p-6 relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setShowSubmissionModal(false)}
+              className="absolute top-4 right-4 glass-text-muted hover:text-white text-xl"
+            >✕</button>
+
+            <h2 className="text-lg font-bold glass-text mb-1">📋 Review Submission</h2>
+            <p className="text-sm glass-text-muted mb-4">{reviewingTask.title}</p>
+
+            {/* Submission meta */}
+            <div className="flex items-center gap-3 mb-4 p-3 glass-card">
+              <div>
+                <p className="text-sm glass-text font-semibold">
+                  {reviewingSubmission.freelancer?.freelancer_username || reviewingSubmission.freelancer?.username || "Freelancer"}
+                </p>
+                <p className="text-xs glass-text-muted">
+                  Submitted {new Date(reviewingSubmission.submitted_at).toLocaleString()}
+                  {reviewingSubmission.revision_count > 0 && ` • Revision ${reviewingSubmission.revision_count}/${reviewingSubmission.max_revisions}`}
+                </p>
+              </div>
+              <div className="ml-auto flex gap-2">
+                {reviewingSubmission.used_ai && (
+                  <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">⚡ AI Assisted</span>
+                )}
+                <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">👤 Human Reviewed</span>
+              </div>
+            </div>
+
+            {/* Content */}
+            {reviewingSubmission.content && (
+              <div className="mb-4">
+                <p className="text-xs glass-text-muted mb-1">Submitted Work</p>
+                <div className="glass-card p-3 max-h-48 overflow-y-auto">
+                  <p className="text-sm glass-text whitespace-pre-wrap">{reviewingSubmission.content}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Files */}
+            {reviewingSubmission.file_urls?.length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs glass-text-muted mb-2">Attachments ({reviewingSubmission.file_urls.length})</p>
+                <div className="space-y-1">
+                  {reviewingSubmission.file_urls.map((url: string, i: number) => (
+                    <a key={i} href={url} target="_blank" rel="noreferrer"
+                      className="flex items-center gap-2 text-xs text-blue-400 underline glass-card px-3 py-2">
+                      📎 File {i + 1}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="space-y-3 mt-4">
+              {/* Accept */}
+              <button
+                onClick={handleAcceptSubmission}
+                disabled={submissionReviewLoading}
+                className="w-full glass-button glass-button-success py-2 text-sm font-semibold disabled:opacity-50"
+              >
+                ✅ Accept Submission
+              </button>
+
+              {/* Request Revision */}
+              {(reviewingSubmission.revision_count || 0) < (reviewingSubmission.max_revisions || 3) ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={revisionNote}
+                    onChange={(e) => setRevisionNote(e.target.value)}
+                    placeholder="Explain what needs to be changed..."
+                    className="w-full glass-input px-3 py-2 text-sm resize-none"
+                    rows={3}
+                  />
+                  <button
+                    onClick={handleRequestRevision}
+                    disabled={submissionReviewLoading || !revisionNote.trim()}
+                    className="w-full glass-button py-2 text-sm disabled:opacity-50"
+                  >
+                    🔄 Request Revision ({(reviewingSubmission.revision_count || 0)}/{reviewingSubmission.max_revisions || 3} used)
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-orange-400 text-center">Maximum revisions reached — Accept or Dispute</p>
+              )}
+
+              {/* Dispute */}
+              {!showDisputeInput ? (
+                <button
+                  onClick={() => setShowDisputeInput(true)}
+                  className="w-full glass-button py-2 text-sm text-red-400"
+                >
+                  🚩 Raise Dispute
+                </button>
+              ) : (
+                <div className="space-y-2 border border-red-500/30 rounded-lg p-3">
+                  <p className="text-xs text-red-400">Describe the issue — an admin will review:</p>
+                  <textarea
+                    value={disputeReason}
+                    onChange={(e) => setDisputeReason(e.target.value)}
+                    placeholder="Describe why this submission is unacceptable..."
+                    className="w-full glass-input px-3 py-2 text-sm resize-none"
+                    rows={3}
+                  />
+                  <div className="flex gap-2">
+                    <button onClick={() => setShowDisputeInput(false)} className="flex-1 glass-button py-2 text-xs">Cancel</button>
+                    <button
+                      onClick={handleDisputeSubmission}
+                      disabled={submissionReviewLoading || !disputeReason.trim()}
+                      className="flex-1 glass-button py-2 text-xs text-red-400 border-red-500/30 disabled:opacity-50"
+                    >
+                      Confirm Dispute
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
