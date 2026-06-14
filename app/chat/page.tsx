@@ -816,6 +816,7 @@ export default function ChatPage() {
       receiver_id: otherUserId,
       content: newMessage || null,
       text: newMessage || null,
+      read: false,
       created_at: new Date().toISOString(),
     };
 

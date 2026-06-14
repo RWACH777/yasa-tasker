@@ -99,7 +99,7 @@ export default function MessagesPage() {
     const { data: presenceRows } = otherUserIds.length > 0
       ? await supabase
           .from("presence")
-          .select("user_id, is_online")
+          .select("user_id, is_online, last_seen")
           .in("user_id", otherUserIds)
       : { data: [] };
 
@@ -119,7 +119,7 @@ export default function MessagesPage() {
 
         // Count only unread messages from this user (messages received from them with read=false)
         const unreadMessages = (received || []).filter(
-          (m) => m.sender_id === otherUserId && (m.read === false || m.read === null)
+          (m) => m.sender_id === otherUserId && m.read === false
         );
 
         uniqueUsers.set(otherUserId, {
@@ -128,7 +128,12 @@ export default function MessagesPage() {
           avatar_url: profile?.avatar_url,
           lastMessage: msg.text || msg.content || (msg.file_url ? "[File shared]" : "[Voice message]"),
           lastMessageTime: msg.created_at,
-          isOnline: !!presence?.is_online,
+          isOnline: (() => {
+            if (!presence?.is_online) return false;
+            if (!presence.last_seen) return false;
+            const staleMs = 3 * 60 * 1000;
+            return Date.now() - new Date(presence.last_seen).getTime() < staleMs;
+          })(),
           unreadCount: unreadMessages.length,
           isCleared: clearedUserIds.has(otherUserId),
           taskId: msg.task_id,
