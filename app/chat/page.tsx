@@ -116,7 +116,7 @@ export default function ChatPage() {
     
     const heartbeat = setInterval(async () => {
       await setUserOnline(user.id);
-    }, 30000); // Every 30 seconds
+    }, 20000); // Every 20 seconds
     
     return () => clearInterval(heartbeat);
   }, [user?.id]);
@@ -318,13 +318,12 @@ export default function ChatPage() {
           const data = payload.new;
           if (!data) return;
           
-          // Check if last_seen is stale (more than 2 minutes ago)
+          // Check if last_seen is stale (more than 3 minutes ago)
           let isOnline = data.is_online || false;
           if (isOnline && data.last_seen) {
             const lastSeen = new Date(data.last_seen).getTime();
-            const now = Date.now();
-            const twoMinutesMs = 2 * 60 * 1000;
-            if (now - lastSeen > twoMinutesMs) {
+            const staleMs = 3 * 60 * 1000;
+            if (Date.now() - lastSeen > staleMs) {
               isOnline = false; // Status is stale
             }
           }

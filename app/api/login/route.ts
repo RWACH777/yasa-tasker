@@ -235,15 +235,20 @@ export async function POST(req: Request) {
 
     step = "Upserting profile";
     // 6️⃣ Update or insert profile
-    const { error: profileErr } = await adminClient.from("profiles").upsert(
-      {
-        id: authUser.id,
-        username,
-        pi_uid,
-        email,
-        wallet_address,
-      }
-    );
+    // IMPORTANT: only include wallet_address when Pi actually returned one.
+    // Pi does NOT re-prompt for wallet_address on subsequent logins if permission
+    // was already granted — it simply returns null. Overwriting with null would
+    // silently erase a previously saved wallet address.
+    const profilePayload: Record<string, any> = {
+      id: authUser.id,
+      username,
+      pi_uid,
+      email,
+    };
+    if (wallet_address) {
+      profilePayload.wallet_address = wallet_address;
+    }
+    const { error: profileErr } = await adminClient.from("profiles").upsert(profilePayload);
 
     if (profileErr) {
       console.error("❌ Profile upsert error:", profileErr);

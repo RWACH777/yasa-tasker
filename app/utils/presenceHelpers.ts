@@ -5,17 +5,15 @@ import { supabase } from "@/lib/supabaseClient";
  */
 export const setUserOnline = async (userId: string) => {
   try {
-    const { error } = await supabase.from("presence").upsert({
-      user_id: userId,
-      is_online: true,
-      last_seen: new Date().toISOString(),
-    });
+    const { error } = await supabase.from("presence").upsert(
+      { user_id: userId, is_online: true, last_seen: new Date().toISOString() },
+      { onConflict: "user_id" }
+    );
 
     if (error) {
       console.warn("⚠️ Could not set user online (table may not exist):", error.message);
       return false;
     } else {
-      console.log("✅ User set online");
       return true;
     }
   } catch (err) {
@@ -29,17 +27,15 @@ export const setUserOnline = async (userId: string) => {
  */
 export const setUserOffline = async (userId: string) => {
   try {
-    const { error } = await supabase.from("presence").upsert({
-      user_id: userId,
-      is_online: false,
-      last_seen: new Date().toISOString(),
-    });
+    const { error } = await supabase.from("presence").upsert(
+      { user_id: userId, is_online: false, last_seen: new Date().toISOString() },
+      { onConflict: "user_id" }
+    );
 
     if (error) {
       console.warn("⚠️ Could not set user offline (table may not exist):", error.message);
       return false;
     } else {
-      console.log("✅ User set offline");
       return true;
     }
   } catch (err) {
@@ -49,8 +45,10 @@ export const setUserOffline = async (userId: string) => {
 };
 
 /**
- * Get user online status - considers stale data (user closed app without updating status)
- * If last_seen is more than 2 minutes ago, consider user offline even if is_online=true
+ * Get user online status.
+ * Considers stale data: if last_seen is more than 3 minutes ago the user
+ * is treated as offline even if is_online=true (handles closed-tab cases).
+ * Heartbeat runs every 20s, so 3 min gives ~9 missed beats of buffer.
  */
 export const getUserOnlineStatus = async (userId: string) => {
   try {
@@ -61,7 +59,6 @@ export const getUserOnlineStatus = async (userId: string) => {
       .single();
 
     if (error) {
-      // Table might not exist yet, return default offline status
       console.warn("⚠️ Could not fetch user status (table may not exist):", error.message);
       return { is_online: false, last_seen: null };
     }
@@ -70,15 +67,10 @@ export const getUserOnlineStatus = async (userId: string) => {
       return { is_online: false, last_seen: null };
     }
 
-    // Check if last_seen is stale (more than 2 minutes ago)
-    // This handles cases where user closed app without setting offline
     if (data.is_online && data.last_seen) {
       const lastSeen = new Date(data.last_seen).getTime();
-      const now = Date.now();
-      const twoMinutesMs = 2 * 60 * 1000;
-      
-      if (now - lastSeen > twoMinutesMs) {
-        // Status is stale, user is actually offline
+      const staleMs = 3 * 60 * 1000; // 3 minutes
+      if (Date.now() - lastSeen > staleMs) {
         return { is_online: false, last_seen: data.last_seen };
       }
     }
