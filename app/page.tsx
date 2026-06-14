@@ -7,6 +7,11 @@ import { useUser } from "@/context/UserContext";
 import { supabase } from "@/lib/supabaseClient";
 import { injectMockPiSDK } from "@/lib/piMock";
 
+const ADMIN_USER_IDS = [
+  "6c392b2f-aa45-4943-b610-0331e480daea",
+  "43f3c79f-ed30-4808-8273-41e382039f3a",
+];
+
 const membershipIsExpired = (membership: any) => {
   if (!membership) return true;
   if (membership.status === "expired") return true;
@@ -76,7 +81,7 @@ export default function Home() {
         .eq("user_id", userId)
         .maybeSingle();
       
-      const isAdmin = !!adminData;
+      const isAdmin = !!adminData || ADMIN_USER_IDS.includes(userId);
       const membershipExpired = membershipIsExpired(membershipData);
       
       if (membershipExpired && !isAdmin) {
@@ -315,7 +320,7 @@ export default function Home() {
         .eq("user_id", result.user?.id)
         .maybeSingle();
 
-      const isAdmin = !!adminData;
+      const isAdmin = !!adminData || ADMIN_USER_IDS.includes(result.user?.id || "");
 
       if (!isAdmin && membershipIsExpired(membershipData)) {
         setMembershipStatus(membershipData);

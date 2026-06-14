@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  scroll-behavior: smooth;
+}
+
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a, button {
+  transition: opacity 0.15s ease, transform 0.15s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
 body {
   background-color: #00010f;
 
@@ -507,6 +520,7 @@ body {
 
 /* Main App Background - Uses interface.jpg for dashboard and main pages */
 .app-background {
+  transition: opacity 0.2s ease;
   min-height: 100vh;
   background-image: url('/interface.jpg');
   background-size: cover;

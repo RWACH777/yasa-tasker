@@ -64,7 +64,7 @@ export default function DashboardPage() {
     budget: "",
     deadline: "",
     completion_type: "ai_plus_human",
-    ai_allowed: true,
+    ai_allowed: false,
   });
   const [message, setMessage] = useState("");
   const [filter, setFilter] = useState("all");
@@ -583,7 +583,7 @@ export default function DashboardPage() {
       budget: "",
       deadline: "",
       completion_type: "ai_plus_human",
-      ai_allowed: true,
+      ai_allowed: false,
     });
     fetchTasks();
     loadProfileTasks();
@@ -598,7 +598,7 @@ export default function DashboardPage() {
       budget: String(task.budget),
       deadline: task.deadline.split("T")[0],
       completion_type: task.completion_type || "ai_plus_human",
-      ai_allowed: task.ai_allowed ?? true,
+      ai_allowed: task.ai_allowed ?? false,
     });
   };
 
@@ -848,6 +848,25 @@ export default function DashboardPage() {
   };
 
   // Load user ratings
+  const computeBadges = (u: any) => {
+    const badges: { icon: string; label: string; color: string }[] = [];
+    const done = u?.completed_tasks || 0;
+    const avg = u?.average_rating || 0;
+    const total = u?.total_ratings || 0;
+    badges.push({ icon: "🔰", label: "Member", color: "border-blue-500/40 bg-blue-500/10 text-blue-300" });
+    if (done >= 1) badges.push({ icon: "🎯", label: "First Task", color: "border-green-500/40 bg-green-500/10 text-green-300" });
+    if (done >= 10) badges.push({ icon: "🏆", label: "Task Master", color: "border-yellow-500/40 bg-yellow-500/10 text-yellow-300" });
+    if (done >= 50) badges.push({ icon: "💎", label: "Elite", color: "border-purple-500/40 bg-purple-500/10 text-purple-300" });
+    if (done >= 100) badges.push({ icon: "👑", label: "Legend", color: "border-orange-500/40 bg-orange-500/10 text-orange-300" });
+    if (avg >= 4.0 && total >= 3) badges.push({ icon: "⭐", label: "Rising Star", color: "border-yellow-400/40 bg-yellow-400/10 text-yellow-200" });
+    if (avg >= 4.5 && total >= 5) badges.push({ icon: "🌟", label: "Top Rated", color: "border-yellow-300/40 bg-yellow-300/10 text-yellow-100" });
+    if (avg >= 5.0 && total >= 5) badges.push({ icon: "✨", label: "Five Star", color: "border-amber-300/40 bg-amber-300/10 text-amber-200" });
+    if (total >= 10) badges.push({ icon: "🏅", label: "Trusted", color: "border-blue-400/40 bg-blue-400/10 text-blue-200" });
+    if (total >= 50) badges.push({ icon: "💪", label: "Veteran", color: "border-red-400/40 bg-red-400/10 text-red-300" });
+    if (done >= 5 && avg >= 4.0) badges.push({ icon: "🚀", label: "Fast Mover", color: "border-cyan-400/40 bg-cyan-400/10 text-cyan-300" });
+    return badges;
+  };
+
   const loadUserRatings = async () => {
     if (!user?.id) {
       console.log("No user ID, skipping loadUserRatings");
@@ -1393,13 +1412,31 @@ const handleUpdateFreelancerUsername = async () => {
               <p className="text-xs glass-text-muted mt-3">
                 ⭐️ Rating: {user.average_rating && user.average_rating > 0 ? `${user.average_rating}/5 (${user.total_ratings || 0} ratings)` : "No ratings yet"} • Completed: {user.completed_tasks || 0}
               </p>
+
+              {/* Achievement Badges */}
+              {(() => {
+                const badges = computeBadges(user);
+                return badges.length > 0 ? (
+                  <div className="w-full mt-3">
+                    <p className="text-xs glass-text-muted mb-2">🏆 Achievements</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {badges.map((b, i) => (
+                        <span key={i} className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${b.color}`}>
+                          {b.icon} {b.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null;
+              })()}
+
               <p className="text-[10px] glass-text-muted/50 mt-2 font-mono">
                 ID: {user.id}
               </p>
               
               {/* Admin Button */}
               <Link
-                href="/admin/payouts"
+                href="/admin/disputes"
                 className="glass-button glass-button-primary mt-4 px-6 py-2 text-sm"
                 onClick={() => setShowProfileModal(false)}
               >
@@ -1980,12 +2017,12 @@ const handleUpdateFreelancerUsername = async () => {
             <button
               type="button"
               onClick={() => setForm({ ...form, ai_allowed: !form.ai_allowed })}
-              className={`relative w-12 h-6 rounded-full transition-colors ${
+              className={`relative flex-shrink-0 w-12 h-6 rounded-full transition-colors overflow-hidden ${
                 form.ai_allowed ? "bg-yellow-500" : "bg-white/20"
               }`}
             >
-              <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                form.ai_allowed ? "translate-x-7" : "translate-x-1"
+              <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-200 ${
+                form.ai_allowed ? "left-7" : "left-1"
               }`} />
             </button>
           </div>

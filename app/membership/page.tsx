@@ -6,6 +6,11 @@ import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import { injectMockPiSDK } from "@/lib/piMock";
 
+const ADMIN_USER_IDS = [
+  "6c392b2f-aa45-4943-b610-0331e480daea",
+  "43f3c79f-ed30-4808-8273-41e382039f3a",
+];
+
 export default function MembershipPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
@@ -44,6 +49,23 @@ export default function MembershipPage() {
       
       if (!session?.user) {
         router.push("/");
+        return;
+      }
+
+      // Admins are fully exempt — send them straight to dashboard
+      if (ADMIN_USER_IDS.includes(session.user.id)) {
+        router.push("/dashboard");
+        return;
+      }
+
+      // Also check admin_users table as a secondary check
+      const { data: adminCheck } = await supabase
+        .from("admin_users")
+        .select("user_id")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      if (adminCheck) {
+        router.push("/dashboard");
         return;
       }
 
@@ -326,7 +348,7 @@ export default function MembershipPage() {
               <div className="bg-blue-500/10 rounded-xl p-4 mb-6 border border-blue-500/20">
                 <h3 className="text-blue-400 font-medium mb-2">Payment Instructions</h3>
                 <p className="text-white/80 text-sm mb-3">
-                  Send exactly <strong className="text-white">155 π</strong> (~$20 USD) to:
+                  Send exactly <strong className="text-white">155 π</strong> to:
                 </p>
                 <div className="bg-black/30 rounded-lg p-3 mb-3">
                   <span className="text-white font-mono text-xs break-all">GCU5JNKCZXFDH3EJFIH5UKCSA24ZUXJC4YB5OZ6AOSYDC4YHIIFJG4SM</span>
