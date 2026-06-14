@@ -1341,7 +1341,7 @@ const handleUpdateFreelancerUsername = async () => {
                 `https://api.dicebear.com/8.x/thumbs/svg?seed=${user.username}`
               }
               alt="Avatar"
-              className="w-20 h-20 glass-avatar object-cover"
+              className="w-20 h-20 glass-avatar object-cover flex-shrink-0"
             />
             <h2 className="text-xl font-semibold glass-text">{user.username}</h2>
             <p className="text-sm glass-text-muted">
@@ -1380,7 +1380,7 @@ const handleUpdateFreelancerUsername = async () => {
                     `https://api.dicebear.com/8.x/thumbs/svg?seed=${user.username}`
                   }
                   alt="Avatar"
-                  className="w-24 h-24 glass-avatar object-cover group-hover:opacity-70 transition"
+                  className="w-24 h-24 glass-avatar object-cover flex-shrink-0 group-hover:opacity-70 transition"
                 />
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition rounded-full glass-overlay">
                   <span className="text-white text-xs font-semibold">View</span>
@@ -1802,7 +1802,7 @@ const handleUpdateFreelancerUsername = async () => {
                                       `https://api.dicebear.com/8.x/thumbs/svg?seed=${rating.rater?.username || "user"}`
                                     }
                                     alt={rating.rater?.username}
-                                    className="w-10 h-10 glass-avatar object-cover"
+                                    className="w-10 h-10 glass-avatar object-cover flex-shrink-0"
                                   />
                                   <div>
                                     <p className="font-semibold text-sm glass-text">{rating.rater?.username || "Anonymous"}</p>
@@ -1845,7 +1845,7 @@ const handleUpdateFreelancerUsername = async () => {
                                       `https://api.dicebear.com/8.x/thumbs/svg?seed=${rating.rater?.username || "user"}`
                                     }
                                     alt={rating.rater?.username}
-                                    className="w-10 h-10 glass-avatar object-cover"
+                                    className="w-10 h-10 glass-avatar object-cover flex-shrink-0"
                                   />
                                   <div>
                                     <p className="font-semibold text-sm glass-text">{rating.rater?.username || "Anonymous"}</p>
@@ -2239,10 +2239,17 @@ const handleUpdateFreelancerUsername = async () => {
                           canvas.width = 400;
                           canvas.height = 400;
 
-                          ctx.translate(canvas.width / 2, canvas.height / 2);
-                          ctx.scale(cropScale, cropScale);
-                          ctx.translate(-canvas.width / 2 + cropX, -canvas.height / 2 + cropY);
-                          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                          // object-cover: scale image so the shorter side fills the canvas
+                          const coverScale = Math.max(
+                            canvas.width / img.naturalWidth,
+                            canvas.height / img.naturalHeight
+                          );
+                          const drawW = img.naturalWidth * coverScale * cropScale;
+                          const drawH = img.naturalHeight * coverScale * cropScale;
+                          const drawX = (canvas.width - drawW) / 2 + cropX;
+                          const drawY = (canvas.height - drawH) / 2 + cropY;
+
+                          ctx.drawImage(img, drawX, drawY, drawW, drawH);
 
                           canvas.toBlob(async (blob) => {
                             if (!blob) return;
