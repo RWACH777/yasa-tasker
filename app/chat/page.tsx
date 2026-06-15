@@ -352,7 +352,10 @@ export default function ChatPage() {
     const loadMessages = async () => {
       console.log("🔵 Loading messages for user:", user.id, "taskId:", taskId);
       
-      // Query messages - if we have taskId filter by it, otherwise get recent messages
+      // Query messages - ALWAYS filter by participant pair to guarantee privacy.
+      // Filtering by task_id alone is not safe because a task may have had
+      // multiple freelancers over time and their messages would all share the
+      // same task_id.  We must always scope to the exact sender/receiver pair.
       let query = supabase
         .from("messages")
         .select(`
@@ -360,17 +363,21 @@ export default function ChatPage() {
           sender:sender_id (id, username, freelancer_username, avatar_url)
         `)
         .order("created_at", { ascending: true });
-      
-      // If taskId exists, filter by task
-      if (taskId) {
-        query = query.eq("task_id", taskId);
-      } else if (otherUserId) {
-        // Fall back to filtering by participants if no task
+
+      if (otherUserId) {
+        // Primary filter: exact conversation between the two users
         query = query.or(
           `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
         );
+        // Secondary filter: scope to this specific task when available
+        if (taskId) {
+          query = query.eq("task_id", taskId);
+        }
+      } else if (taskId) {
+        // No other user known yet – at minimum only show messages this user sent or received
+        query = query.eq("task_id", taskId)
+          .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
       } else {
-        // Get ALL recent messages for this user (to derive participant)
         query = query.or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`).limit(50);
       }
       
@@ -442,12 +449,14 @@ export default function ChatPage() {
         `)
         .order("created_at", { ascending: true });
       
-      if (taskId) {
-        pollQuery = pollQuery.eq("task_id", taskId);
-      } else {
+      if (otherUserId) {
         pollQuery = pollQuery.or(
           `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
         );
+        if (taskId) pollQuery = pollQuery.eq("task_id", taskId);
+      } else if (taskId) {
+        pollQuery = pollQuery.eq("task_id", taskId)
+          .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
       }
       
       const { data } = await pollQuery;
