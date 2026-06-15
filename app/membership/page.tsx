@@ -52,22 +52,7 @@ export default function MembershipPage() {
         return;
       }
 
-      // Admins are fully exempt — send them straight to dashboard
-      if (ADMIN_USER_IDS.includes(session.user.id)) {
-        router.push("/dashboard");
-        return;
-      }
-
-      // Also check admin_users table as a secondary check
-      const { data: adminCheck } = await supabase
-        .from("admin_users")
-        .select("user_id")
-        .eq("user_id", session.user.id)
-        .maybeSingle();
-      if (adminCheck) {
-        router.push("/dashboard");
-        return;
-      }
+      // Admins can view the membership page freely — no redirect, no payment required
 
       setUser(session.user);
       
@@ -348,11 +333,8 @@ export default function MembershipPage() {
               <div className="bg-blue-500/10 rounded-xl p-4 mb-6 border border-blue-500/20">
                 <h3 className="text-blue-400 font-medium mb-2">Payment Instructions</h3>
                 <p className="text-white/80 text-sm mb-3">
-                  Send exactly <strong className="text-white">155 π</strong> to:
+                  Send exactly <strong className="text-white">155 π</strong> using the <strong className="text-white">Pay with Pi</strong> button below.
                 </p>
-                <div className="bg-black/30 rounded-lg p-3 mb-3">
-                  <span className="text-white font-mono text-xs break-all">GCU5JNKCZXFDH3EJFIH5UKCSA24ZUXJC4YB5OZ6AOSYDC4YHIIFJG4SM</span>
-                </div>
                 <p className="text-white/80 text-sm mb-2">With memo:</p>
                 <div className="bg-black/30 rounded-lg p-3">
                   <span className="text-white font-mono text-sm">{memo}</span>
