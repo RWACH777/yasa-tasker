@@ -1251,6 +1251,13 @@ const handleDenyApplication = async (applicationId: string) => {
 
 // Logout handler - clears session and local storage
 const handleLogout = async () => {
+  // Clear Pi's cached session so the next Pi.authenticate() call is fully
+  // fresh and will re-fetch wallet_address (Pi caches auth results and skips
+  // the permission dialog on repeat logins if the session is still alive).
+  try {
+    const Pi = (window as any).Pi;
+    if (Pi?.logout) await Pi.logout();
+  } catch (_) {}
   await supabase.auth.signOut();
   localStorage.removeItem("pi_user");
   localStorage.removeItem("supabase.auth.token");

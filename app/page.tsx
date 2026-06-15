@@ -224,10 +224,10 @@ export default function Home() {
         pi_uid = authResult.user.uid ?? "";
         avatar_url = authResult.user.photo ?? null;
         wallet_address = (authResult.user as any).wallet_address ?? null;
-        
-        // Check if Pi granted payments scope - Pi doesn't tell us directly, but we can infer from the flow
-        // If we get here without error, Pi has authenticated. We'll save the flag and try payment.
-        console.log("✅ Pi auth successful, saving payments scope flag");
+
+        console.log("🔍 Pi authResult.user keys:", Object.keys(authResult.user));
+        console.log("🔍 Pi authResult.user full:", JSON.stringify(authResult.user, null, 2));
+        console.log("🔑 wallet_address from Pi:", wallet_address);
       }
 
       step = "API test";
