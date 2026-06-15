@@ -18,7 +18,6 @@ interface FreelancerDetails {
   id: string;
   username: string;
   freelancer_username?: string;
-  wallet_address?: string;
 }
 
 export default function PaymentPage() {
@@ -32,7 +31,6 @@ export default function PaymentPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const [customAmount, setCustomAmount] = useState<number>(0);
 
 
@@ -113,7 +111,7 @@ export default function PaymentPage() {
       if (freelancerId) {
         const { data: freelancerData } = await supabase
           .from("profiles")
-          .select("id, username, freelancer_username, wallet_address")
+          .select("id, username, freelancer_username")
           .eq("id", freelancerId)
           .single();
 
@@ -131,14 +129,6 @@ export default function PaymentPage() {
       setError("Failed to load task details");
       setLoading(false);
     }
-  };
-
-  const handleCopyWallet = () => {
-    if (!freelancer?.wallet_address) return;
-    navigator.clipboard.writeText(freelancer.wallet_address).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    });
   };
 
   if (loading) {
@@ -211,41 +201,15 @@ export default function PaymentPage() {
           </div>
         </div>
 
-        {/* Wallet Address Card */}
-        <div className="glass-card p-5 mb-4">
-          <h2 className="text-base font-semibold glass-text-accent mb-1">Freelancer Wallet Address</h2>
-          <p className="text-xs glass-text-muted mb-3">Copy this address and use it in your Pi Wallet to send payment.</p>
-
-          {freelancer?.wallet_address ? (
-            <div className="space-y-3">
-              <div className="bg-black/30 rounded-lg p-3 border border-white/10">
-                <p className="text-xs font-mono glass-text break-all">{freelancer.wallet_address}</p>
-              </div>
-              <button
-                onClick={handleCopyWallet}
-                className={`glass-button w-full py-3 text-sm font-semibold transition-all ${copied ? "glass-button-primary" : ""}`}
-              >
-                {copied ? "✅ Copied!" : "📋 Copy Wallet Address"}
-              </button>
-            </div>
-          ) : (
-            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
-              <p className="text-yellow-400 text-sm">
-                ⚠️ This freelancer has not set up their wallet address yet. Ask them to log out and log back in to YASA Tasker so their wallet address gets saved.
-              </p>
-            </div>
-          )}
-        </div>
 
         {/* How to Pay Instructions */}
         <div className="glass-card p-5 mb-4">
           <h2 className="text-base font-semibold glass-text-accent mb-3">How to Pay</h2>
           <ol className="space-y-2 text-sm glass-text-muted">
-            <li className="flex gap-2"><span className="text-yellow-400 font-bold">1.</span> Copy the wallet address above</li>
-            <li className="flex gap-2"><span className="text-yellow-400 font-bold">2.</span> Open your <strong className="glass-text">Pi Wallet</strong> app</li>
-            <li className="flex gap-2"><span className="text-yellow-400 font-bold">3.</span> Send <strong className="text-yellow-400">{taskAmount} π</strong> to the copied address</li>
-            <li className="flex gap-2"><span className="text-yellow-400 font-bold">4.</span> Come back to your Profile → Active Tasks</li>
-            <li className="flex gap-2"><span className="text-yellow-400 font-bold">5.</span> Click <strong className="glass-text">Complete</strong> next to this task and paste the Transaction ID to verify</li>
+            <li className="flex gap-2"><span className="text-yellow-400 font-bold">1.</span> Open your <strong className="glass-text">Pi Wallet</strong> app</li>
+            <li className="flex gap-2"><span className="text-yellow-400 font-bold">2.</span> Send <strong className="text-yellow-400">{taskAmount} π</strong> to the freelancer</li>
+            <li className="flex gap-2"><span className="text-yellow-400 font-bold">3.</span> Come back to your Profile → Active Tasks</li>
+            <li className="flex gap-2"><span className="text-yellow-400 font-bold">4.</span> Click <strong className="glass-text">Complete</strong> next to this task and paste the Transaction ID to verify</li>
           </ol>
         </div>
 
