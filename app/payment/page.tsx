@@ -32,6 +32,10 @@ export default function PaymentPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [customAmount, setCustomAmount] = useState<number>(0);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [walletRevealed, setWalletRevealed] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<string>("");
 
 
   const taskAmount = customAmount || task?.budget || 0;
@@ -116,6 +120,18 @@ export default function PaymentPage() {
           .single();
 
         if (freelancerData) setFreelancer(freelancerData);
+
+        // Fetch wallet via secure API (only visible to task poster)
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const walletRes = await fetch(`/api/payment/freelancer-wallet?taskId=${taskId}`, {
+            headers: { Authorization: `Bearer ${session?.access_token}` },
+          });
+          if (walletRes.ok) {
+            const wd = await walletRes.json();
+            setWalletAddress(wd.wallet_address || null);
+          }
+        } catch (_) {}
       }
 
       // Check if payment already completed
@@ -202,14 +218,55 @@ export default function PaymentPage() {
         </div>
 
 
+        {/* Freelancer Wallet Address — secure, visible only to this tasker */}
+        <div className="glass-card p-5 mb-4">
+          <h2 className="text-base font-semibold glass-text-accent mb-1">Freelancer Wallet Address</h2>
+          <p className="text-xs glass-text-muted mb-3">Copy this address and use it in your Pi Wallet to send payment.</p>
+
+          {walletAddress ? (
+            <div className="space-y-3">
+              <div className="bg-black/30 rounded-lg p-3 border border-white/10 flex items-center justify-between gap-2">
+                <p className="text-xs font-mono glass-text break-all flex-1">
+                  {walletRevealed
+                    ? walletAddress
+                    : walletAddress.slice(0, 6) + "••••••...••••••" + walletAddress.slice(-6)}
+                </p>
+                <button
+                  onClick={() => setWalletRevealed((v) => !v)}
+                  className="text-xs glass-text-muted whitespace-nowrap"
+                >
+                  {walletRevealed ? "Hide" : "Show"}
+                </button>
+              </div>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(walletAddress);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2500);
+                }}
+                className={`glass-button w-full py-3 text-sm font-semibold transition-all ${copied ? "glass-button-primary" : ""}`}
+              >
+                {copied ? "✅ Copied!" : "📋 Copy Wallet Address"}
+              </button>
+            </div>
+          ) : (
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+              <p className="text-yellow-400 text-sm">
+                ⚠️ Freelancer has not saved a wallet address yet. Ask them to open their profile in YASA Tasker and add their Pi wallet address under “Payment Information”.
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* How to Pay Instructions */}
         <div className="glass-card p-5 mb-4">
           <h2 className="text-base font-semibold glass-text-accent mb-3">How to Pay</h2>
           <ol className="space-y-2 text-sm glass-text-muted">
-            <li className="flex gap-2"><span className="text-yellow-400 font-bold">1.</span> Open your <strong className="glass-text">Pi Wallet</strong> app</li>
-            <li className="flex gap-2"><span className="text-yellow-400 font-bold">2.</span> Send <strong className="text-yellow-400">{taskAmount} π</strong> to the freelancer</li>
-            <li className="flex gap-2"><span className="text-yellow-400 font-bold">3.</span> Come back to your Profile → Active Tasks</li>
-            <li className="flex gap-2"><span className="text-yellow-400 font-bold">4.</span> Click <strong className="glass-text">Complete</strong> next to this task and paste the Transaction ID to verify</li>
+            <li className="flex gap-2"><span className="text-yellow-400 font-bold">1.</span> Copy the wallet address above</li>
+            <li className="flex gap-2"><span className="text-yellow-400 font-bold">2.</span> Open your <strong className="glass-text">Pi Wallet</strong> app</li>
+            <li className="flex gap-2"><span className="text-yellow-400 font-bold">3.</span> Send <strong className="text-yellow-400">{taskAmount} π</strong> to the copied address</li>
+            <li className="flex gap-2"><span className="text-yellow-400 font-bold">4.</span> Come back to your Profile → Active Tasks</li>
+            <li className="flex gap-2"><span className="text-yellow-400 font-bold">5.</span> Click <strong className="glass-text">Complete</strong> and paste the Transaction ID to verify</li>
           </ol>
         </div>
 

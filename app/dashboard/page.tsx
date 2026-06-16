@@ -72,6 +72,12 @@ export default function DashboardPage() {
   const [isSubmittingApplication, setIsSubmittingApplication] = useState(false);
 
   const [freelancerUsername, setFreelancerUsername] = useState("");
+  const [walletInput, setWalletInput] = useState("");
+  const [walletData, setWalletData] = useState<any>(null);
+  const [showWalletInput, setShowWalletInput] = useState(false);
+  const [showPrivacyNotice, setShowPrivacyNotice] = useState(false);
+  const [walletSaving, setWalletSaving] = useState(false);
+  const [walletMessage, setWalletMessage] = useState("");
 
   // New state for features
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -757,7 +763,7 @@ export default function DashboardPage() {
     if (task.assignee_id) {
       const { data: freelancer } = await supabase
         .from("profiles")
-        .select("id, username, freelancer_username, wallet_address")
+        .select("id, username, freelancer_username")
         .eq("id", task.assignee_id)
         .single();
       setCompletingFreelancer(freelancer || null);
@@ -769,10 +775,6 @@ export default function DashboardPage() {
   const handleVerifyAndComplete = async () => {
     if (!txidInput.trim()) {
       setVerifyError("Please enter the Transaction ID.");
-      return;
-    }
-    if (!completingFreelancer?.wallet_address) {
-      setVerifyError("Freelancer wallet address not found. Ask them to re-login to update their profile.");
       return;
     }
 
@@ -816,7 +818,6 @@ export default function DashboardPage() {
         sender_username: user.username,
         receiver_uid: completingFreelancer.id,
         receiver_username: completingFreelancer.freelancer_username || completingFreelancer.username,
-        receiver_wallet_address: completingFreelancer.wallet_address,
         total_amount: completingTask.budget,
         net_amount: completingTask.budget,
         status: "success",
@@ -824,11 +825,25 @@ export default function DashboardPage() {
         payment_memo: `Payment for task: ${completingTask.title}`,
       });
 
-      // Notify freelancer
+      // Create payment ledger entry
+      await supabase.from("payment_ledger").insert({
+        task_id: completingTask.id,
+        tasker_id: user.id,
+        freelancer_id: completingFreelancer.id,
+        amount_pi: completingTask.budget,
+        currency: "PI",
+        payment_status: "payment_sent",
+        transaction_reference: txidInput.trim(),
+        confirmed_by_tasker: true,
+        confirmed_by_freelancer: false,
+        notes: `Payment for task: ${completingTask.title}`,
+      });
+
+      // Notify freelancer to confirm payment received
       await supabase.from("notifications").insert({
         user_id: completingFreelancer.id,
         type: "payment_received",
-        message: `Payment confirmed for "${completingTask.title}". Please rate your experience!`,
+        message: `Tasker has marked payment as sent for "${completingTask.title}". Please confirm you received ${completingTask.budget} π to close the task.`,
         related_task_id: completingTask.id,
         read: false,
       });
@@ -1264,6 +1279,46 @@ const handleLogout = async () => {
   router.push("/");
 };
 
+// Load own wallet data from secure API
+const loadWalletData = async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) return;
+  try {
+    const res = await fetch("/api/profile/wallet", {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (res.ok) setWalletData(await res.json());
+  } catch (_) {}
+};
+
+// Save wallet address via secure API
+const handleSaveWallet = async (acknowledged: boolean) => {
+  if (!walletInput.trim()) return;
+  setWalletSaving(true);
+  setWalletMessage("");
+  const { data: { session } } = await supabase.auth.getSession();
+  try {
+    const res = await fetch("/api/profile/wallet", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+      body: JSON.stringify({ wallet_address: walletInput.trim(), acknowledged }),
+    });
+    const result = await res.json();
+    if (res.ok) {
+      setWalletMessage("\u2705 Wallet address saved securely!");
+      setShowWalletInput(false);
+      setShowPrivacyNotice(false);
+      setWalletInput("");
+      await loadWalletData();
+    } else {
+      setWalletMessage("\u274c " + result.error);
+    }
+  } catch (e: any) {
+    setWalletMessage("\u274c " + e.message);
+  }
+  setWalletSaving(false);
+};
+
 // Update freelancer username
 const handleUpdateFreelancerUsername = async () => {
   if (!user?.id || !freelancerUsername.trim()) {
@@ -1333,6 +1388,7 @@ const handleUpdateFreelancerUsername = async () => {
           if (user?.id) {
             loadProfileTasks();
             loadUserRatings();
+            loadWalletData();
             setShowProfileModal(true);
           }
         }}
@@ -1360,6 +1416,34 @@ const handleUpdateFreelancerUsername = async () => {
           <p className="glass-text">⚠️ Please log in with Pi to view your profile.</p>
         )}
       </div>
+
+      {/* WALLET PRIVACY NOTICE MODAL */}
+      {showPrivacyNotice && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70">
+          <div className="glass-modal p-6 max-w-sm w-full">
+            <h3 className="font-semibold glass-text mb-3">🔐 Wallet Address Privacy</h3>
+            <ul className="text-xs glass-text-muted space-y-2 mb-4 list-none">
+              <li>• Only you can view and edit your wallet address.</li>
+              <li>• Other users cannot view or access your wallet address.</li>
+              <li>• YASA Tasker acts as the secure bridge — your address is used only to receive task payments.</li>
+              <li>• Your wallet address is never publicly displayed or shared.</li>
+              <li>• Your wallet info prepares your account for future automatic A2U payments when Pi enables this.</li>
+            </ul>
+            <div className="flex gap-2">
+              <button onClick={() => setShowPrivacyNotice(false)} className="glass-button px-4 py-2 text-sm flex-1">
+                Cancel
+              </button>
+              <button
+                onClick={() => handleSaveWallet(true)}
+                disabled={walletSaving}
+                className="glass-button glass-button-primary px-4 py-2 text-sm flex-1 disabled:opacity-50"
+              >
+                {walletSaving ? "Saving..." : "I Understand & Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* PROFILE MODAL */}
       {showProfileModal && user && (
@@ -1416,6 +1500,60 @@ const handleUpdateFreelancerUsername = async () => {
                   )}
                 </div>
               </div>
+
+              {/* Payment Information */}
+              <div className="mt-4 w-full border-t border-white/10 pt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs glass-text-muted font-semibold">🔐 Payment Wallet Address</label>
+                  {walletData?.wallet_address && !showWalletInput && (
+                    <button onClick={() => { setShowWalletInput(true); setWalletMessage(""); }} className="text-xs glass-text-accent underline">
+                      Edit
+                    </button>
+                  )}
+                </div>
+
+                {walletData?.wallet_address && !showWalletInput ? (
+                  <div>
+                    <div className="glass-input px-3 py-2 text-xs font-mono tracking-wider select-none">
+                      {walletData.wallet_address.slice(0, 6)}••••••...••••••{walletData.wallet_address.slice(-6)}
+                    </div>
+                    {walletData.wallet_updated_at && (
+                      <p className="text-[10px] glass-text-muted/60 mt-1">
+                        Updated: {new Date(walletData.wallet_updated_at).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex gap-2 flex-wrap">
+                    <input
+                      type="text"
+                      placeholder="Your Pi wallet address (starts with G, 56 chars)"
+                      value={walletInput}
+                      onChange={(e) => setWalletInput(e.target.value)}
+                      className="flex-1 min-w-0 glass-input px-3 py-2 text-xs font-mono"
+                    />
+                    <button
+                      onClick={() => {
+                        if (!walletData?.wallet_acknowledged) setShowPrivacyNotice(true);
+                        else handleSaveWallet(true);
+                      }}
+                      disabled={walletSaving || !walletInput.trim()}
+                      className="glass-button glass-button-primary px-4 py-2 text-sm flex-shrink-0 whitespace-nowrap disabled:opacity-50"
+                    >
+                      {walletSaving ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                )}
+
+                {walletMessage && <p className="text-xs mt-1">{walletMessage}</p>}
+
+                {!walletData?.wallet_address && (
+                  <p className="text-[10px] glass-text-muted/60 mt-2">
+                    🔒 Encrypted and private. Only you can see this. Used only to receive task payments.
+                  </p>
+                )}
+              </div>
+
               <p className="text-xs glass-text-muted mt-3">
                 ⭐️ Rating: {user.average_rating && user.average_rating > 0 ? `${user.average_rating}/5 (${user.total_ratings || 0} ratings)` : "No ratings yet"} • Completed: {user.completed_tasks || 0}
               </p>
