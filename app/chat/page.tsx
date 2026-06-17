@@ -365,14 +365,10 @@ export default function ChatPage() {
         .order("created_at", { ascending: true });
 
       if (otherUserId) {
-        // Primary filter: exact conversation between the two users
+        // Filter only by the exact user pair — never by task_id so full history is always visible
         query = query.or(
           `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
         );
-        // Secondary filter: scope to this specific task when available
-        if (taskId) {
-          query = query.eq("task_id", taskId);
-        }
       } else if (taskId) {
         // No other user known yet – at minimum only show messages this user sent or received
         query = query.eq("task_id", taskId)
@@ -413,17 +409,13 @@ export default function ChatPage() {
     // Mark all unread messages from other user as read
     const markMessagesAsRead = async () => {
       try {
-        // Update messages where read is false OR null/undefined (unread)
-        let readQuery = supabase
+        // Mark all messages from the other user in this conversation as read
+        const readQuery = supabase
           .from("messages")
           .update({ read: true })
           .eq("sender_id", otherUserId)
           .eq("receiver_id", user.id)
           .or("read.eq.false,read.is.null");
-
-        if (taskId) {
-          readQuery = readQuery.eq("task_id", taskId);
-        }
 
         const { error } = await readQuery;
 
@@ -453,7 +445,6 @@ export default function ChatPage() {
         pollQuery = pollQuery.or(
           `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
         );
-        if (taskId) pollQuery = pollQuery.eq("task_id", taskId);
       } else if (taskId) {
         pollQuery = pollQuery.eq("task_id", taskId)
           .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
@@ -474,13 +465,12 @@ export default function ChatPage() {
     // Supabase realtime postgres_changes only supports a single equality
     // filter, so we use a valid single-column filter and verify the pair
     // client-side. (Invalid or(and(...)) filters silently break the channel.)
-    const insertFilter = taskId
-      ? `task_id=eq.${taskId}`
-      : `receiver_id=eq.${user.id}`;
+    // Always use receiver_id as the realtime filter so messages from all
+    // tasks between this pair are captured, not just the current task.
+    const insertFilter = `receiver_id=eq.${user.id}`;
 
     const belongsToConversation = (row: any) => {
       if (!row) return false;
-      if (taskId && row.task_id && row.task_id !== taskId) return false;
       const isPair =
         (row.sender_id === user.id && row.receiver_id === otherUserId) ||
         (row.sender_id === otherUserId && row.receiver_id === user.id);
@@ -617,31 +607,33 @@ export default function ChatPage() {
           setTaskPosterId(data.poster_id);
           
           // Check if current user already rated this task
-          if (user?.id && otherUser?.id && taskId) {
+          // Use otherUserId constant (always available) as fallback for otherUser state
+          let alreadyRated = false;
+          const ratingTargetId = otherUser?.id || otherUserId;
+          if (user?.id && ratingTargetId && taskId) {
             try {
               const { data: existingRatings, error } = await supabase
                 .from("ratings")
                 .select("id")
                 .eq("rater_id", user.id)
-                .eq("rated_user_id", otherUser.id)
+                .eq("rated_user_id", ratingTargetId)
                 .eq("task_id", taskId);
 
               if (error) {
                 console.error("Error checking existing ratings:", error);
               } else {
-                const hasRatedTask = existingRatings && existingRatings.length > 0;
-                setHasRatedThisTask(hasRatedTask);
-                console.log("User has rated this task:", hasRatedTask);
+                alreadyRated = !!(existingRatings && existingRatings.length > 0);
+                setHasRatedThisTask(alreadyRated);
+                console.log("User has rated this task:", alreadyRated);
               }
             } catch (err) {
               console.error("Exception checking ratings:", err);
             }
           }
           
-          // Auto-show rating modal if task is completed
-          if (data.status === "completed") {
-            console.log("Task is completed, showing rating modal");
-            // STEP 6: Clean up localStorage when task is completed
+          // Auto-show rating modal only if task is completed AND not yet rated
+          if (data.status === "completed" && !alreadyRated) {
+            console.log("Task completed and not yet rated — showing rating modal");
             localStorage.removeItem("activeTaskId");
             localStorage.removeItem("activeChatUserId");
             setTimeout(() => setShowRatingModal(true), 800);
@@ -679,35 +671,29 @@ export default function ChatPage() {
           
           // Auto-show rating modal when task becomes completed
           if (payload.new.status === "completed") {
-            console.log("🎯 Task just completed! Showing rating modal for both users");
-            
-            // Check if current user already rated (if otherUser is loaded)
-            if (user?.id && otherUser?.id && taskId) {
+            let realtimeAlreadyRated = false;
+            const realtimeTarget = otherUser?.id || otherUserId;
+
+            if (user?.id && realtimeTarget && taskId) {
               try {
-                const { data: existingRatings, error } = await supabase
+                const { data: existingRatings } = await supabase
                   .from("ratings")
                   .select("id")
                   .eq("rater_id", user.id)
-                  .eq("rated_user_id", otherUser.id)
+                  .eq("rated_user_id", realtimeTarget)
                   .eq("task_id", taskId);
 
-                if (error) {
-                  console.error("❌ Error checking existing ratings:", error);
-                } else {
-                  const hasRated = existingRatings && existingRatings.length > 0;
-                  console.log("✅ User has already rated:", hasRated);
-                  setHasRatedThisTask(hasRated);
-                }
+                realtimeAlreadyRated = !!(existingRatings && existingRatings.length > 0);
+                setHasRatedThisTask(realtimeAlreadyRated);
               } catch (err) {
                 console.error("❌ Exception checking ratings:", err);
               }
-            } else {
-              console.warn("⚠️ otherUser not loaded yet, will check ratings when modal opens");
             }
-            
-            // Always show modal when task is completed (for both tasker and freelancer)
-            console.log("📢 Showing rating modal now");
-            setShowRatingModal(true);
+
+            if (!realtimeAlreadyRated) {
+              console.log("📢 Task completed \u2014 showing rating modal");
+              setShowRatingModal(true);
+            }
           }
         }
       )
@@ -730,7 +716,10 @@ export default function ChatPage() {
             console.log("📊 Polling detected task completion!");
             setTaskStatus(data.status);
             setTaskPosterId(data.poster_id);
-            setTimeout(() => setShowRatingModal(true), 500);
+            // Only show if not already rated
+            if (!hasRatedThisTask) {
+              setTimeout(() => setShowRatingModal(true), 500);
+            }
           }
         }
       } catch (err) {

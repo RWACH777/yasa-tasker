@@ -145,6 +145,7 @@ export default function DashboardPage() {
   // Notifications state
   const [notificationCount, setNotificationCount] = useState(0);
   const [messageCount, setMessageCount] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [showMyTasks, setShowMyTasks] = useState(false);
@@ -179,6 +180,13 @@ export default function DashboardPage() {
       // Load notification count
       await loadNotificationCount(authUserId);
       await loadMessageCount(authUserId);
+      // Check admin status
+      const { data: adminData } = await supabase
+        .from("admin_users")
+        .select("user_id")
+        .eq("user_id", authUserId)
+        .maybeSingle();
+      setIsAdmin(!!adminData);
     }
   };
 
@@ -193,17 +201,15 @@ export default function DashboardPage() {
     setNotificationCount(data?.length || 0);
   };
 
-  // Load message count (conversations with unread messages)
+  // Load message count — total unread messages received by this user
   const loadMessageCount = async (userId: string) => {
     const { data: received } = await supabase
       .from("messages")
-      .select("sender_id")
+      .select("id")
       .eq("receiver_id", userId)
-      .or("read.eq.false,read.is.null");
+      .eq("read", false);
     
-    // Count unique senders with unread messages (conversations with new messages)
-    const uniqueSenders = new Set(received?.map((msg) => msg.sender_id) || []);
-    setMessageCount(uniqueSenders.size);
+    setMessageCount(received?.length || 0);
   };
 
   // 🔥 FIXED — prevents double login & ensures correct session flow + session persistence on refresh
@@ -1579,14 +1585,16 @@ const handleUpdateFreelancerUsername = async () => {
                 ID: {user.id}
               </p>
               
-              {/* Admin Button */}
-              <Link
-                href="/admin/disputes"
-                className="glass-button glass-button-primary mt-4 px-6 py-2 text-sm"
-                onClick={() => setShowProfileModal(false)}
-              >
-                🛡️ Admin Panel
-              </Link>
+              {/* Admin Button — only visible to admin users */}
+              {isAdmin && (
+                <Link
+                  href="/admin/disputes"
+                  className="glass-button glass-button-primary mt-4 px-6 py-2 text-sm"
+                  onClick={() => setShowProfileModal(false)}
+                >
+                  🛡️ Admin Panel
+                </Link>
+              )}
             </div>
 
             {/* Profile View Tabs */}
