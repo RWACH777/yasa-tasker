@@ -1,14 +1,70 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { decryptWallet } from "@/lib/walletEncryption";
 
 const PI_HORIZON_URL = "https://api.mainnet.minepi.com";
 
+function getAdminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  );
+}
+
+async function resolveRecipientWallet(
+  taskId: string
+): Promise<{ wallet: string | null; freelancerId: string | null }> {
+  const admin = getAdminClient();
+
+  const { data: task } = await admin
+    .from("tasks")
+    .select("assignee_id")
+    .eq("id", taskId)
+    .single();
+
+  if (!task?.assignee_id) return { wallet: null, freelancerId: null };
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id, user_wallet_address, wallet_address")
+    .eq("id", task.assignee_id)
+    .single();
+
+  if (!profile) return { wallet: null, freelancerId: null };
+
+  let wallet: string | null = null;
+  if (profile.user_wallet_address) {
+    try { wallet = decryptWallet(profile.user_wallet_address); } catch (_) {}
+  } else if (profile.wallet_address) {
+    wallet = profile.wallet_address;
+  }
+
+  return { wallet, freelancerId: profile.id };
+}
+
 export async function POST(req: Request) {
   try {
-    const { txid, expectedRecipient, expectedAmount } = await req.json();
+    const { txid, expectedRecipient, expectedAmount, taskId } = await req.json();
 
-    if (!txid || !expectedRecipient) {
+    if (!txid) {
       return NextResponse.json(
-        { error: "Missing transaction ID or recipient address." },
+        { error: "Missing transaction ID." },
+        { status: 400 }
+      );
+    }
+
+    // Resolve recipient wallet: prefer server-side lookup via taskId (secure),
+    // fall back to client-supplied expectedRecipient for legacy calls.
+    let recipientWallet = expectedRecipient || null;
+    if (!recipientWallet && taskId) {
+      const { wallet } = await resolveRecipientWallet(taskId);
+      recipientWallet = wallet;
+    }
+
+    if (!recipientWallet) {
+      return NextResponse.json(
+        { error: "Freelancer has not saved a wallet address yet. Ask them to add it in their YASA Tasker profile under Payment Information." },
         { status: 400 }
       );
     }
@@ -60,7 +116,7 @@ export async function POST(req: Request) {
     const paymentOp = operations.find(
       (op: any) =>
         op.type === "payment" &&
-        op.to === expectedRecipient &&
+        op.to === recipientWallet &&
         op.asset_type === "native"
     );
 

@@ -787,7 +787,7 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           txid: txidInput.trim(),
-          expectedRecipient: completingFreelancer.wallet_address,
+          taskId: completingTask.id,
           expectedAmount: completingTask.budget,
         }),
       });
