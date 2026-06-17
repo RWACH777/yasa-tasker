@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { getAuthenticatedUser } from "@/lib/apiAuth";
+
+const MAX_CONTENT_LENGTH = 8000;
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -56,6 +59,12 @@ const TOOLS: Record<string, { system: string; model: "claude-haiku-4-5" | "claud
 
 export async function POST(req: Request) {
   try {
+    // Require authenticated user to prevent API cost abuse
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { tool, content, targetLanguage } = await req.json();
 
     if (!tool || !content?.trim()) {
@@ -65,6 +74,10 @@ export async function POST(req: Request) {
     const toolConfig = TOOLS[tool];
     if (!toolConfig) {
       return NextResponse.json({ error: `Unknown tool: ${tool}` }, { status: 400 });
+    }
+
+    if (content.length > MAX_CONTENT_LENGTH) {
+      return NextResponse.json({ error: "Content too long. Max 8000 characters." }, { status: 400 });
     }
 
     if (!process.env.ANTHROPIC_API_KEY) {

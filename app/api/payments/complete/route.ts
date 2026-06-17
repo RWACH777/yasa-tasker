@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthenticatedUser } from "@/lib/apiAuth";
 
 // Pi Platform API base path (see https://github.com/pi-apps/pi-platform-docs)
 const PI_API_URL = "https://api.minepi.com/v2";
@@ -14,6 +15,11 @@ const PI_API_URL = "https://api.minepi.com/v2";
  */
 export async function POST(req: NextRequest) {
   try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { paymentId, txid } = await req.json();
 
     if (!paymentId || !txid) {

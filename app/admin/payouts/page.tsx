@@ -37,32 +37,29 @@ export default function AdminPayoutsPage() {
   // Check admin status and load user
   useEffect(() => {
     const checkAdmin = async () => {
-      const stored = localStorage.getItem("pi_user");
-      if (!stored) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
         router.push("/");
         return;
       }
 
-      const userData = JSON.parse(stored);
-      setUser(userData);
+      setUser(session.user);
 
-      // Check if user is admin
+      // Check if user is admin via authenticated session
       const { data: adminData, error: adminError } = await supabase
         .from("admin_users")
         .select("*")
-        .eq("user_id", userData.id)
+        .eq("user_id", session.user.id)
         .maybeSingle();
 
       if (adminError) {
-        console.error("Admin check error:", adminError);
-        setError(`Access denied. User ID: ${userData.id}. Error: ${adminError?.message}`);
+        setError("Access denied.");
         setLoading(false);
         return;
       }
 
       if (!adminData) {
-        console.error("Admin check: User not found in admin_users table");
-        setError(`Access denied. User ID: ${userData.id} is not an admin`);
+        setError("Access denied. You are not an admin.");
         setLoading(false);
         return;
       }

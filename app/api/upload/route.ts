@@ -1,6 +1,7 @@
 // app/api/upload/route.ts
 import { NextResponse } from "next/server";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getAuthenticatedUser } from "@/lib/apiAuth";
 
 // Cloudflare R2 is S3-compatible
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
@@ -30,6 +31,12 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 export async function POST(req: Request) {
   try {
+    // Require authenticated user
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     // Check credentials
     if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
       console.error("Missing R2 environment variables");

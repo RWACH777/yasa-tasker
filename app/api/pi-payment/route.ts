@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getAuthenticatedUser } from "@/lib/apiAuth";
 
 // Pi Network API endpoints
 const PI_API_URL = "https://api.minepi.com/v2";
@@ -17,8 +18,16 @@ const supabaseAdmin = createClient(
 );
 
 export async function POST(req: NextRequest) {
+  // Hoist body so catch block can reference transactionId for error logging
+  let body: any = {};
+
   try {
-    const body = await req.json();
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    body = await req.json();
     const {
       transactionId,
       taskId,

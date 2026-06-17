@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   let step = "Parsing request";
   try {
     const { username, pi_uid, avatar_url, wallet_address } = await req.json();
-    console.log("🔵 LOGIN API:", { username, pi_uid, wallet_address });
+    console.log("🔵 LOGIN API:", { username, pi_uid, hasWallet: !!wallet_address });
 
     step = "Checking env vars";
 
