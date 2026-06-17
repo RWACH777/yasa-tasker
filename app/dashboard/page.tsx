@@ -2213,7 +2213,7 @@ const handleUpdateFreelancerUsername = async () => {
             {tasks.map((task) => (
               <div
                 key={task.id}
-                className="glass-list-item p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center"
+                className={`glass-list-item p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center${task.status === "completed" ? " opacity-50 grayscale" : ""}`}
               >
                 <div className="flex-1">
                   <h3 className="font-semibold glass-text">{task.title}</h3>
@@ -2230,6 +2230,9 @@ const handleUpdateFreelancerUsername = async () => {
                       <span className="text-xs bg-white/10 text-white/60 px-2 py-0.5 rounded-full">👤 Human Only</span>
                     )}
                   </div>
+                  {task.status === "completed" && (
+                    <p className="text-xs text-white/40 mt-1.5">🔒 Closed Task</p>
+                  )}
                 </div>
 
                 <div className="flex gap-2 mt-3 sm:mt-0 flex-wrap sm:flex-nowrap">
@@ -2248,7 +2251,7 @@ const handleUpdateFreelancerUsername = async () => {
                         Delete
                       </button>
                     </>
-                  ) : (
+                  ) : task.status === "completed" ? null : (
                     <button
                       onClick={() => handleApplyToTask(task.id)}
                       className="glass-button glass-button-success px-3 py-1 text-sm"
