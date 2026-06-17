@@ -5,33 +5,35 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 
-interface PayoutRequest {
+interface LedgerEntry {
   id: string;
-  task_id: string;
-  transaction_id: string;
-  freelancer_uid: string;
-  freelancer_username: string;
-  freelancer_wallet_address: string;
-  amount: number;
-  fee_amount: number;
-  status: string;
+  task_id: string | null;
+  tasker_id: string | null;
+  freelancer_id: string | null;
+  amount_pi: number;
+  currency: string;
+  payment_status: string;
+  transaction_reference: string | null;
+  confirmed_by_tasker: boolean;
+  confirmed_by_freelancer: boolean;
+  notes: string | null;
   created_at: string;
-  processed_by?: string;
-  processed_at?: string;
-  notes?: string;
-  pi_txid?: string;
+  updated_at: string;
+  task?: { title: string; budget: number } | null;
+  tasker?: { username: string } | null;
+  freelancer?: { username: string; freelancer_username: string | null } | null;
 }
 
 export default function AdminPayoutsPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [payouts, setPayouts] = useState<PayoutRequest[]>([]);
+  const [payouts, setPayouts] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const [txIdInput, setTxIdInput] = useState<string>("");
-  const [notesInput, setNotesInput] = useState<string>("");
+  const [txIdInput, setTxIdInput] = useState<Record<string, string>>({});
+  const [notesInput, setNotesInput] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<string>("all");
 
   // Check admin status and load user
@@ -71,104 +73,124 @@ export default function AdminPayoutsPage() {
     checkAdmin();
   }, [router]);
 
-  // Load all payout requests
   const loadPayouts = async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from("payout_requests")
-        .select("*")
+        .from("payment_ledger")
+        .select(`
+          *,
+          task:tasks(title, budget),
+          tasker:profiles!payment_ledger_tasker_id_fkey(username),
+          freelancer:profiles!payment_ledger_freelancer_id_fkey(username, freelancer_username)
+        `)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-
       setPayouts(data || []);
     } catch (err: any) {
-      setError("Failed to load payout requests: " + err.message);
+      setError("Failed to load payment ledger: " + err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Mark payout as completed
-  const markAsCompleted = async (payoutId: string) => {
-    if (!txIdInput.trim()) {
-      alert("Please enter the Pi transaction ID (txid) from your Pi Browser payment");
+  const markAsConfirmed = async (entryId: string) => {
+    const txid = txIdInput[entryId]?.trim();
+    if (!txid) {
+      alert("Please enter the Pi transaction ID before confirming.");
       return;
     }
 
     try {
-      setProcessingId(payoutId);
-
+      setProcessingId(entryId);
       const { error } = await supabase
-        .from("payout_requests")
+        .from("payment_ledger")
         .update({
-          status: "completed",
-          processed_by: user?.id,
-          processed_at: new Date().toISOString(),
-          pi_txid: txIdInput.trim(),
-          notes: notesInput.trim() || "Payout completed manually via Pi Browser",
+          payment_status: "payment_confirmed",
+          transaction_reference: txid,
+          confirmed_by_freelancer: true,
+          notes: notesInput[entryId]?.trim() || "Confirmed by admin",
+          updated_at: new Date().toISOString(),
         })
-        .eq("id", payoutId);
+        .eq("id", entryId);
 
       if (error) throw error;
-
-      // Reset form
-      setTxIdInput("");
-      setNotesInput("");
-
-      // Reload payouts
+      setTxIdInput((p) => ({ ...p, [entryId]: "" }));
+      setNotesInput((p) => ({ ...p, [entryId]: "" }));
       await loadPayouts();
-      alert("Payout marked as completed!");
     } catch (err: any) {
-      alert("Failed to update payout: " + err.message);
+      alert("Failed to confirm payout: " + err.message);
     } finally {
       setProcessingId(null);
     }
   };
 
-  // Cancel a payout request
+  const markAsDisputed = async (entryId: string) => {
+    if (!confirm("Mark this payment as disputed?")) return;
+    try {
+      setProcessingId(entryId);
+      const { error } = await supabase
+        .from("payment_ledger")
+        .update({
+          payment_status: "disputed",
+          notes: notesInput[entryId]?.trim() || "Disputed by admin",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", entryId);
+      if (error) throw error;
+      await loadPayouts();
+    } catch (err: any) {
+      alert("Failed: " + err.message);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   const cancelPayout = async (payoutId: string) => {
-    if (!confirm("Are you sure you want to cancel this payout request?")) return;
+    if (!confirm("Cancel this payment record?")) return;
 
     try {
       setProcessingId(payoutId);
 
       const { error } = await supabase
-        .from("payout_requests")
+        .from("payment_ledger")
         .update({
-          status: "cancelled",
-          processed_by: user?.id,
-          processed_at: new Date().toISOString(),
-          notes: notesInput.trim() || "Cancelled by admin",
+          payment_status: "cancelled",
+          notes: notesInput[payoutId]?.trim() || "Cancelled by admin",
+          updated_at: new Date().toISOString(),
         })
         .eq("id", payoutId);
 
       if (error) throw error;
-
       await loadPayouts();
-      alert("Payout request cancelled!");
     } catch (err: any) {
-      alert("Failed to cancel payout: " + err.message);
+      alert("Failed to cancel: " + err.message);
     } finally {
       setProcessingId(null);
     }
   };
 
-  // Filter payouts
-  const filteredPayouts = payouts.filter((p) => {
-    if (filter === "all") return true;
-    return p.status === filter;
-  });
+  const filteredPayouts = payouts.filter((p) =>
+    filter === "all" ? true : p.payment_status === filter
+  );
 
-  // Calculate totals
   const pendingTotal = payouts
-    .filter((p) => p.status === "pending")
-    .reduce((sum, p) => sum + p.amount, 0);
+    .filter((p) => ["payment_sent", "awaiting_payment"].includes(p.payment_status))
+    .reduce((sum, p) => sum + Number(p.amount_pi), 0);
 
-  const completedTotal = payouts
-    .filter((p) => p.status === "completed")
-    .reduce((sum, p) => sum + p.amount, 0);
+  const confirmedTotal = payouts
+    .filter((p) => p.payment_status === "payment_confirmed")
+    .reduce((sum, p) => sum + Number(p.amount_pi), 0);
+
+  const statusColor: Record<string, string> = {
+    pending: "bg-gray-500/20 text-gray-400",
+    awaiting_payment: "bg-blue-500/20 text-blue-400",
+    payment_sent: "bg-yellow-500/20 text-yellow-400",
+    payment_confirmed: "bg-green-500/20 text-green-400",
+    disputed: "bg-red-500/20 text-red-400",
+    cancelled: "bg-gray-500/20 text-gray-500",
+  };
 
   if (loading) {
     return (
@@ -214,38 +236,44 @@ export default function AdminPayoutsPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="glass-card p-4">
-            <p className="text-sm glass-text-muted mb-1">Total Payout Requests</p>
+            <p className="text-sm glass-text-muted mb-1">Total Records</p>
             <p className="text-2xl font-bold glass-text">{payouts.length}</p>
           </div>
           <div className="glass-card p-4 border-yellow-500/30">
-            <p className="text-sm glass-text-muted mb-1">Pending Payouts</p>
+            <p className="text-sm glass-text-muted mb-1">Awaiting / Sent</p>
             <p className="text-2xl font-bold text-yellow-400">
-              {payouts.filter((p) => p.status === "pending").length}
+              {payouts.filter((p) => ["payment_sent","awaiting_payment"].includes(p.payment_status)).length}
             </p>
             <p className="text-sm text-yellow-400/70">{pendingTotal.toFixed(2)} π</p>
           </div>
           <div className="glass-card p-4 border-green-500/30">
-            <p className="text-sm glass-text-muted mb-1">Completed Payouts</p>
+            <p className="text-sm glass-text-muted mb-1">Confirmed</p>
             <p className="text-2xl font-bold text-green-400">
-              {payouts.filter((p) => p.status === "completed").length}
+              {payouts.filter((p) => p.payment_status === "payment_confirmed").length}
             </p>
-            <p className="text-sm text-green-400/70">{completedTotal.toFixed(2)} π</p>
+            <p className="text-sm text-green-400/70">{confirmedTotal.toFixed(2)} π</p>
+          </div>
+          <div className="glass-card p-4 border-red-500/30">
+            <p className="text-sm glass-text-muted mb-1">Disputed</p>
+            <p className="text-2xl font-bold text-red-400">
+              {payouts.filter((p) => p.payment_status === "disputed").length}
+            </p>
           </div>
         </div>
 
         {/* Filter */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-          {["all", "pending", "completed", "cancelled"].map((f) => (
+          {["all","awaiting_payment","payment_sent","payment_confirmed","disputed","cancelled"].map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`glass-button text-sm capitalize ${
+              className={`glass-button text-sm whitespace-nowrap ${
                 filter === f ? "glass-button-primary" : "glass-button-secondary"
               }`}
             >
-              {f} ({f === "all" ? payouts.length : payouts.filter((p) => p.status === f).length})
+              {f === "all" ? "All" : f.replace(/_/g, " ")} ({f === "all" ? payouts.length : payouts.filter((p) => p.payment_status === f).length})
             </button>
           ))}
         </div>
@@ -269,114 +297,110 @@ export default function AdminPayoutsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/10">
-                  {filteredPayouts.map((payout) => (
-                    <tr key={payout.id} className="hover:bg-white/5">
+                  {filteredPayouts.map((entry) => (
+                    <tr key={entry.id} className="hover:bg-white/5">
                       <td className="p-4">
-                        <div className="flex flex-col">
-                          <span className="font-medium glass-text">
-                            {payout.freelancer_username || "Unknown"}
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-medium glass-text text-sm">
+                            {entry.task?.title || "Unknown task"}
                           </span>
-                          <span className="text-xs glass-text-muted font-mono">
-                            {payout.freelancer_uid.slice(0, 8)}...
+                          <span className="text-xs glass-text-muted">
+                            Tasker: {entry.tasker?.username || "—"}
                           </span>
-                          {payout.freelancer_wallet_address && (
-                            <span className="text-xs text-blue-400 font-mono mt-1">
-                              Wallet: {payout.freelancer_wallet_address.slice(0, 12)}...
+                          <span className="text-xs glass-text-muted">
+                            Freelancer: {entry.freelancer?.freelancer_username || entry.freelancer?.username || "—"}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <span className="text-lg font-bold text-green-400">
+                          {Number(entry.amount_pi).toFixed(4)} π
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex flex-col gap-1">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium w-fit ${statusColor[entry.payment_status] || "bg-gray-500/20 text-gray-400"}` }>
+                            {entry.payment_status.replace(/_/g, " ")}
+                          </span>
+                          <span className="text-[10px] glass-text-muted">
+                            Tasker ✓: {entry.confirmed_by_tasker ? "Yes" : "No"} · Freelancer ✓: {entry.confirmed_by_freelancer ? "Yes" : "No"}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex flex-col text-xs glass-text-muted">
+                          <span>{new Date(entry.created_at).toLocaleDateString()}</span>
+                          <span>{new Date(entry.created_at).toLocaleTimeString()}</span>
+                          {entry.transaction_reference && (
+                            <span className="font-mono mt-1 text-blue-400">
+                              TX: {entry.transaction_reference.slice(0, 16)}...
                             </span>
                           )}
                         </div>
                       </td>
                       <td className="p-4">
-                        <div className="flex flex-col">
-                          <span className="text-lg font-bold text-green-400">
-                            {payout.amount.toFixed(2)} π
-                          </span>
-                          <span className="text-xs glass-text-muted">
-                            Fee: {payout.fee_amount.toFixed(2)} π
-                          </span>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            payout.status === "pending"
-                              ? "bg-yellow-500/20 text-yellow-400"
-                              : payout.status === "completed"
-                              ? "bg-green-500/20 text-green-400"
-                              : "bg-red-500/20 text-red-400"
-                          }`}
-                        >
-                          {payout.status}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex flex-col text-sm">
-                          <span className="glass-text">
-                            {new Date(payout.created_at).toLocaleDateString()}
-                          </span>
-                          <span className="text-xs glass-text-muted">
-                            {new Date(payout.created_at).toLocaleTimeString()}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        {payout.status === "pending" && (
+                        {["payment_sent", "awaiting_payment"].includes(entry.payment_status) && (
                           <div className="flex flex-col gap-2">
                             <input
                               type="text"
-                              placeholder="Enter Pi TXID after manual payment"
-                              value={txIdInput}
-                              onChange={(e) => setTxIdInput(e.target.value)}
-                              className="glass-input px-3 py-2 text-sm w-full min-w-[200px]"
+                              placeholder="Pi TXID (if not auto-filled)"
+                              value={txIdInput[entry.id] || ""}
+                              onChange={(e) => setTxIdInput((p) => ({ ...p, [entry.id]: e.target.value }))}
+                              className="glass-input px-3 py-2 text-xs w-full min-w-[180px]"
                             />
                             <input
                               type="text"
-                              placeholder="Notes (optional)"
-                              value={notesInput}
-                              onChange={(e) => setNotesInput(e.target.value)}
-                              className="glass-input px-3 py-2 text-sm w-full min-w-[200px]"
+                              placeholder="Admin notes (optional)"
+                              value={notesInput[entry.id] || ""}
+                              onChange={(e) => setNotesInput((p) => ({ ...p, [entry.id]: e.target.value }))}
+                              className="glass-input px-3 py-2 text-xs w-full min-w-[180px]"
                             />
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap">
                               <button
-                                onClick={() => markAsCompleted(payout.id)}
-                                disabled={processingId === payout.id}
-                                className="glass-button glass-button-success text-sm flex-1"
+                                onClick={() => markAsConfirmed(entry.id)}
+                                disabled={processingId === entry.id}
+                                className="glass-button glass-button-primary text-xs flex-1"
                               >
-                                {processingId === payout.id ? "Processing..." : "Mark Paid"}
+                                {processingId === entry.id ? "..." : "Confirm Paid"}
                               </button>
                               <button
-                                onClick={() => cancelPayout(payout.id)}
-                                disabled={processingId === payout.id}
-                                className="glass-button glass-button-danger text-sm"
+                                onClick={() => markAsDisputed(entry.id)}
+                                disabled={processingId === entry.id}
+                                className="glass-button text-xs border border-yellow-500/40 text-yellow-400"
+                              >
+                                Dispute
+                              </button>
+                              <button
+                                onClick={() => cancelPayout(entry.id)}
+                                disabled={processingId === entry.id}
+                                className="glass-button text-xs border border-red-500/40 text-red-400"
                               >
                                 Cancel
                               </button>
                             </div>
-                            <p className="text-xs glass-text-muted mt-1">
-                              Send {payout.amount.toFixed(2)} π manually via Pi Browser first, then paste TXID here
-                            </p>
                           </div>
                         )}
-                        {payout.status === "completed" && (
-                          <div className="text-sm">
-                            <p className="text-green-400 font-medium">Completed</p>
-                            {payout.pi_txid && (
-                              <p className="text-xs glass-text-muted font-mono mt-1">
-                                TX: {payout.pi_txid.slice(0, 20)}...
-                              </p>
-                            )}
-                            {payout.notes && (
-                              <p className="text-xs glass-text-muted mt-1">{payout.notes}</p>
-                            )}
+                        {entry.payment_status === "payment_confirmed" && (
+                          <div className="text-xs">
+                            <p className="text-green-400 font-medium">Payment confirmed ✓</p>
+                            {entry.notes && <p className="glass-text-muted mt-1">{entry.notes}</p>}
                           </div>
                         )}
-                        {payout.status === "cancelled" && (
-                          <div className="text-sm">
-                            <p className="text-red-400 font-medium">Cancelled</p>
-                            {payout.notes && (
-                              <p className="text-xs glass-text-muted mt-1">{payout.notes}</p>
-                            )}
+                        {entry.payment_status === "disputed" && (
+                          <div className="text-xs">
+                            <p className="text-red-400 font-medium">⚠️ Disputed</p>
+                            {entry.notes && <p className="glass-text-muted mt-1">{entry.notes}</p>}
+                            <button
+                              onClick={() => markAsConfirmed(entry.id)}
+                              disabled={processingId === entry.id}
+                              className="glass-button glass-button-primary text-xs mt-2"
+                            >
+                              Resolve &amp; Confirm
+                            </button>
                           </div>
+                        )}
+                        {entry.payment_status === "cancelled" && (
+                          <p className="text-xs text-gray-500">Cancelled{entry.notes ? `: ${entry.notes}` : ""}</p>
                         )}
                       </td>
                     </tr>
@@ -389,13 +413,13 @@ export default function AdminPayoutsPage() {
 
         {/* Instructions */}
         <div className="glass-card mt-8 p-6">
-          <h3 className="text-lg font-bold glass-text mb-4">Payout Instructions</h3>
+          <h3 className="text-lg font-bold glass-text mb-4">Payment Ledger Guide</h3>
           <ol className="list-decimal list-inside space-y-2 text-sm glass-text-muted">
-            <li>When a freelancer requests a payout, it appears here with status &quot;pending&quot;</li>
-            <li>Open Pi Browser and manually send the exact amount to the freelancer&apos;s wallet</li>
-            <li>Copy the Pi transaction ID (txid) from your Pi Browser payment history</li>
-            <li>Paste the TXID in the input field and click &quot;Mark Paid&quot;</li>
-            <li>The system will update the status and notify the freelancer</li>
+            <li><strong className="glass-text">payment_sent</strong> — Tasker says they sent Pi. Verify by checking the blockchain TXID.</li>
+            <li>Open your Pi Wallet and confirm you received the correct amount from the tasker.</li>
+            <li>If correct, enter the TXID and click <strong className="glass-text">Confirm Paid</strong> to close the record.</li>
+            <li>If something is wrong, click <strong className="glass-text">Dispute</strong> to flag it for review.</li>
+            <li>When Pi A2U becomes available, this ledger will drive automatic payouts.</li>
           </ol>
         </div>
       </div>

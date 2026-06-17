@@ -18,8 +18,13 @@ export async function POST(req: Request) {
       const decoded = jwt.verify(accessToken, APP_ACCESS_TOKEN);
       return NextResponse.json({ success: true, verified: true, user: decoded });
     } catch (err) {
-      console.warn("⚠️ Token verification failed, possibly mock/local login:", err);
-      // fallback for localhost testing
+      // In production: reject unverified tokens outright
+      if (process.env.NODE_ENV === "production") {
+        console.warn("⚠️ Token verification failed in production — rejecting");
+        return NextResponse.json({ error: "Token verification failed" }, { status: 401 });
+      }
+      // On localhost only: allow through for dev testing
+      console.warn("⚠️ Token verification failed, allowing through in dev mode");
       return NextResponse.json({ success: true, verified: false, user });
     }
   } catch (error) {
