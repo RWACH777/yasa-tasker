@@ -146,6 +146,7 @@ export default function DashboardPage() {
   const [notificationCount, setNotificationCount] = useState(0);
   const [messageCount, setMessageCount] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showMembershipModal, setShowMembershipModal] = useState(false);
 
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [showMyTasks, setShowMyTasks] = useState(false);
@@ -187,6 +188,18 @@ export default function DashboardPage() {
         .eq("user_id", authUserId)
         .maybeSingle();
       setIsAdmin(!!adminData);
+
+      // Check membership expiry — show modal if expired (skip for admins)
+      if (!adminData) {
+        const { data: membershipData } = await supabase
+          .from("memberships")
+          .select("status, last_paid_at, started_at, created_at")
+          .eq("user_id", authUserId)
+          .maybeSingle();
+        if (membershipIsExpired(membershipData)) {
+          setShowMembershipModal(true);
+        }
+      }
     }
   };
 
@@ -2589,6 +2602,34 @@ const handleUpdateFreelancerUsername = async () => {
 
       {/* Hidden canvas for image cropping */}
       <canvas ref={canvasRef} className="hidden"></canvas>
+
+      {/* MEMBERSHIP EXPIRED MODAL */}
+      {showMembershipModal && (
+        <div className="fixed inset-0 glass-overlay flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-sm glass-modal p-6 flex flex-col items-center text-center gap-4">
+            <div className="text-4xl">🔒</div>
+            <h2 className="text-lg font-bold glass-text">Membership Expired</h2>
+            <p className="glass-text-muted text-sm">
+              Your membership has expired. Please purchase a membership to continue posting tasks, applying to tasks, and using AI tools.
+            </p>
+            <div className="flex flex-col gap-2 w-full">
+              <a
+                href="/membership"
+                className="glass-button glass-button-primary w-full py-2 text-sm text-center"
+                onClick={() => setShowMembershipModal(false)}
+              >
+                Purchase Membership
+              </a>
+              <button
+                onClick={() => setShowMembershipModal(false)}
+                className="glass-button w-full py-2 text-sm text-white/60"
+              >
+                Continue Browsing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

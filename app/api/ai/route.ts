@@ -51,9 +51,9 @@ const isMembershipActive = (membership: any): boolean => {
   if (!membership) return false;
   if (membership.status === "expired") return false;
   if (membership.status === "pending_review") return false;
-  const baseDate = membership.last_paid_at || membership.started_at || membership.created_at;
-  if (!baseDate) return false;
-  const daysSince = Math.floor((Date.now() - new Date(baseDate).getTime()) / (1000 * 60 * 60 * 24));
+  // AI is only for paid members — last_paid_at must be set
+  if (!membership.last_paid_at) return false;
+  const daysSince = Math.floor((Date.now() - new Date(membership.last_paid_at).getTime()) / (1000 * 60 * 60 * 24));
   return daysSince < 30;
 };
 
