@@ -2073,9 +2073,13 @@ const handleUpdateFreelancerUsername = async () => {
                   const prompt = form.description.trim()
                     ? `Improve this task description for a freelance marketplace. Task title: "${form.title}". Current description: "${form.description}". Make it clear, specific, and professional. Return only the improved description.`
                     : `Write a clear, specific task description for a freelance marketplace task titled: "${form.title}". Be professional and mention what deliverables are expected. Return only the description text.`;
+                  const { data: { session: aiSession } } = await supabase.auth.getSession();
                   const res = await fetch("/api/ai", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                      "Content-Type": "application/json",
+                      ...(aiSession?.access_token ? { Authorization: `Bearer ${aiSession.access_token}` } : {}),
+                    },
                     body: JSON.stringify({ tool: "improve_writing", content: prompt }),
                   });
                   const data = await res.json();
