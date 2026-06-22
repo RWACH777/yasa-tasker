@@ -23,7 +23,24 @@ interface Task {
   updated_at: string;
   ai_allowed?: boolean;
   completion_type?: string;
+  is_remote?: boolean;
+  location_continent?: string;
+  location_country?: string;
+  location_region?: string;
+  location_city?: string;
+  location_suburb?: string;
 }
+
+const CONTINENTS = ["Africa", "Asia", "Europe", "North America", "South America", "Oceania"];
+
+const COUNTRIES_BY_CONTINENT: Record<string, string[]> = {
+  "Africa": ["Algeria","Angola","Botswana","Cameroon","Côte d'Ivoire","DR Congo","Egypt","Ethiopia","Ghana","Kenya","Libya","Madagascar","Malawi","Mali","Morocco","Mozambique","Namibia","Nigeria","Rwanda","Senegal","Sierra Leone","Somalia","South Africa","South Sudan","Sudan","Tanzania","Tunisia","Uganda","Zambia","Zimbabwe"],
+  "Asia": ["Afghanistan","Bangladesh","Cambodia","China","Georgia","India","Indonesia","Iran","Iraq","Israel","Japan","Jordan","Kazakhstan","Kuwait","Kyrgyzstan","Laos","Lebanon","Malaysia","Mongolia","Myanmar","Nepal","North Korea","Oman","Pakistan","Palestine","Philippines","Qatar","Saudi Arabia","Singapore","South Korea","Sri Lanka","Syria","Taiwan","Tajikistan","Thailand","Turkmenistan","UAE","Uzbekistan","Vietnam","Yemen"],
+  "Europe": ["Albania","Austria","Belarus","Belgium","Bosnia & Herzegovina","Bulgaria","Croatia","Cyprus","Czech Republic","Denmark","Estonia","Finland","France","Germany","Greece","Hungary","Iceland","Ireland","Italy","Kosovo","Latvia","Lithuania","Luxembourg","Malta","Moldova","Montenegro","Netherlands","North Macedonia","Norway","Poland","Portugal","Romania","Russia","Serbia","Slovakia","Slovenia","Spain","Sweden","Switzerland","Turkey","Ukraine","United Kingdom"],
+  "North America": ["Bahamas","Belize","Canada","Costa Rica","Cuba","Dominican Republic","El Salvador","Guatemala","Haiti","Honduras","Jamaica","Mexico","Nicaragua","Panama","Puerto Rico","Trinidad & Tobago","United States"],
+  "South America": ["Argentina","Bolivia","Brazil","Chile","Colombia","Ecuador","Guyana","Paraguay","Peru","Suriname","Uruguay","Venezuela"],
+  "Oceania": ["Australia","Fiji","Kiribati","Marshall Islands","Micronesia","Nauru","New Zealand","Palau","Papua New Guinea","Samoa","Solomon Islands","Tonga","Tuvalu","Vanuatu"],
+};
 
 interface Profile {
   id: string;
@@ -56,6 +73,8 @@ export default function DashboardPage() {
   const [form, setForm] = useState<{
     id: string; title: string; description: string; category: string;
     budget: string; deadline: string; completion_type: string; ai_allowed: boolean;
+    is_remote: boolean; location_continent: string; location_country: string;
+    location_region: string; location_city: string; location_suburb: string;
   }>({
     id: "",
     title: "",
@@ -65,9 +84,17 @@ export default function DashboardPage() {
     deadline: "",
     completion_type: "ai_plus_human",
     ai_allowed: false,
+    is_remote: true,
+    location_continent: "",
+    location_country: "",
+    location_region: "",
+    location_city: "",
+    location_suburb: "",
   });
   const [message, setMessage] = useState("");
   const [filter, setFilter] = useState("all");
+  const [locationFilter, setLocationFilter] = useState("");
+  const [countryFilter, setCountryFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [isSubmittingApplication, setIsSubmittingApplication] = useState(false);
 
@@ -572,6 +599,12 @@ export default function DashboardPage() {
       completion_type: form.completion_type,
       ai_allowed: form.ai_allowed,
       updated_at: new Date().toISOString(),
+      is_remote: form.is_remote,
+      location_continent: form.is_remote ? null : (form.location_continent || null),
+      location_country: form.is_remote ? null : (form.location_country || null),
+      location_region: form.is_remote ? null : (form.location_region || null),
+      location_city: form.is_remote ? null : (form.location_city || null),
+      location_suburb: form.is_remote ? null : (form.location_suburb || null),
     };
 
     console.log("📝 Submitting task with data:", taskData);
@@ -609,6 +642,12 @@ export default function DashboardPage() {
       deadline: "",
       completion_type: "ai_plus_human",
       ai_allowed: false,
+      is_remote: true,
+      location_continent: "",
+      location_country: "",
+      location_region: "",
+      location_city: "",
+      location_suburb: "",
     });
     fetchTasks();
     loadProfileTasks();
@@ -624,6 +663,12 @@ export default function DashboardPage() {
       deadline: task.deadline.split("T")[0],
       completion_type: task.completion_type || "ai_plus_human",
       ai_allowed: task.ai_allowed ?? false,
+      is_remote: task.is_remote !== false,
+      location_continent: task.location_continent || "",
+      location_country: task.location_country || "",
+      location_region: task.location_region || "",
+      location_city: task.location_city || "",
+      location_suburb: task.location_suburb || "",
     });
   };
 
@@ -2197,6 +2242,73 @@ const handleUpdateFreelancerUsername = async () => {
             </button>
           </div>
 
+          {/* Task Location */}
+          <div className="space-y-2">
+            <label className="text-xs glass-text-muted">Task Location</label>
+            <div className="flex items-center justify-between py-2 px-3 glass-card">
+              <div>
+                <p className="text-sm glass-text">Remote / Online Task?</p>
+                <p className="text-xs glass-text-muted">Can be completed from anywhere</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, is_remote: !form.is_remote })}
+                className={`relative flex-shrink-0 w-12 h-6 rounded-full transition-colors overflow-hidden ${form.is_remote ? "bg-blue-500" : "bg-white/20"}`}
+              >
+                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-200 ${form.is_remote ? "left-7" : "left-1"}`} />
+              </button>
+            </div>
+            {!form.is_remote && (
+              <div className="space-y-2">
+                <select
+                  value={form.location_continent}
+                  onChange={(e) => setForm({ ...form, location_continent: e.target.value, location_country: "", location_region: "", location_city: "", location_suburb: "" })}
+                  className="w-full glass-select px-4 py-2 text-sm"
+                >
+                  <option value="">Select continent</option>
+                  {CONTINENTS.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                {form.location_continent && (
+                  <select
+                    value={form.location_country}
+                    onChange={(e) => setForm({ ...form, location_country: e.target.value, location_region: "", location_city: "", location_suburb: "" })}
+                    className="w-full glass-select px-4 py-2 text-sm"
+                  >
+                    <option value="">Select country</option>
+                    {(COUNTRIES_BY_CONTINENT[form.location_continent] || []).map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                )}
+                {form.location_country && (
+                  <input
+                    type="text"
+                    placeholder="Region / State (optional)"
+                    value={form.location_region}
+                    onChange={(e) => setForm({ ...form, location_region: e.target.value })}
+                    className="w-full glass-input px-4 py-2 text-sm"
+                  />
+                )}
+                {form.location_country && (
+                  <input
+                    type="text"
+                    placeholder="City"
+                    value={form.location_city}
+                    onChange={(e) => setForm({ ...form, location_city: e.target.value })}
+                    className="w-full glass-input px-4 py-2 text-sm"
+                  />
+                )}
+                {form.location_city && (
+                  <input
+                    type="text"
+                    placeholder="Suburb / Area (optional)"
+                    value={form.location_suburb}
+                    onChange={(e) => setForm({ ...form, location_suburb: e.target.value })}
+                    className="w-full glass-input px-4 py-2 text-sm"
+                  />
+                )}
+              </div>
+            )}
+          </div>
+
           <button
             type="submit"
             className="w-full glass-button glass-button-primary py-2"
@@ -2208,26 +2320,56 @@ const handleUpdateFreelancerUsername = async () => {
 
       {/* TASK LIST */}
       <div className="w-full max-w-3xl glass-panel p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold glass-text">Available Tasks</h2>
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="glass-select px-3 py-1 text-sm"
-          >
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat.charAt(0).toUpperCase() + cat.slice(1)}
-              </option>
-            ))}
-          </select>
+        <div className="mb-4 space-y-2">
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-semibold glass-text">Available Tasks</h2>
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="glass-select px-3 py-1 text-sm"
+            >
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <select
+              value={locationFilter}
+              onChange={(e) => { setLocationFilter(e.target.value); setCountryFilter(""); }}
+              className="glass-select px-3 py-1 text-sm flex-1 min-w-0"
+            >
+              <option value="">🌍 All Locations</option>
+              <option value="remote">🌐 Remote Only</option>
+              {CONTINENTS.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            {locationFilter && locationFilter !== "remote" && (
+              <select
+                value={countryFilter}
+                onChange={(e) => setCountryFilter(e.target.value)}
+                className="glass-select px-3 py-1 text-sm flex-1 min-w-0"
+              >
+                <option value="">All Countries</option>
+                {(COUNTRIES_BY_CONTINENT[locationFilter] || []).map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            )}
+          </div>
         </div>
 
         {tasks.length === 0 ? (
           <p className="glass-text-muted text-sm">No tasks found.</p>
         ) : (
           <div className="space-y-4">
-            {tasks.map((task) => (
+            {tasks
+              .filter(task => {
+                if (!locationFilter) return true;
+                if (locationFilter === "remote") return task.is_remote !== false;
+                return task.location_continent === locationFilter;
+              })
+              .filter(task => !countryFilter || task.location_country === countryFilter)
+              .map((task) => (
               <div
                 key={task.id}
                 className={`glass-list-item p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center${task.status === "completed" ? " opacity-50 grayscale" : ""}`}
@@ -2245,6 +2387,13 @@ const handleUpdateFreelancerUsername = async () => {
                       <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">⚡ AI Allowed</span>
                     ) : (
                       <span className="text-xs bg-white/10 text-white/60 px-2 py-0.5 rounded-full">👤 Human Only</span>
+                    )}
+                    {task.is_remote === false ? (
+                      <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full">
+                        📍 {[task.location_city, task.location_country].filter(Boolean).join(", ") || task.location_continent}
+                      </span>
+                    ) : (
+                      <span className="text-xs bg-green-500/20 text-green-300 px-2 py-0.5 rounded-full">🌐 Remote</span>
                     )}
                   </div>
                   {task.status === "completed" && (
